@@ -1457,9 +1457,9 @@ async function loadDentalTooth(fdi) {
     dentalAtlasPanel.querySelectorAll('[data-tooth-layer]').forEach(input=>input.checked=true);
     applyDentalToothLayers();
     activeExperience='dental-scope';
-    camera.lowerRadiusLimit=.25;camera.upperRadiusLimit=20;
     camera.alpha=-Math.PI/2.1;camera.beta=1.15;camera.radius=3.4;
     camera.setTarget(new Vector3(0,.1,0));
+    setTimeout(() => fitVisibleSceneToSquare(cached.records.map(record => record.mesh)), 80);
     document.getElementById('selection-name').textContent=dentalToothLabel(Number(id));
     document.getElementById('selection-description').textContent='نموذج ثلاثي الأبعاد بطبقات داخلية مشتقة من سطح السن؛ ترتيبها التعليمي لا يمثل قياسًا نسيجيًا سريريًا.';
     status.textContent='تم تحميل '+recordsForTooth(cached).length+' مجسمات طبقية للسن FDI '+id+'.';
@@ -2121,8 +2121,13 @@ function animateTreatmentNode(node, destination, rotation) {
     'ChairsideToolPosition', 'position', 30,
     Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT
   );
+  const startPosition = node.position.clone();
+  const arcMidpoint = Vector3.Lerp(startPosition, destination, 0.5).add(new Vector3(0, 0.28, 0));
+  const startRotation = node.rotation.clone();
+  const midRotation = Vector3.Lerp(startRotation, rotation, 0.5);
   positionAnimation.setKeys([
-    { frame: 0, value: node.position.clone() },
+    { frame: 0, value: startPosition },
+    { frame: 45, value: arcMidpoint },
     { frame: 90, value: destination.clone() }
   ]);
   const rotationAnimation = new Animation(
@@ -2130,7 +2135,8 @@ function animateTreatmentNode(node, destination, rotation) {
     Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT
   );
   rotationAnimation.setKeys([
-    { frame: 0, value: node.rotation.clone() },
+    { frame: 0, value: startRotation },
+    { frame: 45, value: midRotation },
     { frame: 90, value: rotation.clone() }
   ]);
   const ease = new CubicEase();
