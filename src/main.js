@@ -8,6 +8,45 @@ import {
   ExecuteCodeAction, PointerEventTypes, Animation, CubicEase, EasingFunction
 } from '@babylonjs/core';
 
+
+const workspaceLayout = document.querySelector('.layout');
+const mobileDrawerBackdrop = document.createElement('div');
+mobileDrawerBackdrop.className = 'mobile-panel-backdrop';
+mobileDrawerBackdrop.hidden = true;
+workspaceLayout?.appendChild(mobileDrawerBackdrop);
+const mobileDrawers = [
+  { button: document.getElementById('mobile-open-controls'), panel: document.getElementById('sidebar-right') },
+  { button: document.getElementById('mobile-open-library'), panel: document.getElementById('sidebar-left') }
+];
+function closeMobileDrawers() {
+  for (const item of mobileDrawers) {
+    item.panel?.classList.remove('mobile-open');
+    item.button?.setAttribute('aria-expanded', 'false');
+  }
+  mobileDrawerBackdrop.hidden = true;
+}
+function openMobileDrawer(panelId) {
+  const item = mobileDrawers.find(entry => entry.panel?.id === panelId);
+  if (!item || window.matchMedia('(min-width: 761px)').matches) return;
+  closeMobileDrawers();
+  item.panel.classList.add('mobile-open');
+  item.button?.setAttribute('aria-expanded', 'true');
+  mobileDrawerBackdrop.hidden = false;
+}
+for (const item of mobileDrawers) {
+  item.button?.addEventListener('click', () => {
+    if (item.panel?.classList.contains('mobile-open')) closeMobileDrawers();
+    else openMobileDrawer(item.panel.id);
+  });
+}
+mobileDrawerBackdrop.addEventListener('click', closeMobileDrawers);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeMobileDrawers();
+});
+window.addEventListener('resize', () => {
+  if (window.matchMedia('(min-width: 761px)').matches) closeMobileDrawers();
+});
+
 const canvas = document.getElementById('render-canvas');
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, antialias: false });
 engine.setHardwareScalingLevel(1.15);
@@ -406,6 +445,7 @@ function setCamera(mode) {
     const view = views[mode] || views.orbit;
     camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'treatment') {
@@ -418,6 +458,7 @@ function setCamera(mode) {
     const view = views[mode] || views.orbit;
     camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'dental-scope') {
@@ -430,6 +471,8 @@ function setCamera(mode) {
     const view=views[mode]||views.orbit;
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
+  setTimeout(fitVisibleSceneToSquare, 120);
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'body-anatomy') {
@@ -442,6 +485,7 @@ function setCamera(mode) {
     const view=views[mode]||views.orbit;
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'people') {
@@ -454,6 +498,7 @@ function setCamera(mode) {
     const view = peopleViews[mode] || peopleViews.orbit;
     camera.alpha=view[0]; camera.beta=view[1]; camera.radius=view[2]; camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'anatomy') {
@@ -466,6 +511,7 @@ function setCamera(mode) {
     const view = angles[mode] || angles.orbit;
     camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'clinic-pack') {
@@ -478,6 +524,7 @@ function setCamera(mode) {
     const view = angles[mode] || angles.orbit;
     camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   const presets = {
@@ -490,6 +537,39 @@ function setCamera(mode) {
   camera.alpha=p[0]; camera.beta=p[1]; camera.radius=p[2]; camera.setTarget(p[3]);
   document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
 }
+
+function fitVisibleSceneToSquare() {
+  if (!scene || !camera || scene.isDisposed) return;
+  const min = new Vector3(Infinity, Infinity, Infinity);
+  const max = new Vector3(-Infinity, -Infinity, -Infinity);
+  let found = 0;
+  for (const mesh of scene.meshes) {
+    try {
+      if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0 || !mesh.isVisible || !mesh.isEnabled()) continue;
+      mesh.computeWorldMatrix(true);
+      const bounds = mesh.getBoundingInfo()?.boundingBox;
+      if (!bounds) continue;
+      min.minimizeInPlace(bounds.minimumWorld);
+      max.maximizeInPlace(bounds.maximumWorld);
+      found += 1;
+    } catch (error) {
+      console.debug('Skipping mesh while fitting camera bounds.', mesh.name, error);
+    }
+  }
+  if (!found) return;
+  const center = min.add(max).scale(0.5);
+  const diagonal = max.subtract(min).length();
+  const boundingRadius = Math.max(diagonal * 0.5, 0.65);
+  const safeFov = Math.max(0.35, Math.min(camera.fov || 0.8, 1.25));
+  const fitRadius = Math.max(1.6, (boundingRadius / Math.sin(safeFov * 0.5)) * 1.12);
+  camera.setTarget(center);
+  camera.radius = fitRadius;
+  camera.lowerRadiusLimit = Math.max(0.8, fitRadius * 0.52);
+  camera.upperRadiusLimit = Math.max(fitRadius * 2.5, fitRadius + 4);
+  camera.panningSensibility = 0;
+  camera.maxZ = Math.max(100, fitRadius * 30);
+}
+
 document.querySelectorAll('.camera-button').forEach(b=>b.addEventListener('click',()=>setCamera(b.dataset.camera)));
 document.getElementById('reset-camera').addEventListener('click',()=>setCamera('orbit'));
 document.getElementById('toggle-room').addEventListener('change',e=>room.setEnabled(e.target.checked));
@@ -1547,7 +1627,7 @@ async function ensurePediatricDentition() {
   setPediatricStatus('جارٍ تحميل 10 نماذج أسنان لبنية مرخصة من جامعة دندي…');
   const localRoot = new URL('pediatric-dentition/', localModelRoot).href;
   try {
-    const loaded = await Promise.all(pediatricToothCatalog.map(async tooth => {
+    const results = await Promise.allSettled(pediatricToothCatalog.map(async tooth => {
       let container;
       try {
         container = await SceneLoader.LoadAssetContainerAsync(localRoot, tooth.file, scene);
@@ -1568,9 +1648,11 @@ async function ensurePediatricDentition() {
       }
       return { ...tooth, container, group: mounted.group, placement, meshes };
     }));
-    pediatricRecords.push(...loaded);
+    pediatricRecords.push(...results.filter(result => result.status === 'fulfilled').map(result => result.value));
+    const failedCount = results.length - pediatricRecords.length;
+    if (!pediatricRecords.length) throw new Error('لم يتم تحميل أي نموذج من مجموعة الأسنان اللبنية.');
     pediatricRoot.setEnabled(true);
-    setPediatricStatus('تم تحميل 10 نماذج أسنان لبنية منفصلة. المجموعة تمثل الأسنان اليسرى فقط، وليست فكًا كاملًا.', 'ok');
+    setPediatricStatus('تم تحميل ' + pediatricRecords.length + ' من 10 نماذج أسنان لبنية.' + (failedCount ? ' تعذر تحميل ' + failedCount + ' نماذج؛ النماذج المتاحة تعمل.' : '') + ' المجموعة تمثل الأسنان اليسرى فقط، وليست فكًا كاملًا.', failedCount ? 'warn' : 'ok');
     renderPediatricToothGrid();
   } catch (error) {
     console.error('Primary dentition models could not be loaded.', error);
@@ -1594,7 +1676,7 @@ function renderPediatricToothGrid(filter='') {
   if (!grid) return;
   const query = String(filter || '').toLowerCase().trim();
   grid.replaceChildren();
-  for (const tooth of pediatricToothCatalog) {
+  for (const tooth of (pediatricRecords.length ? pediatricRecords : pediatricToothCatalog)) {
     if (query && !tooth.fdi.includes(query) && !tooth.label.toLowerCase().includes(query)) continue;
     const button = document.createElement('button');
     button.type = 'button';
@@ -2034,7 +2116,7 @@ function animateTreatmentNode(node, destination, rotation) {
   );
   positionAnimation.setKeys([
     { frame: 0, value: node.position.clone() },
-    { frame: 48, value: destination.clone() }
+    { frame: 90, value: destination.clone() }
   ]);
   const rotationAnimation = new Animation(
     'ChairsideToolRotation', 'rotation', 30,
@@ -2042,13 +2124,13 @@ function animateTreatmentNode(node, destination, rotation) {
   );
   rotationAnimation.setKeys([
     { frame: 0, value: node.rotation.clone() },
-    { frame: 48, value: rotation.clone() }
+    { frame: 90, value: rotation.clone() }
   ]);
   const ease = new CubicEase();
   ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
   positionAnimation.setEasingFunction(ease);
   rotationAnimation.setEasingFunction(ease);
-  scene.beginDirectAnimation(node, [positionAnimation, rotationAnimation], 0, 48, false);
+  scene.beginDirectAnimation(node, [positionAnimation, rotationAnimation], 0, 90, false);
 }
 let isPatientMouthOpen = true;
 let isPropAtMouth = false;
@@ -2075,12 +2157,12 @@ document.getElementById('patient-mouth-toggle')?.addEventListener('click', () =>
   const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
   animation.setKeys([
     { frame: 0, value: patientJawPivot.rotation.x },
-    { frame: 24, value: isPatientMouthOpen ? .24 : 0 }
+    { frame: 54, value: isPatientMouthOpen ? .24 : 0 }
   ]);
   const ease = new CubicEase();
   ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
   animation.setEasingFunction(ease);
-  scene.beginDirectAnimation(patientJawPivot, [animation], 0, 24, false);
+  scene.beginDirectAnimation(patientJawPivot, [animation], 0, 54, false);
   document.getElementById('patient-mouth-toggle').textContent = isPatientMouthOpen ? 'إغلاق الفم' : 'فتح الفم';
   document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم في النموذج التوضيحي.' : 'تم إغلاق الفم في النموذج التوضيحي.';
 });
@@ -2333,14 +2415,22 @@ setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتب
 setTimeout(() => showTreatmentExperience(), 50);
 
 document.getElementById('mesh-count').textContent=String(scene.meshes.length);
+const isCompactDevice = window.matchMedia('(max-width: 760px)').matches || (navigator.hardwareConcurrency || 4) <= 4;
+engine.setHardwareScalingLevel(isCompactDevice ? 1.3 : 1.0);
+const targetFrameRate = isCompactDevice ? 30 : 45;
 let lastFrameTime = 0;
-engine.runRenderLoop(()=>{
+engine.runRenderLoop(() => {
   const now = performance.now();
-  const frameInterval = activeExperience === 'body-anatomy' ? 100 : 1000 / 30;
+  const frameInterval = activeExperience === 'body-anatomy'
+    ? 1000 / (isCompactDevice ? 20 : 30)
+    : 1000 / targetFrameRate;
   if (now - lastFrameTime < frameInterval) return;
   lastFrameTime = now;
   scene.render();
 });
-window.addEventListener('resize',()=>engine.resize());
+window.addEventListener('resize', () => {
+  engine.resize();
+  requestAnimationFrame(() => setTimeout(fitVisibleSceneToSquare, 100));
+});
 document.getElementById('loading').classList.add('hidden');
 setTimeout(()=>document.getElementById('loading')?.remove(),500);
