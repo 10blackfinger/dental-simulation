@@ -26,6 +26,11 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await page.locator('#view-people').click();
   await expect(page.locator('#asset-status')).toContainText('وضع الشخصيات');
   await expect(page.locator('#view-people')).toHaveClass(/selected/);
+  await expect(page.locator('#patient-model-status')).toContainText('تم تحميل', { timeout: 30000 });
+  await page.locator('#patient-female').click();
+  await expect(page.locator('#patient-model-status')).toContainText('المريضة', { timeout: 30000 });
+  await page.locator('#patient-male').click();
+  await expect(page.locator('#patient-model-status')).toContainText('المريض', { timeout: 30000 });
 
   await page.locator('#view-dental-atlas').click();
   await expect(page.locator('#dental-atlas-status')).toContainText('الأطلس السني جاهز', { timeout: 60000 });

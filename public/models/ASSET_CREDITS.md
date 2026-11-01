@@ -78,3 +78,13 @@ Those character models are static rather than rigged/animated according to their
 - **Runtime behavior:** shared jaw/context/neurovascular meshes load on opening the dental atlas. Detailed tooth layers are loaded on demand when the user chooses an FDI tooth. The preparation script pins each file to its GitHub blob SHA and exact byte size and rejects altered, partial or non-GLB data.
 - **Modeling limits:** the source project labels several dental layers and measurements as schematic/estimated rather than measured tissue segmentation. Canal configurations, landmarks and paths should not be presented as universal anatomy. Some cranial paths and nerve branches are explicitly schematic and remain subject to specialist review.
 - **ShareAlike:** attribution must be retained, sources linked, changes noted, and derivative model files redistributed under the corresponding ShareAlike licence. Do not combine these model licences with the project's code licence.
+
+
+## 7. Male and female patient characters (CC0)
+
+- **Source repository:** [OSCE Sim](https://github.com/Rishi-Sureshkumar/osce-sim), pinned commit `2ec3eac67b986ea838bb64a2375d63eb3bfbeac5`.
+- **Models:** `patient.glb` (68-year-old male patient) and `patient-female.glb` (young adult female patient).
+- **Licence:** CC0 1.0 Universal for the MakeHuman 1.x base mesh, core assets, rig/weights and exported character models, as recorded in the source project's `public/models/LICENSE.md` and the [MakeHuman asset licence](https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md).
+- **Source models:** `patient.glb` (447,192 bytes; Git blob SHA `ff8e88f3faac09d23577d6b21e741e2d8f440b4d`); `patient-female.glb` (445,616 bytes; Git blob SHA `516b8323004ab3248e640070ee7a860f01978f84`).
+- **Rig:** the source project builds a reduced 57-bone rig. These models are loaded as skinned GLB assets; this application does not currently provide a clinically reviewed pose/animation library for them.
+- **Use in this application:** patient figure selection in the character preview. The characters are visual teaching assets, not patient-specific representations, and must not be used to infer clinical appearance or outcomes.

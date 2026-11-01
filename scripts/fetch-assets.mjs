@@ -31,6 +31,24 @@ const assets = [
     source: 'Écorché — BodyParts3D and Z-Anatomy, pinned commit 320805e06aee51e2e6f6b22533eb2a59d43f2d4d',
     expectedGitBlobSha1: '769efcb5b01a772225fd8bb39cb44fb127c753cd',
     expectedMinBytes: 14_000_000
+  },
+  {
+    file: 'patient-male.glb',
+    url: 'https://raw.githubusercontent.com/Rishi-Sureshkumar/osce-sim/2ec3eac67b986ea838bb64a2375d63eb3bfbeac5/public/models/patient.glb',
+    license: 'CC0 1.0 Universal',
+    source: 'OSCE Sim patient.glb; built from MakeHuman 1.x core assets and a 57-bone reduced rig',
+    expectedBytes: 447192,
+    expectedGitBlobSha1: 'ff8e88f3faac09d23577d6b21e741e2d8f440b4d',
+    expectedMinBytes: 447192
+  },
+  {
+    file: 'patient-female.glb',
+    url: 'https://raw.githubusercontent.com/Rishi-Sureshkumar/osce-sim/2ec3eac67b986ea838bb64a2375d63eb3bfbeac5/public/models/patient-female.glb',
+    license: 'CC0 1.0 Universal',
+    source: 'OSCE Sim patient-female.glb; built from MakeHuman 1.x core assets and a 57-bone reduced rig',
+    expectedBytes: 445616,
+    expectedGitBlobSha1: '516b8323004ab3248e640070ee7a860f01978f84',
+    expectedMinBytes: 445616
   }
 ];
 
