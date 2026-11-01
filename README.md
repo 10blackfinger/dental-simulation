@@ -1,67 +1,73 @@
 # Dental Simulation
 
-A browser-based dental education prototype built with Vite and Babylon.js. The application is Arabic-first (RTL), with an interactive 3D viewport, imported GLB asset packs, an oral anatomy explorer and guided educational checklists.
+Arabic-first 3D dental education prototype built with Vite and Babylon.js.
 
-## Included in the current build
+## Current modules
 
-### 3D assets
-- **Dental practice scene:** a 54-model CC0 asset pack from 3DAssets.dev, including the clinic areas, dental chairs and delivery equipment, operating lights, stools, suction, cabinetry, x-ray equipment, instruments, sterilisation equipment, lab equipment, reception and waiting areas.
-- **Oral anatomy:** 33 separately selectable structures adapted by OrganUI from BodyParts3D / Anatomography 4.3. It contains 28 permanent teeth, upper and lower gingiva, both maxillae and the mandible.
-- Models are fetched automatically before `npm run dev` and `npm run build`. The oral anatomy file is verified against a pinned SHA-256 hash before it is accepted.
-- The project keeps a procedural fallback scene if a remote asset cannot be obtained.
+### Integrated chairside encounter
+- Default experience combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
+- Male and female CC0 MakeHuman-derived GLB patient figures can be selected. The source has a reduced 57-bone rig, but this application currently uses a fixed horizontal pose, not clinically reviewed skeletal animations.
+- The mouth can be opened or closed by the user. A selected instrument or material prop can be moved slowly between tray and mouth by explicit user action.
+- Camera orbit/front/side/top views and a separate clinic-only scene remain available.
 
-See [3D asset credits, source provenance and licences](public/models/ASSET_CREDITS.md). Dental Scope assets are under CC BY-SA 2.1 Japan and CC BY-SA 4.0 (neurovascular contribution); the individual source credits and ShareAlike obligations are recorded there.
+### 3D assets and anatomy
+- 54-model CC0 dental practice scene pack.
+- 33 selectable oral anatomy structures adapted from BodyParts3D / Anatomography.
+- Dental Scope atlas with 415 named registry entries, 32 FDI permanent tooth files, per-tooth tissue layer files, jaws, context and a neurovascular extension.
+- Full-body anatomy atlas with 634 named structures.
+- Male/female CC0 MakeHuman-derived patient figures.
+- Models are downloaded and integrity-checked during predev/prebuild. The asset downloader does not edit or replace picture files.
 
-### Interactive training
-- Orbit, front, side and top camera presets.
-- Toggle room, dental unit, jaw, and instruments in the fallback scene.
-- Select oral-anatomy structures by clicking the model or using the searchable structure list.
-- Isolate one anatomical structure or restore the full model.
-- A separate character-preview scene with an imported adult male and female patient character (CC0 / MakeHuman-derived, 57-bone source rig) and original procedural dentist/assistant stand-ins. The imported patient models are rigged assets but the application has not yet added clinically validated dental-chair poses or procedural animations.
-- Full-body anatomy atlas with 634 named bones, cartilages, teeth, eyes and muscle structures from Écorché, including layer toggles, surface-muscle transparency, search and isolation.
-- Four guided educational checklists: primary exam, restoration concepts, endodontic principles and oral hygiene.
-- Training progress is stored locally in the current browser and can be exported as JSON. No login is required and no patient identifiers are collected.
+See [3D asset credits and licences](public/models/ASSET_CREDITS.md).
+
+### Instruments and materials catalogue
+The searchable inventory includes examination instruments, probes, handpieces, burs, rubber-dam and matrix systems, curing light, endodontic files/accessories, extraction and surgical instruments, periodontal scalers/curettes, prosthodontic and orthodontic items, restorative/endodontic/prosthetic materials and PPE. Each entry has a purpose and a caution note. This is an educational starter inventory, not a complete purchasing catalogue or substitute for manufacturer instructions.
+
+### Guided learning pathways
+Eleven case pathways cover initial examination, caries/restoration, endodontics, oral hygiene, extraction assessment, periodontal care, crowns/prosthodontics, implant assessment, orthodontic assessment, dental trauma and acute dental problems. They provide staged explanations, progress tracking, references and JSON export. These checklists are not complete procedure simulations, validated treatment protocols or competency assessments.
+
+### Local dental education assistant
+The UI includes a local Qwen3.5 chat assistant through Ollama. The default model is qwen3.5:4b; 9B and 27B choices are available for more capable hardware. The Qwen3.5-4B model card lists Apache-2.0. When connected to a local Ollama server, inference runs on the user's computer and no API key is stored in this frontend.
+
+Important: Qwen3.5 is a general open-weight model, not a dental-specialist model and not fine-tuned on a clinician-validated dental dataset. The app gives it a dental-focused system prompt and a small curated source index. It can still hallucinate; check answers against the cited original guidance and a qualified supervisor.
+
+See [local AI setup](docs/LOCAL_AI_SETUP.md) and [clinical references and limits](docs/CLINICAL_REFERENCES.md).
 
 ## Run locally
+Requires Node.js 22+ and internet access for the initial model download.
 
-Requires Node.js 22 or newer and an internet connection for the first asset download.
+    npm install
+    npm run dev
 
-```bash
-npm install
-npm run dev
-```
+## Validate and build
 
-The `predev` script fetches and verifies the required models. Then open the local Vite address printed in the terminal.
+    npm run check
+    npm run build
+    npm run preview
+    npm run test:e2e
 
-## Build and validate
-
-```bash
-npm run check
-npm run build
-npm run preview
-npm run test:e2e
-```
-
-The `prebuild` script prepares the GLB assets before Vite creates the production bundle. The browser smoke suite loads both GLB models, switches between scenes, checks the structure list and completes a training checklist. The downloaded binary files are ignored by Git to keep the repository source manageable; they are included in the generated `dist/models/` output.
+The browser smoke test covers the integrated treatment view, inventory selection, user-triggered object movement, anatomy viewers, patient selection and a guided case.
 
 ## Deployment
+GitHub Actions builds and deploys the static site to GitHub Pages. In Settings → Pages, choose GitHub Actions as the source.
 
-The repository includes a GitHub Actions workflow to build and deploy the static site to GitHub Pages. In **Settings → Pages**, choose **GitHub Actions** as the build and deployment source. The public URL is normally:
+Expected address: https://10blackfinger.github.io/dental-simulation/
 
-`https://10blackfinger.github.io/dental-simulation/`
+The address is live only when the latest workflow build, browser tests and Pages deployment all succeed.
 
-The URL will work only after Pages is enabled and the Actions deployment succeeds.
-
-## Scope and clinical safety
-
-This is an educational visual prototype, not a clinical device, diagnostic system, or validated clinical-skills simulator. The full-practice scene is a static scene; the included pack does not supply clinically validated device physics or complete chair/device animation. The dentist and assistant remain simplified geometric stand-ins, with no skeleton rig or facial animation. The imported patient figures contain a source skeleton but no application-level pose or procedure animation is claimed. The anatomy source omits wisdom teeth, primary dentition, tooth tissue layers, nerves, vessels, TMJs and several oral structures. Character rigs, procedure physics, haptic feedback, validated scoring and specialist-reviewed clinical cases are not yet implemented.
-
-The anatomy provider's documentation says independent specialist review is pending. Dental educators and qualified specialists must review the geometry, terminology and educational workflows before use in a formal curriculum. Never use this prototype to diagnose or treat a patient.
+## Known limitations
+- The imported patient is displayed in a fixed horizontal pose. There is no validated animation library, breathing, facial animation, lip/tongue rig or patient response system.
+- Dentist and assistant are procedural geometric stand-ins, not photorealistic or fully rigged characters.
+- Instrument/material props are simplified. There is no force feedback, haptics, collision/contact simulation, bur cutting, tissue deformation, irrigation physics, fluid suction simulation or validated instrument calibration.
+- The imported clinic pack is static. Some chair controls are available only in the procedural fallback and do not actuate the static imported equipment.
+- The 11 pathways are explanatory checklists, not exhaustive coverage of every disease or rare case, full procedure walkthroughs or validated scoring.
+- Some anatomy structures are schematic/estimated and require dental-specialist review.
+- The AI helper is general Qwen3.5 with a prompt and source index, not a fine-tuned dental foundation model or diagnostic model.
+- GitHub Pages is static hosting. The user must run Ollama locally and allow the specific website origin; cloud inference and shared user data are not configured.
+- Investor/university release still requires specialist content review, asset/licence review, visual QA on target devices, performance profiling and accessibility testing.
 
 ## Privacy
+No login is required. Training progress stays in the current browser's local storage. Exported reports contain scenario progress only. Do not enter real patient names, photographs or identifiable clinical records.
 
-There are no user accounts. Training checklists are stored in browser local storage on the current device. Exported reports contain scenario progress and timestamps only; do not enter real patient information.
-
-## No image files are overwritten
-
-The asset-preparation script only writes GLB model files and a generated asset manifest under `public/models/`. It does not edit, replace or delete existing pictures or screenshots.
+## Picture files
+The model preparation script writes model files and a generated manifest inside public/models only. It does not edit, replace or delete screenshots, photos or other picture files.
