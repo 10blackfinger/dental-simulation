@@ -31,6 +31,7 @@
             <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
             <button id="view-people" class="asset-switch-button" type="button"><b>الشخصيات</b><small>طبيب ومريض ومساعد</small></button>
             <button id="view-dental-atlas" class="asset-switch-button" type="button"><b>الأطلس السني المتقدم</b><small>32 سنًا + أعصاب + مفاصل</small></button>
+            <button id="view-pediatric" class="asset-switch-button" type="button"><b>أطلس الأسنان اللبنية</b><small>10 نماذج من جامعة دندي — CC BY</small></button>
             <button id="view-body" class="asset-switch-button" type="button"><b>التشريح الكامل</b><small>634 تركيبًا — عظام وعضلات</small></button>
           </div>
           <p id="asset-status" class="asset-status" role="status">تحميل مكتبة المجسمات عند بدء التشغيل…</p>
@@ -107,6 +108,15 @@
             <button id="dental-restore-structures" class="small-action" type="button">إظهار الكل</button>
           </div>
           <p class="asset-license-note">المصدر BodyParts3D 3.0 (DBCLS) بترخيص CC BY-SA 2.1 Japan. طبقات الأعصاب والأوعية مستمدة جزئيًا من Z-Anatomy بترخيص CC BY-SA 4.0. الإسناد الكامل وحدود الأجزاء التخطيطية موثقة في ASSET_CREDITS.md.</p>
+        </section>
+        <section id="pediatric-section" class="control-section pediatric-section" hidden>
+          <h2>مكتبة الأسنان اللبنية</h2>
+          <p class="asset-license-note">نماذج أسنان لبنية مفردة من جامعة دندي. المجموعة المتاحة هنا عشرة نماذج للجانب الأيسر العلوي والسفلي، وليست فكًا لبنيًا كاملًا أو نموذجًا للأسنان المختلطة.</p>
+          <input id="pediatric-tooth-search" class="text-filter" type="search" placeholder="ابحث برقم FDI أو نوع السن…" aria-label="البحث في الأسنان اللبنية">
+          <div id="pediatric-tooth-grid" class="pediatric-tooth-grid"></div>
+          <div id="pediatric-atlas-status" class="case-progress" role="status">تحميل مكتبة الأسنان اللبنية…</div>
+          <div id="pediatric-tooth-detail" class="inventory-detail">اختر سنًا لبنيًا لعرضه منفصلًا داخل المشهد ثلاثي الأبعاد.</div>
+          <p class="asset-license-note">الموديلات © University of Dundee, School of Dentistry — CC BY 4.0. راجع ملف الاعتمادات لمعرفة المصدر والتعديلات.</p>
         </section>
         <section id="body-section" class="control-section body-section" hidden>
           <h2>مستكشف الجسم البشري</h2>
@@ -197,6 +207,7 @@
             <option value="ortho">تقييم تقويمي</option>
             <option value="trauma">إصابات الأسنان</option>
             <option value="emergency">تقييم حالة طارئة</option>
+            <option value="pediatric">تقييم أسنان الأطفال والأسنان اللبنية</option>
           </select>
           <div id="case-description" class="case-description">تسلسل تعليمي لفحص المريض وتنظيم الملاحظات قبل وضع خطة العلاج.</div>
           <div class="progress-track"><span id="case-progress-bar"></span></div>
