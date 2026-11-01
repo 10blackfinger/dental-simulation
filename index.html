@@ -223,14 +223,19 @@
         <section class="control-section ai-assistant-section" id="ai-assistant-section">
           <h2>مساعد طب الأسنان بالذكاء الاصطناعي</h2>
           <p class="asset-license-note">يتصل بنموذج Qwen3.5 محليًا عبر Ollama. الأسئلة لا تغادر جهازك عند استخدام الخادم المحلي.</p>
+          <label class="field-label" for="ai-provider">طريقة تشغيل المساعد</label>
+          <select id="ai-provider" class="scenario-select">
+            <option value="ollama">Qwen3.5 عبر Ollama — تشغيل محلي أبسط</option>
+            <option value="openai-compatible">PALL-Text 8B عبر vLLM — نموذج سني متخصص (إنجليزي)</option>
+          </select>
           <label class="field-label" for="ai-model">النموذج المحلي</label>
           <select id="ai-model" class="scenario-select">
             <option value="qwen3.5:4b">Qwen3.5 4B — مناسب كبداية</option>
             <option value="qwen3.5:9b">Qwen3.5 9B — يحتاج ذاكرة أكبر</option>
             <option value="qwen3.5:27b">Qwen3.5 27B — جهاز قوي</option>
           </select>
-          <label class="field-label" for="ai-endpoint">عنوان Ollama</label>
-          <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم Ollama">
+          <label class="field-label" for="ai-endpoint">عنوان خادم النموذج المحلي</label>
+          <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم النموذج المحلي">
           <div class="button-row"><button id="ai-connect" class="small-action primary-action" type="button">اختبار الاتصال</button><span id="ai-status" class="ai-status">غير متصل</span></div>
           <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">اسأل عن التشريح أو الأدوات أو المبادئ التعليمية. يلزم تشغيل Ollama وتحميل النموذج محليًا أولًا.</div></div>
           <form id="ai-form" class="ai-form">
@@ -239,8 +244,14 @@
           </form>
           <details class="ai-setup">
             <summary>إعداد المساعد المحلي</summary>
+            <strong>الخيار الأول — Qwen3.5 عبر Ollama</strong>
             <code>ollama pull qwen3.5:4b</code>
-            <p>ثم شغّل Ollama على نفس الجهاز. قد تحتاج إلى السماح لأصل الموقع ضمن OLLAMA_ORIGINS في إعدادات الخادم. لا تضع مفاتيح سرية داخل ملفات الواجهة.</p>
+            <p>شغّل Ollama محليًا، واسمح لأصل الموقع ضمن OLLAMA_ORIGINS.</p>
+            <strong>الخيار المتقدم — PALL‑Text عبر vLLM</strong>
+            <code>pip install vllm</code>
+            <code>vllm serve Harisundar/PALL-Text --host 127.0.0.1 --port 8000</code>
+            <p>PALL‑Text نموذج سني متخصص باللغة الإنجليزية، وترخيص أوزانه Llama 3.1 Community License. اقرأ شروط الترخيص قبل الاستخدام التجاري. قد يحتاج إعداد GPU وذاكرة مناسبة.</p>
+            <p>التفاصيل في docs/LOCAL_AI_SETUP.md. لا تضع مفاتيح سرية داخل ملفات الواجهة.</p>
           </details>
           <p class="asset-license-note">المساعد ليس طبيبًا ولا مصدرًا للتشخيص أو وصف العلاج. راجع الأدلة الأصلية والمشرف المختص، ولا ترسل بيانات مرضى حقيقية.</p>
         </section>
