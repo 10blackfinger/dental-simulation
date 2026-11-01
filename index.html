@@ -248,8 +248,8 @@
             <code>ollama pull qwen3.5:4b</code>
             <p>شغّل Ollama محليًا، واسمح لأصل الموقع ضمن OLLAMA_ORIGINS.</p>
             <strong>الخيار المتقدم — PALL‑Text عبر vLLM</strong>
-            <code>pip install vllm</code>
-            <code>vllm serve Harisundar/PALL-Text --host 127.0.0.1 --port 8000</code>
+            <code>pip install "vllm>=0.32.0"</code>
+            <code>vllm serve Harisundar/PALL-Text --host 127.0.0.1 --port 8000 --allowed-origins https://10blackfinger.github.io http://localhost:5173 --allowed-methods GET POST OPTIONS --allowed-headers Content-Type</code>
             <p>PALL‑Text نموذج سني متخصص باللغة الإنجليزية، وترخيص أوزانه Llama 3.1 Community License. اقرأ شروط الترخيص قبل الاستخدام التجاري. قد يحتاج إعداد GPU وذاكرة مناسبة.</p>
             <p>التفاصيل في docs/LOCAL_AI_SETUP.md. لا تضع مفاتيح سرية داخل ملفات الواجهة.</p>
           </details>
