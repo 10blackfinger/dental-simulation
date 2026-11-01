@@ -23,6 +23,15 @@
     <main class="layout">
       <aside class="sidebar sidebar-right">
         <div class="section-title"><span class="eyebrow">مساحة العمل</span><h1>عيادة الأسنان</h1><p>نموذج أولي تفاعلي ثلاثي الأبعاد</p></div>
+        <section class="control-section asset-section">
+          <h2>المشاهد والمجسمات</h2>
+          <div class="asset-switch">
+            <button id="view-clinic" class="asset-switch-button selected" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
+            <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
+          </div>
+          <p id="asset-status" class="asset-status" role="status">تحميل مكتبة المجسمات عند بدء التشغيل…</p>
+          <small class="asset-license-note">مصادر المجسمات وتراخيصها موثقة داخل المشروع.</small>
+        </section>
         <section class="control-section">
           <h2>زوايا الكاميرا</h2>
           <div class="segmented">
@@ -38,6 +47,16 @@
           <label class="switch-row"><span>وحدة الأسنان</span><input type="checkbox" id="toggle-unit" checked><i></i></label>
           <label class="switch-row"><span>الفك والأسنان</span><input type="checkbox" id="toggle-jaw" checked><i></i></label>
           <label class="switch-row"><span>أدوات الطبيب</span><input type="checkbox" id="toggle-tools" checked><i></i></label>
+        </section>
+        <section id="anatomy-section" class="control-section anatomy-section" hidden>
+          <h2>مستكشف التراكيب التشريحية</h2>
+          <input id="anatomy-search" class="text-filter" type="search" placeholder="ابحث عن تركيب تشريحي…" aria-label="ابحث في التراكيب التشريحية">
+          <div id="structure-list" class="structure-list"></div>
+          <div class="button-row">
+            <button id="isolate-structure" class="small-action" type="button">عزل المحدد</button>
+            <button id="restore-structures" class="small-action" type="button">إظهار الكل</button>
+          </div>
+          <p class="asset-license-note">المصدر الحالي يضم 28 سنًا دائمًا، ولا يشمل ضروس العقل أو الأسنان اللبنية أو الأعصاب والأوعية.</p>
         </section>
         <section class="control-section">
           <h2>أدوات التدريب</h2>
@@ -65,6 +84,25 @@
           <button id="chair-up" class="action-row"><span class="action-icon">↑</span><span><b>رفع الكرسي</b><small>تغيير ارتفاع المقعد</small></span><span class="chevron">‹</span></button>
           <button id="chair-down" class="action-row"><span class="action-icon">↓</span><span><b>خفض الكرسي</b><small>إرجاع المقعد لأسفل</small></span><span class="chevron">‹</span></button>
           <button id="lamp-toggle" class="action-row"><span class="action-icon">✧</span><span><b>مصباح الفحص</b><small id="lamp-state">الإضاءة تعمل</small></span><span class="chevron">‹</span></button>
+        </section>
+        <section class="control-section training-section">
+          <h2>تدريب إجرائي تعليمي</h2>
+          <label class="field-label" for="scenario-select">اختر سيناريو التدريب</label>
+          <select id="scenario-select" class="scenario-select">
+            <option value="exam">فحص سريري أولي</option>
+            <option value="restoration">خطوات ترميم تعليمي</option>
+            <option value="endo">مبادئ علاج الجذور</option>
+            <option value="hygiene">إزالة اللويحة والتوعية</option>
+          </select>
+          <div id="case-description" class="case-description">تسلسل تعليمي لفحص المريض وتنظيم الملاحظات قبل وضع خطة العلاج.</div>
+          <div class="progress-track"><span id="case-progress-bar"></span></div>
+          <div id="case-progress" class="case-progress">لم يبدأ التدريب</div>
+          <div class="button-row">
+            <button id="start-case" class="small-action primary-action" type="button">ابدأ التدريب</button>
+            <button id="next-step" class="small-action" type="button" disabled>الخطوة التالية</button>
+          </div>
+          <div id="case-feedback" class="case-feedback" aria-live="polite">التدريب محاكاة تعليمية ولا يمثل بروتوكول علاج معتمدًا.</div>
+          <button id="export-report" class="report-button" type="button">تصدير تقرير التدريب JSON</button>
         </section>
         <section class="control-section">
           <h2>حالة المشهد</h2>
