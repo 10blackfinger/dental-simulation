@@ -744,7 +744,7 @@ async function showClinicExperience() {
 
 
 async function showTreatmentExperience() {
-  patientVariantControls.hidden = true;
+  patientVariantControls.hidden = false;
   peopleRoot.setEnabled(false);
   anatomyPanel.hidden = true;
   bodyPanel.hidden = true;
@@ -755,6 +755,7 @@ async function showTreatmentExperience() {
   }
   loadingOverlay?.classList.remove('hidden');
   await ensureClinicModel();
+  await selectPatientVariant(selectedPatientVariant);
   if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
   if (bodyAssetRoot) bodyAssetRoot.setEnabled(false);
   if (dentalScopeRoot) dentalScopeRoot.setEnabled(false);
@@ -817,7 +818,11 @@ async function selectPatientVariant(variant) {
   try {
     const selected=await ensurePatientVariant(variant);
     for(const item of patientVariants.values())item.root.setEnabled(false);
+    selected.root.parent = activeExperience === 'treatment' ? treatmentRoot : peopleRoot;
+    selected.root.position.set(0, activeExperience === 'treatment' ? 1.1 : 0, activeExperience === 'treatment' ? 1.0 : -.1);
+    selected.root.rotation.set(activeExperience === 'treatment' ? -Math.PI/2 : 0, 0, 0);
     selected.root.setEnabled(true);
+    treatmentPatient.setEnabled(activeExperience !== 'treatment');
     proceduralPatient.setEnabled(false);
     selectedPatientVariant=variant;
     patientVariantControls?.querySelectorAll('.patient-variant-button').forEach(button=>{
@@ -830,7 +835,8 @@ async function selectPatientVariant(variant) {
   }catch(error){
     console.error('Patient model could not be loaded',variant,error);
     for(const item of patientVariants.values())item.root.setEnabled(false);
-    proceduralPatient.setEnabled(true);
+    proceduralPatient.setEnabled(activeExperience === 'people');
+    treatmentPatient.setEnabled(activeExperience === 'treatment');
     patientStatus.textContent='تعذر تحميل المجسم الخارجي؛ تم إظهار النموذج البديل داخل المشروع.';
     return false;
   }
