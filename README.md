@@ -28,7 +28,7 @@ The searchable inventory includes examination instruments, probes, handpieces, b
 Twelve case pathways cover initial examination, caries/restoration, endodontics, oral hygiene, extraction assessment, periodontal care, crowns/prosthodontics, implant assessment, orthodontic assessment, dental trauma and acute dental problems and paediatric dentistry. They provide staged explanations, progress tracking, references and JSON export. These checklists are not complete procedure simulations, validated treatment protocols or competency assessments.
 
 ### Local dental education assistant
-The UI includes a local Qwen3.5 chat assistant through Ollama. The default model is qwen3.5:4b; 9B and 27B choices are available for more capable hardware. The Qwen3.5-4B model card lists Apache-2.0. When connected to a local Ollama server, inference runs on the user's computer and no API key is stored in this frontend.
+The UI includes Qwen3.5 through local Ollama (default qwen3.5:4b; 9B and 27B choices) and an optional dental-specialized PALL-Text 8B model through a local vLLM OpenAI-compatible endpoint. Qwen3.5-4B is Apache-2.0. PALL-Text is English-first and distributed under the Llama 3.1 Community License, not Apache-2.0; check its terms before commercial use. Both backends are intended to run on the user's own computer. The PALL server must be bound to localhost and use a narrow CORS allowlist with vLLM 0.32.0 or newer.
 
 Important: Qwen3.5 is a general open-weight model, not a dental-specialist model and not fine-tuned on a clinician-validated dental dataset. The app gives it a dental-focused system prompt and a small curated source index. It can still hallucinate; check answers against the cited original guidance and a qualified supervisor.
 
