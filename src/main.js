@@ -265,9 +265,10 @@ function buildSeatedPatient() {
   }
   return g;
 }
-buildSeatedPatient();
-buildStandingPerson('DentistPreview',-1.35,.25,'coat',false,true);
-buildStandingPerson('AssistantPreview',1.35,.25,'scrubs',true,false);
+const proceduralPatient = buildSeatedPatient();
+proceduralPatient.setEnabled(true);
+buildStandingPerson('DentistPreview',-1.75,.25,'coat',false,true);
+buildStandingPerson('AssistantPreview',1.75,.25,'scrubs',true,false);
 
 // Selection and metadata.
 const descriptions = new Map();
@@ -627,6 +628,8 @@ async function ensureAnatomyModel() {
 }
 
 async function showClinicExperience() {
+  patientVariantControls.hidden = true;
+  peopleRoot.setEnabled(false);
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
   dentalAtlasPanel.hidden=true;
@@ -645,6 +648,7 @@ async function showClinicExperience() {
     setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد، غرفة علاج وتجهيزات ومناطق مساندة.', 'ok');
   }
   if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
+  for(const item of patientVariants.values())item.root.setEnabled(false);
   if (clinicAssetRoot) {
     clinicAssetRoot.setEnabled(true);
     root.setEnabled(false);
@@ -661,6 +665,65 @@ async function showClinicExperience() {
   loadingOverlay?.classList.add('hidden');
 }
 
+
+const patientModelStatus = document.getElementById('patient-model-status');
+const patientVariantControls = document.getElementById('patient-variant-controls');
+const patientVariants = new Map();
+let selectedPatientVariant = 'male';
+async function ensurePatientVariant(variant) {
+  if(patientVariants.has(variant))return patientVariants.get(variant);
+  const settings = variant === 'female'
+    ? {
+        local:'patient-female.glb',
+        remote:'patient-female.glb',
+        label:'المريضة'
+      }
+    : {
+        local:'patient-male.glb',
+        remote:'patient.glb',
+        label:'المريض'
+      };
+  patientModelStatus.textContent='جارٍ تحميل '+settings.label+' ثلاثي الأبعاد…';
+  const container=await loadContainer(
+    settings.local,
+    'https://raw.githubusercontent.com/Rishi-Sureshkumar/osce-sim/2ec3eac67b986ea838bb64a2375d63eb3bfbeac5/public/models/',
+    settings.remote
+  );
+  const mounted=attachCenteredContainer(container,'Patient_'+variant,1.65);
+  mounted.group.parent=peopleRoot;
+  mounted.group.position.x=0;
+  mounted.group.position.z=-.1;
+  mounted.group.setEnabled(false);
+  const model={container,root:mounted.group,label:settings.label};
+  patientVariants.set(variant,model);
+  return model;
+}
+async function selectPatientVariant(variant) {
+  const patientStatus=document.getElementById('patient-model-status');
+  try {
+    const selected=await ensurePatientVariant(variant);
+    for(const item of patientVariants.values())item.root.setEnabled(false);
+    selected.root.setEnabled(true);
+    proceduralPatient.setEnabled(false);
+    selectedPatientVariant=variant;
+    patientVariantControls?.querySelectorAll('.patient-variant-button').forEach(button=>{
+      button.classList.toggle('selected',button.id===(variant==='female'?'patient-female':'patient-male'));
+    });
+    patientStatus.textContent='تم تحميل '+selected.label+' ثلاثي الأبعاد (CC0 / MakeHuman-derived).';
+    document.getElementById('selection-name').textContent=selected.label;
+    document.getElementById('selection-description').textContent='مجسم ثلاثي الأبعاد بملابس طبية وخامات مدمجة. يحتوي ملف المصدر على هيكل عظمي مختزل؛ لم تُضف بعد حركات أو وضعيات علاجية معتمدة.';
+    return true;
+  }catch(error){
+    console.error('Patient model could not be loaded',variant,error);
+    for(const item of patientVariants.values())item.root.setEnabled(false);
+    proceduralPatient.setEnabled(true);
+    patientStatus.textContent='تعذر تحميل المجسم الخارجي؛ تم إظهار النموذج البديل داخل المشروع.';
+    return false;
+  }
+}
+document.getElementById('patient-male')?.addEventListener('click',()=>void selectPatientVariant('male'));
+document.getElementById('patient-female')?.addEventListener('click',()=>void selectPatientVariant('female'));
+
 async function showPeopleExperience() {
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
@@ -676,6 +739,7 @@ async function showPeopleExperience() {
   clinicAssetRoot?.setEnabled(false);
   anatomyAssetRoot?.setEnabled(false);
   peopleRoot.setEnabled(true);
+  patientVariantControls.hidden = false;
   anatomyPanel.hidden = true;
   for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
@@ -683,7 +747,8 @@ async function showPeopleExperience() {
   setProceduralControlsEnabled(false,'clinic');
   camera.lowerRadiusLimit = 3;
   camera.upperRadiusLimit = 12;
-  setAssetStatus('وضع الشخصيات: طبيب أسنان ومريض ومساعد، مجسمات توضيحية مولّدة داخل المشروع وليست شخصيات واقعية أو Rig سريريًا.', 'ok');
+  setAssetStatus('وضع الشخصيات: طبيب ومساعد توضيحيان، مع اختيار مجسم مريض رجل أو امرأة من مكتبة CC0.', 'ok');
+  await selectPatientVariant(selectedPatientVariant);
   document.getElementById('selection-name').textContent = 'فريق عيادة الأسنان';
   document.getElementById('selection-description').textContent = 'شخصيات تعليمية أولية لعرض التوزيع المكاني والأدوار داخل مشهد منفصل.';
   setCamera('orbit');
@@ -691,6 +756,7 @@ async function showPeopleExperience() {
 document.getElementById('view-people')?.addEventListener('click',showPeopleExperience);
 
 async function showAnatomyExperience() {
+  patientVariantControls.hidden = true;
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
   dentalAtlasPanel.hidden=true;
@@ -873,6 +939,7 @@ async function ensureBodyModel() {
   }
 }
 async function showBodyExperience() {
+  patientVariantControls.hidden = true;
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
   dentalAtlasPanel.hidden=true;
@@ -888,6 +955,9 @@ async function showBodyExperience() {
     clinicAssetRoot?.setEnabled(false);
     anatomyAssetRoot?.setEnabled(false);
     root.setEnabled(false);
+    peopleRoot.setEnabled(false);
+    for(const item of patientVariants.values())item.root.setEnabled(false);
+    patientVariantControls.hidden=true;
     bodyAssetRoot.setEnabled(true);
     activeExperience='body-anatomy';
     engine.setHardwareScalingLevel(1.4);
@@ -1215,6 +1285,7 @@ async function ensureDentalScope() {
   }
 }
 async function showDentalAtlasExperience() {
+  patientVariantControls.hidden = true;
   for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
   }

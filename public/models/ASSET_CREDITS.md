@@ -88,3 +88,12 @@ Those character models are static rather than rigged/animated according to their
 - **Source models:** `patient.glb` (447,192 bytes; Git blob SHA `ff8e88f3faac09d23577d6b21e741e2d8f440b4d`); `patient-female.glb` (445,616 bytes; Git blob SHA `516b8323004ab3248e640070ee7a860f01978f84`).
 - **Rig:** the source project builds a reduced 57-bone rig. These models are loaded as skinned GLB assets; this application does not currently provide a clinically reviewed pose/animation library for them.
 - **Use in this application:** patient figure selection in the character preview. The characters are visual teaching assets, not patient-specific representations, and must not be used to infer clinical appearance or outcomes.
+
+## 7. Patient character variants
+
+- **Source:** [OSCE Sim](https://github.com/Rishi-Sureshkumar/osce-sim), pinned commit `2ec3eac67b986ea838bb64a2375d63eb3bfbeac5`.
+- **Models:** `patient.glb` (68-year-old male) and `patient-female.glb` (young adult female).
+- **Licence:** CC0 1.0 Universal for the exported models and MakeHuman core assets. Official [MakeHuman licence](https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md).
+- **Files:** `patient.glb` — 447,192 bytes, Git blob SHA `ff8e88f3faac09d23577d6b21e741e2d8f440b4d`; `patient-female.glb` — 445,616 bytes, Git blob SHA `516b8323004ab3248e640070ee7a860f01978f84`.
+- **Rig:** source project reports a reduced 57-bone rig. They are loaded as skinned GLB assets; this app currently provides no validated patient pose/animation library.
+- **Application use:** optional patient figures in the character-preview scene. They are generic teaching assets, not patient-specific digital twins or diagnostic representations.
