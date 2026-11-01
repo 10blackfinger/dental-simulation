@@ -13,7 +13,7 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await expect(page.locator('#scenario-select option')).toHaveCount(11);
 
   await page.locator('#inventory-category').selectOption('materials');
-  await expect(page.locator('.inventory-item')).toContainText('راتنج كومبوزيت');
+  await expect(page.locator('.inventory-item').filter({hasText:'راتنج كومبوزيت'})).toHaveCount(1);
   await page.locator('.inventory-item').filter({hasText:'راتنج كومبوزيت'}).click();
   await expect(page.locator('#inventory-detail')).toContainText('مادة');
   await page.locator('#tool-to-mouth').click();
