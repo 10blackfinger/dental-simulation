@@ -17,6 +17,7 @@ See [3D asset credits, source provenance and licences](public/models/ASSET_CREDI
 - Toggle room, dental unit, jaw, and instruments in the fallback scene.
 - Select oral-anatomy structures by clicking the model or using the searchable structure list.
 - Isolate one anatomical structure or restore the full model.
+- A separate character-preview scene with original procedural dentist, patient and assistant stand-ins. These are low-detail visual proxies, not realistic or rigged clinical characters.
 - Four guided educational checklists: primary exam, restoration concepts, endodontic principles and oral hygiene.
 - Training progress is stored locally in the current browser and can be exported as JSON. No login is required and no patient identifiers are collected.
 
@@ -51,7 +52,7 @@ The URL will work only after Pages is enabled and the Actions deployment succeed
 
 ## Scope and clinical safety
 
-This is an educational visual prototype, not a clinical device, diagnostic system, or validated clinical-skills simulator. The full-practice scene is a static scene; the included pack does not supply clinically validated device physics or complete chair/device animation. The anatomy source omits wisdom teeth, primary dentition, tooth tissue layers, nerves, vessels, TMJs and several oral structures. Character rigs, procedure physics, haptic feedback, validated scoring and specialist-reviewed clinical cases are not yet implemented.
+This is an educational visual prototype, not a clinical device, diagnostic system, or validated clinical-skills simulator. The full-practice scene is a static scene; the included pack does not supply clinically validated device physics or complete chair/device animation. The separate human figures are simplified geometric stand-ins, with no skeleton rig, facial animation or clinically realistic hand articulation. The anatomy source omits wisdom teeth, primary dentition, tooth tissue layers, nerves, vessels, TMJs and several oral structures. Character rigs, procedure physics, haptic feedback, validated scoring and specialist-reviewed clinical cases are not yet implemented.
 
 The anatomy provider's documentation says independent specialist review is pending. Dental educators and qualified specialists must review the geometry, terminology and educational workflows before use in a formal curriculum. Never use this prototype to diagnose or treat a patient.
 

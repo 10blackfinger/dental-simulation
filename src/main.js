@@ -51,12 +51,24 @@ material('tooth', '#fff0d8', 0.32);
 material('accent', '#35c5b0', 0.3);
 material('rubber', '#29323b');
 material('glass', '#9ed9df', 0.2, 0.35);
+material('skin', '#bb8060', 0.78);
+material('hair', '#302820', 0.82);
+material('coat', '#f5f4ed', 0.55);
+material('scrubs', '#138d8c', 0.5);
+material('trousers', '#24394e', 0.8);
+material('mask', '#a4d5cf', 0.62);
+material('eye', '#f7f5ef', 0.4);
+material('pupil', '#262a30', 0.5);
+material('shoe', '#273441', 0.55);
+material('gown', '#8ab9c8', 0.7);
 
 const root = new TransformNode('ClinicRoot', scene);
 const room = new TransformNode('RoomGroup', scene); room.parent = root;
 const unit = new TransformNode('DentalUnitGroup', scene); unit.parent = root;
 const jawGroup = new TransformNode('JawGroup', scene); jawGroup.parent = root;
 const toolGroup = new TransformNode('InstrumentGroup', scene); toolGroup.parent = root;
+const peopleRoot = new TransformNode('PeoplePreviewRoot', scene);
+peopleRoot.setEnabled(false);
 
 function box(name, size, pos, mat, parent, extra = {}) {
   const mesh = MeshBuilder.CreateBox(name, size, scene);
@@ -174,6 +186,88 @@ probeHandle.rotation.z = -.28;
 tube('DentalProbeTip',[[-1.95,2.04,.1],[-1.9,2.28,.12],[-1.78,2.38,.16]],.018,'metal',toolGroup);
 sphere('ProbeGrip',.1,[-1.95,1.55,.1],'accent',toolGroup,[1,2,1]);
 
+// Character preview lab: original educational stand-ins, not scanned people or clinical avatars.
+box('PeopleStageFloor',[5.7,.14,4.7],[0,-.08,0],'floor',peopleRoot);
+box('PeopleStageBack',[5.7,3.4,.12],[0,1.58,-2.4],'wall',peopleRoot);
+box('PeopleStageAccent',[5.7,.1,.14],[0,.04,-2.29],'teal',peopleRoot);
+box('PeopleStageLeft',[.12,3.0,4.7],[-2.85,1.45,0],'wall',peopleRoot);
+box('PeopleStageRight',[.12,3.0,4.7],[2.85,1.45,0],'wall',peopleRoot);
+
+function addPersonFace(prefix, group, y, z, skinName = 'skin', hairName = 'hair', mask = false) {
+  sphere(prefix+'_Head',.43,[0,y,z],skinName,group,[.9,1.08,.85]);
+  sphere(prefix+'_HairCap',.45,[0,y+.12,z-.015],hairName,group,[1.02,.54,.92]);
+  sphere(prefix+'_EarL',.09,[-.19,y,z+.005],skinName,group);
+  sphere(prefix+'_EarR',.09,[.19,y,z+.005],skinName,group);
+  for (const side of [-1,1]) {
+    sphere(prefix+'_EyeWhite_'+side,.075,[side*.075,y+.025,z+.175],'eye',group,[1,.85,.45]);
+    sphere(prefix+'_Pupil_'+side,.036,[side*.075,y+.02,z+.205],'pupil',group);
+  }
+  sphere(prefix+'_Nose',.075,[0,y-.04,z+.2],skinName,group,[.75,1,.72]);
+  if (mask) {
+    box(prefix+'_SurgicalMask',[.24,.115,.035],[0,y-.105,z+.205],'mask',group);
+    tube(prefix+'_MaskBandL',[[-.12,y-.09,z+.19],[-.22,y-.06,z+.08]],.012,'mask',group);
+    tube(prefix+'_MaskBandR',[[.12,y-.09,z+.19],[.22,y-.06,z+.08]],.012,'mask',group);
+  } else {
+    tube(prefix+'_Mouth',[[-.055,y-.145,z+.18],[0,y-.16,z+.19],[.055,y-.145,z+.18]],.009,'pupil',group);
+  }
+}
+
+function buildStandingPerson(prefix, x, z, clothing, masked = false, withCoat = false) {
+  const group = new TransformNode(prefix, scene);
+  group.parent = peopleRoot;
+  group.position.set(x,0,z);
+  sphere(prefix+'_Pelvis',.46,[0,.85,0],withCoat?'trousers':clothing,group,[.74,.75,.55]);
+  sphere(prefix+'_Torso',.82,[0,1.23,0],withCoat?'coat':clothing,group,[.79,.78,.48]);
+  if (withCoat) {
+    box(prefix+'_Shirt',[.2,.48,.035],[0,1.22,.205],'scrubs',group);
+    box(prefix+'_CoatLeft',[.14,.55,.06],[-.16,1.23,.19],'coat',group);
+    box(prefix+'_CoatRight',[.14,.55,.06],[.16,1.23,.19],'coat',group);
+    for(let i=0;i<3;i++) sphere(prefix+'_Button'+i,.035,[0,1.05+i*.15,.25],'metal',group);
+    tube(prefix+'_StethoscopeL',[[0,1.6,.19],[-.12,1.48,.22],[-.12,1.15,.24]],.023,'dark',group);
+    tube(prefix+'_StethoscopeR',[[0,1.6,.19],[.12,1.48,.22],[.12,1.15,.24]],.023,'dark',group);
+    sphere(prefix+'_StethoscopeChest',.07,[.12,1.1,.25],'metal',group);
+  } else {
+    box(prefix+'_ScrubPocket',[.2,.16,.035],[0,1.24,.213],'tealDark',group);
+  }
+  cylinder(prefix+'_Neck',.18,.15,[0,1.67,0],'skin',group,20);
+  addPersonFace(prefix,group,1.91,.01,'skin','hair',masked);
+  for(const side of [-1,1]) {
+    tube(prefix+'_Arm_'+side,[[side*.28,1.46,0],[side*.39,1.2,.035],[side*.38,.98,.12]],.095,withCoat?'coat':clothing,group);
+    sphere(prefix+'_Hand_'+side,.17,[side*.38,.91,.14],'skin',group,[.75,1,.8]);
+    tube(prefix+'_Leg_'+side,[[side*.12,.79,0],[side*.14,.44,.015],[side*.15,.14,.04]],.115,'trousers',group);
+    sphere(prefix+'_Shoe_'+side,.25,[side*.15,.09,.13],'shoe',group,[1,.38,1.45]);
+  }
+  return group;
+}
+
+function buildSeatedPatient() {
+  const g = new TransformNode('PatientPreview',scene);
+  g.parent = peopleRoot;
+  box('PatientChairBase',[.92,.16,1.15],[0,.3,-.32],'dark',g);
+  cylinder('PatientChairColumn',.48,.24,[0,.61,-.32],'metal',g);
+  box('PatientChairSeat',[.98,.2,.92],[0,.86,-.33],'teal',g);
+  const backrest=box('PatientChairBack',[.96,.18,1.12],[0,1.38,-.76],'teal',g);
+  backrest.rotation.x=-.22;
+  box('PatientHeadSupport',[.48,.16,.34],[0,1.96,-.9],'tealDark',g);
+  box('PatientFootRest',[.82,.13,.5],[0,.62,.35],'tealDark',g);
+  sphere('PatientPelvis',.45,[0,.99,-.35],'gown',g,[.85,.72,.6]);
+  const torso=sphere('PatientTorso',.82,[0,1.43,-.66],'gown',g,[.83,.8,.52]);
+  torso.rotation.x=-.22;
+  cylinder('PatientNeck',.16,.14,[0,1.83,-.82],'skin',g,20);
+  addPersonFace('Patient',g,2.03,-.85);
+  for(const side of [-1,1]) {
+    tube('PatientArm_'+side,[[side*.28,1.58,-.62],[side*.42,1.27,-.34],[side*.43,1.0,-.08]],.085,'gown',g);
+    sphere('PatientHand_'+side,.15,[side*.43,.98,-.04],'skin',g);
+    tube('PatientThigh_'+side,[[side*.14,.91,-.2],[side*.16,.7,.12],[side*.16,.62,.38]],.11,'gown',g);
+    tube('PatientShin_'+side,[[side*.16,.62,.38],[side*.16,.45,.55],[side*.16,.33,.67]],.095,'gown',g);
+    sphere('PatientFoot_'+side,.22,[side*.16,.3,.76],'skin',g,[.8,.55,1.5]);
+  }
+  return g;
+}
+buildSeatedPatient();
+buildStandingPerson('DentistPreview',-1.35,.25,'coat',false,true);
+buildStandingPerson('AssistantPreview',1.35,.25,'scrubs',true,false);
+
 // Selection and metadata.
 const descriptions = new Map();
 function describe(mesh, title, detail) {
@@ -217,6 +311,18 @@ scene.onPointerObservable.add((pointerInfo) => {
 });
 
 function setCamera(mode) {
+  if (activeExperience === 'people') {
+    const peopleViews = {
+      orbit: [Math.PI/2,1.12,6.2,new Vector3(0,1.05,0)],
+      front: [Math.PI/2,1.2,6.2,new Vector3(0,1.05,0)],
+      side: [0,1.18,6.2,new Vector3(0,1.05,0)],
+      top: [Math.PI/2,.25,6.5,new Vector3(0,1.0,0)]
+    };
+    const view = peopleViews[mode] || peopleViews.orbit;
+    camera.alpha=view[0]; camera.beta=view[1]; camera.radius=view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    return;
+  }
   if (activeExperience === 'anatomy') {
     const angles = {
       orbit: [-Math.PI / 2.3, 1.05, 5.4, new Vector3(0, 0.05, 0)],
@@ -483,6 +589,7 @@ async function ensureAnatomyModel() {
 
 async function showClinicExperience() {
   activeExperience = 'clinic-pack';
+  peopleRoot.setEnabled(false);
   anatomyPanel.hidden = true;
   document.getElementById('view-clinic')?.classList.add('selected');
   document.getElementById('view-anatomy')?.classList.remove('selected');
@@ -505,7 +612,28 @@ async function showClinicExperience() {
   loadingOverlay?.classList.add('hidden');
 }
 
+async function showPeopleExperience() {
+  activeExperience = 'people';
+  root.setEnabled(false);
+  clinicAssetRoot?.setEnabled(false);
+  anatomyAssetRoot?.setEnabled(false);
+  peopleRoot.setEnabled(true);
+  anatomyPanel.hidden = true;
+  for (const id of ['view-clinic','view-anatomy','view-people']) {
+    document.getElementById(id)?.classList.toggle('selected',id==='view-people');
+  }
+  setProceduralControlsEnabled(false,'clinic');
+  camera.lowerRadiusLimit = 3;
+  camera.upperRadiusLimit = 12;
+  setAssetStatus('وضع الشخصيات: طبيب أسنان ومريض ومساعد، مجسمات توضيحية مولّدة داخل المشروع وليست شخصيات واقعية أو Rig سريريًا.', 'ok');
+  document.getElementById('selection-name').textContent = 'فريق عيادة الأسنان';
+  document.getElementById('selection-description').textContent = 'شخصيات تعليمية أولية لعرض التوزيع المكاني والأدوار داخل مشهد منفصل.';
+  setCamera('orbit');
+}
+document.getElementById('view-people')?.addEventListener('click',showPeopleExperience);
+
 async function showAnatomyExperience() {
+  peopleRoot.setEnabled(false);
   document.getElementById('view-clinic')?.classList.remove('selected');
   document.getElementById('view-anatomy')?.classList.add('selected');
   loadingOverlay?.classList.remove('hidden');
