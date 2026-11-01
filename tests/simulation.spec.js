@@ -56,10 +56,34 @@ test('online tutor, square responsive workspace, dental models and training work
   const desktopSquare = await page.locator('.viewport').boundingBox();
   expect(desktopSquare).not.toBeNull();
   expect(Math.abs(desktopSquare.width - desktopSquare.height)).toBeLessThanOrEqual(2);
-  const desktopPage = await page.evaluate(() => ({
-    scrollHeight: document.documentElement.scrollHeight,
-    innerHeight: window.innerHeight
-  }));
+  const desktopPage = await page.evaluate(() => {
+    const overflowing = [...document.querySelectorAll('body *')].map(element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        tag: element.tagName,
+        id: element.id,
+        className: typeof element.className === 'string' ? element.className : '',
+        top: Math.round(rect.top),
+        bottom: Math.round(rect.bottom),
+        height: Math.round(rect.height),
+        position: style.position,
+        overflow: style.overflow,
+        scrollHeight: element.scrollHeight
+      };
+    }).filter(item => item.bottom > window.innerHeight + 2 || item.top < -2)
+      .sort((a, b) => b.bottom - a.bottom).slice(0, 18);
+    return {
+      scrollHeight: document.documentElement.scrollHeight,
+      bodyScrollHeight: document.body.scrollHeight,
+      innerHeight: window.innerHeight,
+      appShell: document.querySelector('.app-shell')?.getBoundingClientRect().toJSON(),
+      layout: document.querySelector('.layout')?.getBoundingClientRect().toJSON(),
+      viewport: document.querySelector('.viewport')?.getBoundingClientRect().toJSON(),
+      overflowing
+    };
+  });
+  console.log('DESKTOP_WORKSPACE_DIAGNOSTIC', JSON.stringify(desktopPage));
   expect(desktopPage.scrollHeight).toBeLessThanOrEqual(desktopPage.innerHeight + 2);
 
   // Important GLBs and registries must exist in the deployed base path, not only on a developer machine.
