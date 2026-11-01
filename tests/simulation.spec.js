@@ -10,6 +10,13 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريض', { timeout: 30000 });
   await expect(page.locator('#patient-variant-controls')).toBeVisible();
   await expect(page.locator('#ai-assistant-section')).toBeVisible();
+  await page.locator('#ai-provider').selectOption('openai-compatible');
+  await expect(page.locator('#ai-model option')).toHaveCount(1);
+  await expect(page.locator('#ai-model')).toHaveValue('Harisundar/PALL-Text');
+  await expect(page.locator('#ai-endpoint')).toHaveValue('http://localhost:8000');
+  await page.locator('#ai-provider').selectOption('ollama');
+  await expect(page.locator('#ai-model option')).toHaveCount(3);
+  await expect(page.locator('#ai-endpoint')).toHaveValue('http://localhost:11434');
   await expect(page.locator('#scenario-select option')).toHaveCount(12);
 
   await page.locator('#inventory-category').selectOption('materials');
