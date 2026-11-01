@@ -1,0 +1,134 @@
+[
+  {
+    "id": "upper-right-central-incisor",
+    "label": "القاطع المركزي — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-right-lateral-incisor",
+    "label": "القاطع الجانبي — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-right-canine",
+    "label": "الناب — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-right-first-premolar",
+    "label": "الضاحك الأول — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-right-second-premolar",
+    "label": "الضاحك الثاني — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-right-first-molar",
+    "label": "الضرس الأول — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-right-second-molar",
+    "label": "الضرس الثاني — الفك العلوي الأيمن"
+  },
+  {
+    "id": "upper-left-central-incisor",
+    "label": "القاطع المركزي — الفك العلوي الأيسر"
+  },
+  {
+    "id": "upper-left-lateral-incisor",
+    "label": "القاطع الجانبي — الفك العلوي الأيسر"
+  },
+  {
+    "id": "upper-left-canine",
+    "label": "الناب — الفك العلوي الأيسر"
+  },
+  {
+    "id": "upper-left-first-premolar",
+    "label": "الضاحك الأول — الفك العلوي الأيسر"
+  },
+  {
+    "id": "upper-left-second-premolar",
+    "label": "الضاحك الثاني — الفك العلوي الأيسر"
+  },
+  {
+    "id": "upper-left-first-molar",
+    "label": "الضرس الأول — الفك العلوي الأيسر"
+  },
+  {
+    "id": "upper-left-second-molar",
+    "label": "الضرس الثاني — الفك العلوي الأيسر"
+  },
+  {
+    "id": "lower-left-central-incisor",
+    "label": "القاطع المركزي — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-left-lateral-incisor",
+    "label": "القاطع الجانبي — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-left-canine",
+    "label": "الناب — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-left-first-premolar",
+    "label": "الضاحك الأول — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-left-second-premolar",
+    "label": "الضاحك الثاني — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-left-first-molar",
+    "label": "الضرس الأول — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-left-second-molar",
+    "label": "الضرس الثاني — الفك السفلي الأيسر"
+  },
+  {
+    "id": "lower-right-central-incisor",
+    "label": "القاطع المركزي — الفك السفلي الأيمن"
+  },
+  {
+    "id": "lower-right-lateral-incisor",
+    "label": "القاطع الجانبي — الفك السفلي الأيمن"
+  },
+  {
+    "id": "lower-right-canine",
+    "label": "الناب — الفك السفلي الأيمن"
+  },
+  {
+    "id": "lower-right-first-premolar",
+    "label": "الضاحك الأول — الفك السفلي الأيمن"
+  },
+  {
+    "id": "lower-right-second-premolar",
+    "label": "الضاحك الثاني — الفك السفلي الأيمن"
+  },
+  {
+    "id": "lower-right-first-molar",
+    "label": "الضرس الأول — الفك السفلي الأيمن"
+  },
+  {
+    "id": "lower-right-second-molar",
+    "label": "الضرس الثاني — الفك السفلي الأيمن"
+  },
+  {
+    "id": "upper-gum",
+    "label": "اللثة العلوية"
+  },
+  {
+    "id": "lower-gum",
+    "label": "اللثة السفلية"
+  },
+  {
+    "id": "right-maxilla",
+    "label": "عظم الفك العلوي الأيمن"
+  },
+  {
+    "id": "left-maxilla",
+    "label": "عظم الفك العلوي الأيسر"
+  },
+  {
+    "id": "mandible",
+    "label": "عظم الفك السفلي"
+  }
+]
