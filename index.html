@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101827" />
+  <meta name="description" content="منصة تعليمية تفاعلية لمحاكاة عيادة الأسنان ثلاثية الأبعاد" />
+  <title>Dental Simulation | محاكاة طب الأسنان</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Dental Simulation">
+        <span class="brand-icon">DS</span>
+        <span><b>Dental Simulation</b><small>مختبر التدريب الافتراضي</small></span>
+      </a>
+      <div class="topbar-right">
+        <span class="live-state"><i></i> المشهد جاهز</span>
+        <button id="reset-camera" class="button button-quiet">إعادة ضبط الكاميرا</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar sidebar-right">
+        <div class="section-title"><span class="eyebrow">مساحة العمل</span><h1>عيادة الأسنان</h1><p>نموذج أولي تفاعلي ثلاثي الأبعاد</p></div>
+        <section class="control-section">
+          <h2>زوايا الكاميرا</h2>
+          <div class="segmented">
+            <button class="camera-button selected" data-camera="orbit">حرة</button>
+            <button class="camera-button" data-camera="front">أمامية</button>
+            <button class="camera-button" data-camera="side">جانبية</button>
+            <button class="camera-button" data-camera="top">علوية</button>
+          </div>
+        </section>
+        <section class="control-section">
+          <h2>إظهار وإخفاء</h2>
+          <label class="switch-row"><span>الغرفة والأثاث</span><input type="checkbox" id="toggle-room" checked><i></i></label>
+          <label class="switch-row"><span>وحدة الأسنان</span><input type="checkbox" id="toggle-unit" checked><i></i></label>
+          <label class="switch-row"><span>الفك والأسنان</span><input type="checkbox" id="toggle-jaw" checked><i></i></label>
+          <label class="switch-row"><span>أدوات الطبيب</span><input type="checkbox" id="toggle-tools" checked><i></i></label>
+        </section>
+        <section class="control-section">
+          <h2>أدوات التدريب</h2>
+          <div class="tool-list">
+            <button class="tool-button active" data-tool="select"><span>↖</span><span><b>تحديد العناصر</b><small>اختيار مجسم من المشهد</small></span></button>
+            <button class="tool-button" data-tool="mirror"><span>◉</span><span><b>مرآة الفحص</b><small>إظهار أداة فحص توضيحية</small></span></button>
+            <button class="tool-button" data-tool="probe"><span>⌁</span><span><b>مسبار الأسنان</b><small>إظهار أداة الفحص الدقيقة</small></span></button>
+          </div>
+        </section>
+        <div class="sidebar-note"><b>ملاحظة تعليمية</b><p>المجسمات الحالية أولية ومولّدة برمجيًا لأغراض تجربة التفاعل. لا تستخدم لاتخاذ قرارات علاجية.</p></div>
+      </aside>
+
+      <section class="viewport" aria-label="المشهد ثلاثي الأبعاد">
+        <canvas id="render-canvas"></canvas>
+        <div class="viewport-top"><span class="scene-tag"><i></i> DENTAL CLINIC / 3D</span><span class="hint">اسحب للدوران · عجلة الفأرة للتقريب</span></div>
+        <div id="selection-card" class="selection-card"><span class="selection-kicker">العنصر المحدد</span><b id="selection-name">عيادة الأسنان</b><small id="selection-description">اختر أي مجسم داخل المشهد لعرض اسمه.</small></div>
+        <div class="viewport-bottom"><span>وضع العرض: تعليمي</span><span id="fps-counter">3D Engine</span></div>
+        <div id="loading" class="loading-overlay"><div class="loader"></div><b>جارٍ تجهيز العيادة ثلاثية الأبعاد</b><small>إنشاء المجسمات والإضاءة</small></div>
+      </section>
+
+      <aside class="sidebar sidebar-left">
+        <div class="section-title"><span class="eyebrow">لوحة التحكم</span><h2>مكونات العيادة</h2><p>تحكم سريع في التجهيزات</p></div>
+        <section class="control-section">
+          <h2>وحدة الأسنان</h2>
+          <button id="chair-up" class="action-row"><span class="action-icon">↑</span><span><b>رفع الكرسي</b><small>تغيير ارتفاع المقعد</small></span><span class="chevron">‹</span></button>
+          <button id="chair-down" class="action-row"><span class="action-icon">↓</span><span><b>خفض الكرسي</b><small>إرجاع المقعد لأسفل</small></span><span class="chevron">‹</span></button>
+          <button id="lamp-toggle" class="action-row"><span class="action-icon">✧</span><span><b>مصباح الفحص</b><small id="lamp-state">الإضاءة تعمل</small></span><span class="chevron">‹</span></button>
+        </section>
+        <section class="control-section">
+          <h2>حالة المشهد</h2>
+          <div class="stat-row"><span>المجسمات الأساسية</span><b id="mesh-count">—</b></div>
+          <div class="stat-row"><span>نظام الإضاءة</span><b class="good">نشط</b></div>
+          <div class="stat-row"><span>التفاعل</span><b class="good">جاهز</b></div>
+        </section>
+        <div class="sidebar-note"><b>طريقة الاستخدام</b><p>استخدم الماوس لتدوير الكاميرا والتقريب. اضغط على المجسمات لتحديدها، أو استخدم أزرار الكاميرا للتحرك بين الزوايا.</p></div>
+      </aside>
+    </main>
+    <footer class="footer"><span>Dental Simulation Prototype</span><span>تعليم ومحاكاة بصرية — ليس برنامجًا للاستخدام السريري</span></footer>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
