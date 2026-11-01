@@ -2185,9 +2185,12 @@ aiForm?.addEventListener('submit', async event => {
   submitButton.disabled = true;
   aiStatus.textContent = 'يفكر محليًا…';
   aiConversation.push({ role: 'user', content: question });
+  const languageInstruction = isPallProvider()
+    ? 'This PALL-Text model is English-first. Answer technical questions in clear English by default; if the user asks in Arabic, provide Arabic only when confident and retain standard English dental terminology in parentheses.'
+    : 'Answer in clear Arabic unless the user requests another language.';
   const systemPrompt = [
-    'You are a cautious Arabic-first dental education assistant for dental students and licensed dental professionals.',
-    'Answer in clear Arabic unless the user requests another language. Explain dental anatomy, instruments, materials, clinical reasoning and educational workflows.',
+    'You are a cautious dental education assistant for dental students and licensed dental professionals.',
+    languageInstruction + ' Explain dental anatomy, instruments, materials, clinical reasoning and educational workflows.',
     'This application is an educational simulator, not a clinical decision system. Never diagnose a real patient or write patient-specific prescriptions. Do not supply drug doses, emergency treatment directives, or invasive procedural instructions for unsupervised use.',
     'For urgent symptoms, advise immediate assessment using the local emergency pathway; do not delay emergency care for an AI response.',
     'Use the reference index below as starting points. Separate guideline facts from general explanation, name the relevant organization and date when known, and link only sources listed below. Never fabricate a citation, recommendation, quote, or guideline update.',
