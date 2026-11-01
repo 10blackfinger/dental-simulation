@@ -292,6 +292,15 @@ scene.onPointerObservable.add((pointerInfo) => {
   if (pointerInfo.type !== PointerEventTypes.POINTERPICK || !pointerInfo.pickInfo?.hit) return;
   const picked = pointerInfo.pickInfo.pickedMesh;
   if (!picked || picked === scene.meshes[0]) return;
+  if (activeExperience === 'dental-scope') {
+    const dentalKey = picked.metadata?.dentalScopeKey;
+    if (dentalKey) {
+      selectDentalStructure(dentalKey);
+      const match = dentalKey.match(/^tooth-(\\d{2})$/);
+      if (match) void loadDentalTooth(match[1]);
+    }
+    return;
+  }
   if (activeExperience === 'body-anatomy') {
     const record = bodyMeshRecords.find(item => item.mesh === picked);
     if (record) selectBodyStructure(record);
@@ -317,6 +326,18 @@ scene.onPointerObservable.add((pointerInfo) => {
 });
 
 function setCamera(mode) {
+  if (activeExperience === 'dental-scope') {
+    const views = {
+      orbit: [-Math.PI/2.25,1.13,12.8,new Vector3(0,0,0)],
+      front: [-Math.PI/2,1.2,12.8,new Vector3(0,0,0)],
+      side: [0,1.2,12.8,new Vector3(0,0,0)],
+      top: [-Math.PI/2,.18,15,new Vector3(0,0,0)]
+    };
+    const view=views[mode]||views.orbit;
+    camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
+    return;
+  }
   if (activeExperience === 'body-anatomy') {
     const views = {
       orbit: [-Math.PI/2.2,1.15,7.4,new Vector3(0,2.25,0)],
@@ -606,6 +627,10 @@ async function ensureAnatomyModel() {
 }
 
 async function showClinicExperience() {
+  dentalScopeRoot?.setEnabled(false);
+  dentalToothDetails.forEach(item=>item.root.setEnabled(false));
+  dentalAtlasPanel.hidden=true;
+  engine.setHardwareScalingLevel(1.15);
   activeExperience = 'clinic-pack';
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
@@ -637,6 +662,10 @@ async function showClinicExperience() {
 }
 
 async function showPeopleExperience() {
+  dentalScopeRoot?.setEnabled(false);
+  dentalToothDetails.forEach(item=>item.root.setEnabled(false));
+  dentalAtlasPanel.hidden=true;
+  engine.setHardwareScalingLevel(1.15);
   activeExperience = 'people';
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
@@ -662,6 +691,10 @@ async function showPeopleExperience() {
 document.getElementById('view-people')?.addEventListener('click',showPeopleExperience);
 
 async function showAnatomyExperience() {
+  dentalScopeRoot?.setEnabled(false);
+  dentalToothDetails.forEach(item=>item.root.setEnabled(false));
+  dentalAtlasPanel.hidden=true;
+  engine.setHardwareScalingLevel(1.15);
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
@@ -840,6 +873,10 @@ async function ensureBodyModel() {
   }
 }
 async function showBodyExperience() {
+  dentalScopeRoot?.setEnabled(false);
+  dentalToothDetails.forEach(item=>item.root.setEnabled(false));
+  dentalAtlasPanel.hidden=true;
+  engine.setHardwareScalingLevel(1.15);
   for(const id of ['view-clinic','view-anatomy','view-people','view-body']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-body');
   }
@@ -873,6 +910,363 @@ document.getElementById('body-isolate')?.addEventListener('click',()=>{
 });
 document.getElementById('body-restore')?.addEventListener('click',()=>{
   bodyIsolated=false;applyBodyVisibility();
+});
+
+
+const dentalAtlasPanel = document.getElementById('dental-atlas-section');
+const dentalAtlasStatus = document.getElementById('dental-atlas-status');
+const dentalModelBase = new URL('dental-scope/', localModelRoot).href;
+const dentalSourceBase = 'https://raw.githubusercontent.com/Yoosseph/dental-scope/4ca93c04c7ed500fdc06e31ac82fcd668a34cae5/public/models/';
+let dentalManifest = null;
+let dentalScopeRoot = null;
+let dentalBaseContainers = [];
+let dentalMeshByKey = new Map();
+let dentalMeshRecords = [];
+let dentalStructureRecords = [];
+let dentalSelectedKey = null;
+let dentalIsolatedKey = null;
+let dentalSelectedFdi = null;
+let dentalSelectedToothDetails = null;
+const dentalToothDetails = new Map();
+const dentalLayerState = {
+  enamel: true,
+  'dentin-coronal': true,
+  'dentin-radicular': true,
+  cementum: true,
+  pdl: true,
+  'pulp-chamber': true,
+  canal: true
+};
+
+const fdiNames = {
+  1: 'القاطع المركزي', 2: 'القاطع الجانبي', 3: 'الناب',
+  4: 'الضاحك الأول', 5: 'الضاحك الثاني',
+  6: 'الضرس الأول', 7: 'الضرس الثاني', 8: 'ضرس العقل'
+};
+function dentalToothLabel(fdi) {
+  const value = String(fdi);
+  const quadrant = Number(value[0]);
+  const position = Number(value[1]);
+  const arch = quadrant === 1 || quadrant === 2 ? 'الفك العلوي' : 'الفك السفلي';
+  const side = quadrant === 1 || quadrant === 4 ? 'الأيمن' : 'الأيسر';
+  return (fdiNames[position] || 'سن دائم') + ' — ' + arch + ' ' + side + ' (FDI ' + value + ')';
+}
+function setDentalStatus(message, state='') {
+  if (!dentalAtlasStatus) return;
+  dentalAtlasStatus.textContent=message;
+  dentalAtlasStatus.classList.remove('ok','warn');
+  if(state)dentalAtlasStatus.classList.add(state);
+}
+function dentalCandidates(mesh) {
+  const names=[];
+  let cursor=mesh;
+  while(cursor) {
+    if(cursor.name)names.push(cursor.name);
+    const extra=cursor.metadata?.gltf?.extras||cursor.metadata?.extras||{};
+    if(extra.name)names.push(extra.name);
+    cursor=cursor.parent;
+  }
+  return names;
+}
+function dentalKeyForMesh(mesh, validKeys) {
+  for(const name of dentalCandidates(mesh)) {
+    if(validKeys.has(name))return name;
+  }
+  return null;
+}
+function attachDentalContainer(container,name) {
+  container.addAllToScene();
+  const group=new TransformNode(name,scene);
+  for(const node of container.rootNodes)node.parent=group;
+  group.computeWorldMatrix(true);
+  return group;
+}
+async function loadDentalFile(file) {
+  try {
+    return await SceneLoader.LoadAssetContainerAsync(dentalModelBase,file,scene);
+  } catch(localError) {
+    console.warn('Local Dental Scope model unavailable; trying pinned upstream URL.',file,localError);
+    return await SceneLoader.LoadAssetContainerAsync(dentalSourceBase,file,scene);
+  }
+}
+function registerDentalMeshes(container, validKeys) {
+  const records=[];
+  for(const mesh of container.meshes) {
+    if(!mesh.getTotalVertices || mesh.getTotalVertices()===0)continue;
+    const key=dentalKeyForMesh(mesh,validKeys);
+    if(!key)continue;
+    mesh.metadata=mesh.metadata||{};
+    mesh.metadata.dentalScopeKey=key;
+    mesh.isPickable=true;
+    const list=dentalMeshByKey.get(key)||[];
+    list.push(mesh);
+    dentalMeshByKey.set(key,list);
+    records.push({key,mesh});
+  }
+  return records;
+}
+function dentalArabicLabel(key) {
+  if(/^tooth-\d{2}$/.test(key))return dentalToothLabel(key.slice(-2));
+  const map={
+    'gingiva-upper':'اللثة العلوية','gingiva-lower':'اللثة السفلية',
+    'mandible-body':'جسم الفك السفلي','maxilla-right':'عظم الفك العلوي الأيمن','maxilla-left':'عظم الفك العلوي الأيسر',
+    'maxillary-sinus-right':'الجيب الفكي الأيمن','maxillary-sinus-left':'الجيب الفكي الأيسر',
+    'inferior-alveolar-nerve-right':'العصب السنخي السفلي الأيمن','inferior-alveolar-nerve-left':'العصب السنخي السفلي الأيسر',
+    'mental-nerve-right':'العصب الذقني الأيمن','mental-nerve-left':'العصب الذقني الأيسر',
+    'lingual-nerve-right':'العصب اللساني الأيمن','lingual-nerve-left':'العصب اللساني الأيسر',
+    'mandibular-canal-right':'القناة الفكية السفلية اليمنى','mandibular-canal-left':'القناة الفكية السفلية اليسرى',
+    'articular-disc-right':'القرص المفصلي الأيمن','articular-disc-left':'القرص المفصلي الأيسر',
+    'masseter-superficial-right':'العضلة الماضغة السطحية اليمنى','masseter-superficial-left':'العضلة الماضغة السطحية اليسرى',
+    'masseter-deep-right':'العضلة الماضغة العميقة اليمنى','masseter-deep-left':'العضلة الماضغة العميقة اليسرى',
+    'temporalis-right':'العضلة الصدغية اليمنى','temporalis-left':'العضلة الصدغية اليسرى',
+    'buccinator-right':'العضلة المبوقة اليمنى','buccinator-left':'العضلة المبوقة اليسرى',
+    'lateral-pterygoid-upper-right':'الجناحية الوحشية العلوية اليمنى','lateral-pterygoid-upper-left':'الجناحية الوحشية العلوية اليسرى',
+    'lateral-pterygoid-lower-right':'الجناحية الوحشية السفلية اليمنى','lateral-pterygoid-lower-left':'الجناحية الوحشية السفلية اليسرى'
+  };
+  if(map[key])return map[key];
+  const isNerve=/(nerve|trigeminal)/.test(key);
+  const isVein=/vein|plexus/.test(key);
+  const isArtery=/artery/.test(key);
+  const isMuscle=/masseter|pterygoid|temporalis|buccinator|orbicularis/.test(key);
+  const prefix=isNerve?'العصب ':isVein?'الوريد ':isArtery?'الشريان ':isMuscle?'العضلة ':'';
+  return prefix+key.replaceAll('-',' ');
+}
+function setDentalMeshVisibility(key,visible) {
+  for(const mesh of dentalMeshByKey.get(key)||[])mesh.isVisible=visible;
+}
+function applyDentalBaseVisibility() {
+  for(const record of dentalMeshRecords) {
+    const key=record.key;
+    let visible=true;
+    if(dentalIsolatedKey)visible=key===dentalIsolatedKey;
+    if(key.startsWith('tooth-')&&/^\d{2}$/.test(key.slice(-2)))visible=visible&&document.getElementById('dental-shell-toggle').checked;
+    if(key.startsWith('gingiva-'))visible=visible&&document.getElementById('dental-gum-toggle').checked;
+    if(dentalManifest.meshes[key]?.file==='context.glb')visible=visible&&document.getElementById('dental-context-toggle').checked;
+    if(dentalManifest.meshes[key]?.file==='neurovascular.glb')visible=visible&&document.getElementById('dental-nerve-toggle').checked;
+    record.mesh.isVisible=visible;
+  }
+}
+function renderDentalStructureList(filter='') {
+  const list=document.getElementById('dental-structure-list');
+  if(!list)return;
+  const query=String(filter||'').toLowerCase().trim();
+  list.replaceChildren();
+  const records=dentalStructureRecords.filter(record=>{
+    const label=dentalArabicLabel(record.key);
+    return !query||record.key.toLowerCase().includes(query)||label.toLowerCase().includes(query);
+  }).slice(0,140);
+  for(const record of records) {
+    const button=document.createElement('button');
+    button.type='button';button.className='structure-button dental-structure-button';
+    button.dataset.key=record.key;
+    button.textContent=dentalArabicLabel(record.key);
+    button.title=record.key;
+    button.addEventListener('click',()=>selectDentalStructure(record.key));
+    list.appendChild(button);
+  }
+  if(records.length===0) {
+    const empty=document.createElement('p');empty.className='asset-license-note';empty.textContent='لا توجد تراكيب مطابقة.';list.appendChild(empty);
+  }
+}
+function selectDentalStructure(key) {
+  dentalSelectedKey=key;
+  highlight.removeAllMeshes();
+  const meshes=dentalMeshByKey.get(key)||[];
+  for(const mesh of meshes)highlight.addMesh(mesh,Color3.FromHexString('#43dbc2'));
+  const label=dentalArabicLabel(key);
+  document.getElementById('selection-name').textContent=label;
+  const info=dentalManifest?.meshes?.[key];
+  document.getElementById('selection-description').textContent=
+    'معرّف التركيب: '+key+
+    (info?' · المصدر التشريحي: '+(info.sourceRef||'BodyParts3D')+' · مستوى النمذجة: '+info.provenance:'');
+  document.querySelectorAll('.dental-structure-button').forEach(button=>button.classList.toggle('selected',button.dataset.key===key));
+}
+function renderDentalToothGrid(filter='') {
+  const grid=document.getElementById('dental-tooth-grid');
+  if(!grid||!dentalManifest)return;
+  const query=String(filter||'').toLowerCase().trim();
+  grid.replaceChildren();
+  for(const fdi of Object.keys(dentalManifest.teeth).sort()) {
+    const number=Number(fdi);
+    const label=dentalToothLabel(number);
+    if(query&&!fdi.includes(query)&&!label.toLowerCase().includes(query))continue;
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='tooth-chip'+(number===dentalSelectedFdi?' selected':'');
+    button.textContent=fdi;
+    button.title=label;
+    button.addEventListener('click',()=>void loadDentalTooth(fdi));
+    grid.appendChild(button);
+  }
+}
+function dentalLayerFromKey(key,fdi) {
+  const suffix='-'+fdi;
+  if(!key.endsWith(suffix))return null;
+  const base=key.slice(0,-suffix.length);
+  return base.startsWith('canal-')?'canal':base;
+}
+function applyDentalToothLayers() {
+  if(!dentalSelectedToothDetails)return;
+  for(const record of dentalSelectedToothDetails.records) {
+    const layer=dentalLayerFromKey(record.key,dentalSelectedFdi);
+    record.mesh.isVisible=!!layer&&dentalLayerState[layer]!==false;
+  }
+}
+async function loadDentalTooth(fdi) {
+  const id=String(fdi);
+  const meta=dentalManifest?.teeth?.[id];
+  if(!meta)return;
+  const status=document.getElementById('dental-tooth-mesh-status');
+  document.getElementById('dental-tooth-detail-panel').hidden=false;
+  dentalAtlasPanel.querySelectorAll('.tooth-chip').forEach(button=>button.classList.toggle('selected',button.textContent===id));
+  document.getElementById('dental-selected-tooth-name').textContent=dentalToothLabel(Number(id));
+  for(const [otherId,item] of dentalToothDetails)if(otherId!==id)item.root.setEnabled(false);
+  for(const mesh of dentalMeshByKey.get('tooth-'+id)||[])mesh.isVisible=false;
+  dentalSelectedFdi=id;
+  status.textContent='جارٍ تحميل طبقات السن '+id+'…';
+  try {
+    let cached=dentalToothDetails.get(id);
+    if(!cached) {
+      const container=await loadDentalFile(meta.asset);
+      const rootNode=attachDentalContainer(container,'DentalScopeTooth_'+id);
+      const validKeys=new Set(meta.layers.map(layer=>layer+'-'+id));
+      const records=registerDentalMeshes(container,validKeys);
+      if(records.length===0)throw new Error('No dental tissue meshes matched FDI '+id);
+      cached={container,root:rootNode,records};
+      dentalToothDetails.set(id,cached);
+    }
+    dentalToothDetails.forEach((item,key)=>item.root.setEnabled(key===id));
+    dentalSelectedToothDetails=cached;
+    for(const layer of Object.keys(dentalLayerState))dentalLayerState[layer]=true;
+    dentalAtlasPanel.querySelectorAll('[data-tooth-layer]').forEach(input=>input.checked=true);
+    applyDentalToothLayers();
+    activeExperience='dental-scope';
+    camera.lowerRadiusLimit=.25;camera.upperRadiusLimit=20;
+    camera.alpha=-Math.PI/2.1;camera.beta=1.15;camera.radius=3.4;
+    camera.setTarget(new Vector3(0,.1,0));
+    document.getElementById('selection-name').textContent=dentalToothLabel(Number(id));
+    document.getElementById('selection-description').textContent='نموذج ثلاثي الأبعاد بطبقات داخلية مشتقة من سطح السن؛ ترتيبها التعليمي لا يمثل قياسًا نسيجيًا سريريًا.';
+    status.textContent='تم تحميل '+recordsForTooth(cached).length+' مجسمات طبقية للسن FDI '+id+'.';
+  } catch(error) {
+    console.error('Dental tooth detail load failed',id,error);
+    status.textContent='تعذر تحميل طبقات السن. ستظل بقية مكتبة الفم متاحة.';
+    setDentalMeshVisibility('tooth-'+id,true);
+  }
+  renderDentalToothGrid(document.getElementById('dental-tooth-search').value);
+}
+function recordsForTooth(item){return item.records||[];}
+function restoreDentalWholeMouth() {
+  dentalSelectedFdi=null;
+  dentalSelectedToothDetails=null;
+  for(const item of dentalToothDetails.values())item.root.setEnabled(false);
+  document.getElementById('dental-tooth-detail-panel').hidden=true;
+  for(const [key,meshes] of dentalMeshByKey)if(/^tooth-\d{2}$/.test(key))for(const mesh of meshes)mesh.isVisible=true;
+  applyDentalBaseVisibility();
+  renderDentalToothGrid(document.getElementById('dental-tooth-search').value);
+  camera.lowerRadiusLimit=2.5;camera.upperRadiusLimit=30;
+  setCamera('orbit');
+  document.getElementById('selection-name').textContent='الأطلس السني الكامل';
+  document.getElementById('selection-description').textContent='الفك واللثة والأسنان والأعصاب والأوعية والتراكيب حول المفصل.';
+}
+async function ensureDentalScope() {
+  if(dentalScopeRoot)return;
+  setDentalStatus('جارٍ تحميل الفك واللثة والجمجمة والأعصاب والأوعية…');
+  try {
+    const response=await fetch(new URL('dental-scope/manifest.json',localModelRoot));
+    if(!response.ok)throw new Error('Dental manifest is missing.');
+    dentalManifest=await response.json();
+    if(Object.keys(dentalManifest.meshes||{}).length!==415||Object.keys(dentalManifest.teeth||{}).length!==32) {
+      throw new Error('Dental Scope registry did not pass structure-count checks.');
+    }
+    const validKeys=new Set(Object.keys(dentalManifest.meshes));
+    const files=['core.glb','context.glb','neurovascular.glb'];
+    const loaded=await Promise.all(files.map(file=>loadDentalFile(file)));
+    dentalScopeRoot=new TransformNode('DentalScopeRoot',scene);
+    dentalMeshByKey=new Map();
+    dentalBaseContainers=[];
+    dentalMeshRecords=[];
+    for(let i=0;i<loaded.length;i++) {
+      const container=loaded[i];
+      const child=attachDentalContainer(container,'DentalScopePart_'+files[i].replace('.glb',''));
+      child.parent=dentalScopeRoot;
+      dentalBaseContainers.push(container);
+      dentalMeshRecords.push(...registerDentalMeshes(container,validKeys).map(record=>({...record,file:files[i]})));
+    }
+    if(dentalMeshRecords.length<120)throw new Error('Dental atlas did not expose enough of the expected named mesh records.');
+    dentalStructureRecords=[...new Map(dentalMeshRecords.map(record=>[record.key,record])).values()].sort((a,b)=>a.key.localeCompare(b.key));
+    dentalScopeRoot.setEnabled(true);
+    root.setEnabled(false);
+    clinicAssetRoot?.setEnabled(false);
+    anatomyAssetRoot?.setEnabled(false);
+    bodyAssetRoot?.setEnabled(false);
+    peopleRoot.setEnabled(false);
+    activeExperience='dental-scope';
+    setProceduralControlsEnabled(false,'dental');
+    camera.lowerRadiusLimit=2.5;camera.upperRadiusLimit=30;
+    applyDentalBaseVisibility();
+    renderDentalStructureList();
+    renderDentalToothGrid();
+    setDentalStatus('تم تحميل '+dentalStructureRecords.length+' تركيبًا مسجلًا من أصل 415، و32 سنًا مستقلًا مع طبقات داخلية.', 'ok');
+  } catch(error) {
+    console.error('Dental Scope model load failed',error);
+    dentalScopeRoot?.setEnabled(false);
+    setDentalStatus('تعذر تحميل الأطلس السني التفصيلي؛ ستظل بقية المشاهد متاحة.', 'warn');
+  }
+}
+async function showDentalAtlasExperience() {
+  for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+    document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
+  }
+  dentalAtlasPanel.hidden=false;
+  bodyPanel.hidden=true;
+  anatomyPanel.hidden=true;
+  loadingOverlay?.classList.remove('hidden');
+  await ensureDentalScope();
+  if(dentalScopeRoot) {
+    dentalScopeRoot.setEnabled(true);
+    dentalToothDetails.forEach(item=>item.root.setEnabled(false));
+    root.setEnabled(false);
+    clinicAssetRoot?.setEnabled(false);
+    anatomyAssetRoot?.setEnabled(false);
+    bodyAssetRoot?.setEnabled(false);
+    peopleRoot.setEnabled(false);
+    activeExperience='dental-scope';
+    setProceduralControlsEnabled(false,'dental');
+    engine.setHardwareScalingLevel(1.25);
+    restoreDentalWholeMouth();
+    setDentalStatus('الأطلس السني جاهز: 32 سنًا، تشريح داخلي، لثة، عظام، مفاصل، أعصاب وأوعية.', 'ok');
+    setCamera('orbit');
+  }
+  loadingOverlay?.classList.add('hidden');
+}
+document.getElementById('view-dental-atlas')?.addEventListener('click',showDentalAtlasExperience);
+document.getElementById('dental-tooth-search')?.addEventListener('input',event=>renderDentalToothGrid(event.target.value));
+document.getElementById('dental-structure-search')?.addEventListener('input',event=>renderDentalStructureList(event.target.value));
+document.getElementById('dental-tooth-back')?.addEventListener('click',restoreDentalWholeMouth);
+document.getElementById('dental-context-toggle')?.addEventListener('change',event=>{
+  for(const container of dentalBaseContainers)if(container.name?.includes('context'))container.meshes.forEach(mesh=>mesh.isVisible=event.target.checked);
+  for(const record of dentalMeshRecords)if(record.file==='context.glb')record.mesh.isVisible=event.target.checked;
+});
+document.getElementById('dental-nerve-toggle')?.addEventListener('change',event=>{
+  for(const record of dentalMeshRecords)if(record.file==='neurovascular.glb')record.mesh.isVisible=event.target.checked;
+});
+document.getElementById('dental-gum-toggle')?.addEventListener('change',event=>{
+  for(const record of dentalMeshRecords)if(record.key.startsWith('gingiva-'))record.mesh.isVisible=event.target.checked;
+});
+document.getElementById('dental-shell-toggle')?.addEventListener('change',event=>{
+  for(const record of dentalMeshRecords)if(/^tooth-\d{2}$/.test(record.key))record.mesh.isVisible=event.target.checked;
+});
+dentalAtlasPanel?.querySelectorAll('[data-tooth-layer]')?.forEach(input=>input.addEventListener('change',event=>{
+  dentalLayerState[event.target.dataset.toothLayer]=event.target.checked;
+  applyDentalToothLayers();
+}));
+document.getElementById('dental-isolate-structure')?.addEventListener('click',()=>{
+  if(!dentalSelectedKey)return;
+  dentalIsolatedKey=dentalSelectedKey;
+  for(const record of dentalMeshRecords)record.mesh.isVisible=record.key===dentalIsolatedKey;
+});
+document.getElementById('dental-restore-structures')?.addEventListener('click',()=>{
+  dentalIsolatedKey=null;applyDentalBaseVisibility();
 });
 
 const trainingCases = {
