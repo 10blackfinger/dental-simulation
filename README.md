@@ -14,6 +14,7 @@ Arabic-first 3D dental education prototype built with Vite and Babylon.js.
 - 54-model CC0 dental practice scene pack.
 - 33 selectable oral anatomy structures adapted from BodyParts3D / Anatomography.
 - Dental Scope atlas with 415 named registry entries, 32 FDI permanent tooth files, per-tooth tissue layer files, jaws, context and a neurovascular extension.
+- A separate primary-tooth atlas with ten University of Dundee CC BY 4.0 GLB models (FDI 61–65 and 71–75, left quadrants only); it is not a complete primary dentition.
 - Full-body anatomy atlas with 634 named structures.
 - Male/female CC0 MakeHuman-derived patient figures.
 - Models are downloaded and integrity-checked during predev/prebuild. The asset downloader does not edit or replace picture files.
@@ -24,7 +25,7 @@ See [3D asset credits and licences](public/models/ASSET_CREDITS.md).
 The searchable inventory includes examination instruments, probes, handpieces, burs, rubber-dam and matrix systems, curing light, endodontic files/accessories, extraction and surgical instruments, periodontal scalers/curettes, prosthodontic and orthodontic items, restorative/endodontic/prosthetic materials and PPE. Each entry has a purpose and a caution note. This is an educational starter inventory, not a complete purchasing catalogue or substitute for manufacturer instructions.
 
 ### Guided learning pathways
-Eleven case pathways cover initial examination, caries/restoration, endodontics, oral hygiene, extraction assessment, periodontal care, crowns/prosthodontics, implant assessment, orthodontic assessment, dental trauma and acute dental problems. They provide staged explanations, progress tracking, references and JSON export. These checklists are not complete procedure simulations, validated treatment protocols or competency assessments.
+Twelve case pathways cover initial examination, caries/restoration, endodontics, oral hygiene, extraction assessment, periodontal care, crowns/prosthodontics, implant assessment, orthodontic assessment, dental trauma and acute dental problems and paediatric dentistry. They provide staged explanations, progress tracking, references and JSON export. These checklists are not complete procedure simulations, validated treatment protocols or competency assessments.
 
 ### Local dental education assistant
 The UI includes a local Qwen3.5 chat assistant through Ollama. The default model is qwen3.5:4b; 9B and 27B choices are available for more capable hardware. The Qwen3.5-4B model card lists Apache-2.0. When connected to a local Ollama server, inference runs on the user's computer and no API key is stored in this frontend.
@@ -60,7 +61,7 @@ The address is live only when the latest workflow build, browser tests and Pages
 - Dentist and assistant are procedural geometric stand-ins, not photorealistic or fully rigged characters.
 - Instrument/material props are simplified. There is no force feedback, haptics, collision/contact simulation, bur cutting, tissue deformation, irrigation physics, fluid suction simulation or validated instrument calibration.
 - The imported clinic pack is static. Some chair controls are available only in the procedural fallback and do not actuate the static imported equipment.
-- The 11 pathways are explanatory checklists, not exhaustive coverage of every disease or rare case, full procedure walkthroughs or validated scoring.
+- The 12 pathways are explanatory checklists, not exhaustive coverage of every disease or rare case, full procedure walkthroughs or validated scoring.
 - Some anatomy structures are schematic/estimated and require dental-specialist review.
 - The AI helper is general Qwen3.5 with a prompt and source index, not a fine-tuned dental foundation model or diagnostic model.
 - GitHub Pages is static hosting. The user must run Ollama locally and allow the specific website origin; cloud inference and shared user data are not configured.
