@@ -472,7 +472,7 @@ function setCamera(mode) {
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
   setTimeout(fitVisibleSceneToSquare, 120);
-    setTimeout(fitVisibleSceneToSquare, 120);
+
     return;
   }
   if (activeExperience === 'body-anatomy') {
