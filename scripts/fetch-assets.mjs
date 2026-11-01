@@ -52,6 +52,99 @@ const assets = [
   }
 ];
 
+const primaryDentitionAssets = [
+  {
+    file: 'pediatric-dentition/primary-tooth-61.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_upper_left_central_incisor_fdi_61.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 10844,
+    expectedGitBlobSha1: '3ae54fd9bafb45a88d76c0995b5bc1203904b79e',
+    expectedMinBytes: 10844
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-62.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_upper_left_lateral_incisor_fdi_62.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 40612,
+    expectedGitBlobSha1: '59cb229f0bbf81ca883e5194cea0efb37a9cbcc1',
+    expectedMinBytes: 40612
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-63.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_upper_left_canine_fdi_63.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 13184,
+    expectedGitBlobSha1: 'd3aaefbce6be79779c4304430ea2201811937ac9',
+    expectedMinBytes: 13184
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-64.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_upper_left_first_molar_fdi_64.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 122580,
+    expectedGitBlobSha1: '2d2fb42126d10b4f36e0d02a1ecbd233ecc59cf7',
+    expectedMinBytes: 122580
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-65.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_upper_left_second_molar_fdi_65.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 129504,
+    expectedGitBlobSha1: 'f4fb128ca6cb29ec90c576bca54290382eb68bbc',
+    expectedMinBytes: 129504
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-71.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_lower_left_central_incisor_fdi_71.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 9176,
+    expectedGitBlobSha1: 'efcef9290662db1bfce14d46638f47deac11c660',
+    expectedMinBytes: 9176
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-72.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_lower_left_lateral_incisor_fdi_72.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 3756,
+    expectedGitBlobSha1: '8fa0fcc63b3f6d9810344b1cab1157bd8831c69c',
+    expectedMinBytes: 3756
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-73.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_lower_left_canine_fdi_73.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 3852,
+    expectedGitBlobSha1: '415e21d935bd1ace29a3289b75466c83f1e77ce4',
+    expectedMinBytes: 3852
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-74.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_lower_left_first_molar_fdi_74.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 138412,
+    expectedGitBlobSha1: '072c4933abd7eebba3cbf778d290fb0a95ef7869',
+    expectedMinBytes: 138412
+  },
+  {
+    file: 'pediatric-dentition/primary-tooth-75.glb',
+    url: 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/primary_lower_left_second_molar_fdi_75.glb',
+    license: 'CC BY 4.0',
+    source: 'University of Dundee, School of Dentistry; mirror repository sameralseedbth-Dental/dental-3d-models, pinned commit 4f0ffb651998a4641ddf45c7632ea236cc164fcb',
+    expectedBytes: 99760,
+    expectedGitBlobSha1: 'ea95297e3dab0fc3d4d1ef1e9c7d0358ddb49882',
+    expectedMinBytes: 99760
+  }
+];
+
 const dentalScopeAssets = [
   {
     "file": "dental-scope/context.glb",
@@ -414,6 +507,7 @@ const dentalScopeAssets = [
     "expectedMinBytes": 1506340
   }
 ];
+assets.push(...primaryDentitionAssets);
 assets.push(...dentalScopeAssets);
 
 function sha256(bytes) {
