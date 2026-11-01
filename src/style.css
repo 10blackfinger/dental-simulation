@@ -32,3 +32,35 @@
 .patient-variant-buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .patient-variant-button{border:1px solid #344b63;background:#1a2b40;border-radius:7px;padding:8px;color:#c9d7e8;font:inherit;font-size:10px}
 .patient-variant-button.selected{background:#18443f;border-color:#39bba8;color:#a4f2e3}
+
+
+.treatment-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.treatment-actions #tool-to-mouth{grid-column:1/-1}
+.inventory-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:260px;overflow:auto;margin:10px 0}
+.inventory-item{display:flex;flex-direction:column;gap:3px;text-align:right;background:#152338;border:1px solid #2b4058;border-radius:7px;padding:8px;color:#cbd8e7;min-height:52px}
+.inventory-item b{font-size:9px;line-height:1.6}
+.inventory-item small{font-size:8px;color:#8197ae}
+.inventory-item.selected{background:#16413f;border-color:#31bba8;color:#e5fff9}
+.inventory-detail{padding:10px;border:1px solid #30445b;background:#111e2f;border-radius:8px;color:#aebed0;font-size:9px;line-height:1.9;min-height:76px}
+.inventory-detail strong{color:#6ed9c4;font-size:10px}
+.inventory-detail p{margin:4px 0 0}
+.case-source-links{font-size:8px;line-height:1.9;color:#8397af;margin-top:7px}
+.case-source-links a{color:#6fdac6;text-decoration:underline;text-underline-offset:2px}
+.ai-status{font-size:8px;color:#8ea1b8}
+.ai-status.good{color:#57d8ad}
+.ai-status.bad{color:#ff9e8e}
+.ai-messages{display:flex;flex-direction:column;gap:7px;max-height:270px;overflow:auto;border:1px solid #2c4057;border-radius:8px;background:#0c1726;padding:9px;margin-top:10px}
+.ai-message{font-size:9px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;padding:8px 9px;border-radius:8px}
+.ai-message.assistant{background:#172a3b;color:#c5d5e6;border:1px solid #2a4056}
+.ai-message.user{background:#17443f;color:#e0fff8;border:1px solid #287e72;align-self:stretch}
+.ai-form{display:grid;gap:6px;margin-top:8px}
+.ai-form textarea{width:100%;resize:vertical;min-height:58px;border:1px solid #30445b;border-radius:7px;background:#0d1928;color:#e5edf6;padding:9px;font:inherit;font-size:10px;line-height:1.8}
+.ai-form textarea:focus{outline:1px solid #35bba9}
+.ai-form button{width:100%}
+.ai-setup{margin-top:9px;color:#96a8bd;font-size:9px}
+.ai-setup summary{cursor:pointer;color:#6ed9c6}
+.ai-setup code{display:block;background:#0b1522;border:1px solid #2b4056;border-radius:6px;padding:8px;margin:7px 0;color:#c3e9dd;direction:ltr;text-align:left}
+.ai-setup p{line-height:1.9}
+#ai-send:disabled{opacity:.5;cursor:wait}
+.treatment-interaction-section,.inventory-section,.ai-assistant-section{scroll-margin:12px}
+@media(max-width:760px){.inventory-list{grid-template-columns:1fr 1fr}.ai-messages{max-height:220px}}
