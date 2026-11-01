@@ -41,7 +41,7 @@ Optional local providers remain available:
 
 The assistant's instruction prompt includes official entry points for ADA, AAE, EFP, IADT, SDCEP, AAPD and FDA. This is a curated source index, not retrieval-augmented generation over the complete guideline texts. The selected model can still make mistakes or invent details: learners must open the primary sources, verify local Egyptian rules and ask a clinical supervisor. Never send real patient identifiers, photographs or identifiable health records.
 
-See [local AI setup](docs/LOCAL_AI_SETUP.md) and [clinical references and limits](docs/CLINICAL_REFERENCES.md).
+See [online AI setup and key privacy](docs/ONLINE_AI_SETUP.md), [local AI setup](docs/LOCAL_AI_SETUP.md) and [clinical references and limits](docs/CLINICAL_REFERENCES.md).
 ## Run locally
 Requires Node.js 22+ and internet access for the initial model download.
 
@@ -55,7 +55,7 @@ Requires Node.js 22+ and internet access for the initial model download.
     npm run preview
     npm run test:e2e
 
-The browser smoke test covers the integrated treatment view, inventory selection, user-triggered object movement, anatomy viewers, patient selection and a guided case.
+The browser smoke test covers published GLB assets, cloud AI (mocked API contract), the fixed square viewport on desktop/mobile, independent mobile drawers, integrated treatment, inventory selection, slower user-triggered object movement, anatomy viewers, patient selection and a guided case.
 
 ## Deployment
 GitHub Actions builds and deploys the static site to GitHub Pages. In Settings → Pages, choose GitHub Actions as the source.
