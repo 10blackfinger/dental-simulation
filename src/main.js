@@ -591,8 +591,9 @@ async function showClinicExperience() {
   activeExperience = 'clinic-pack';
   peopleRoot.setEnabled(false);
   anatomyPanel.hidden = true;
-  document.getElementById('view-clinic')?.classList.add('selected');
-  document.getElementById('view-anatomy')?.classList.remove('selected');
+  for (const id of ['view-clinic','view-anatomy','view-people']) {
+    document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
+  }
   loadingOverlay?.classList.remove('hidden');
   await ensureClinicModel();
   if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
@@ -634,8 +635,9 @@ document.getElementById('view-people')?.addEventListener('click',showPeopleExper
 
 async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
-  document.getElementById('view-clinic')?.classList.remove('selected');
-  document.getElementById('view-anatomy')?.classList.add('selected');
+  for (const id of ['view-clinic','view-anatomy','view-people']) {
+    document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
+  }
   loadingOverlay?.classList.remove('hidden');
   await ensureAnatomyModel();
   loadingOverlay?.classList.add('hidden');

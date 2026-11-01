@@ -44,3 +44,10 @@ Those character models are static rather than rigged/animated according to their
 - `oral-anatomy.glb` is accepted only if it is a GLB (magic bytes `glTF`), exceeds the minimum expected size, and matches SHA-256 `89a1074b0806eb41c318d38c78a269134c5070be7b90cb2f93ab2de7d35ec239`.
 - `clinic-practice.glb` is accepted only if it is a GLB and passes the minimum-size check. It is fetched from the immutable CDN URL published by 3DAssets.dev.
 - If either download fails, the application keeps its procedural fallback and reports the load status; it does not replace a known-good local asset with an incomplete response.
+
+## 3. Character preview geometry
+
+- **Asset:** Dentist, patient and dental assistant preview stand-ins.
+- **Source:** Original procedural geometry authored in `src/main.js` for this project; no imported third-party character file is used in this mode.
+- **Licence:** Part of this project's code; see the repository licence terms (no third-party model licence claimed).
+- **Limitations:** simplified geometric figures only. They are not scanned or anatomically accurate human models, do not have a skeleton rig or facial/hand animation, and are not evidence of correct ergonomic or clinical positioning.

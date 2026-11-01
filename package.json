@@ -9,13 +9,15 @@
     "prebuild": "node scripts/fetch-assets.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check src/main.js && node --check scripts/fetch-assets.mjs"
+    "check": "node --check src/main.js && node --check scripts/fetch-assets.mjs && node --check playwright.config.js && node --check tests/simulation.spec.js",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@babylonjs/core": "^8.29.0",
     "@babylonjs/loaders": "^8.29.0"
   },
   "devDependencies": {
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "@playwright/test": "^1.55.0"
   }
 }

@@ -38,9 +38,10 @@ The `predev` script fetches and verifies the required models. Then open the loca
 npm run check
 npm run build
 npm run preview
+npm run test:e2e
 ```
 
-The `prebuild` script prepares the GLB assets before Vite creates the production bundle. The downloaded binary files are ignored by Git to keep the repository source manageable; they are included in the generated `dist/models/` output.
+The `prebuild` script prepares the GLB assets before Vite creates the production bundle. The browser smoke suite loads both GLB models, switches between scenes, checks the structure list and completes a training checklist. The downloaded binary files are ignored by Git to keep the repository source manageable; they are included in the generated `dist/models/` output.
 
 ## Deployment
 
