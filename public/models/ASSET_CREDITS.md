@@ -106,3 +106,16 @@ Those character models are static rather than rigged/animated according to their
 - **Chairside tray and selected instrument/material proxy:** original procedural geometry authored in this repository. The user can request slow tray-to-mouth and mouth-to-tray object transforms. There is no collision/contact physics, tool tracking, force calibration or tissue interaction.
 - **Licence:** original procedural scene parts are part of the repository code. The imported patient GLBs retain the CC0 1.0 Universal terms described in section 7.
 - **Visual caveat:** the static clinic room, imported patient geometry and procedural staff are aligned for a software demonstration. A dentist must review the exact scene layout, posture and visual realism before use as a formal ergonomics or clinical-skills teaching resource.
+
+
+## 9. Primary tooth model library — University of Dundee
+
+- **Source repository:** [sameralseedbth-Dental/dental-3d-models](https://github.com/sameralseedbth-Dental/dental-3d-models), pinned to commit `4f0ffb651998a4641ddf45c7632ea236cc164fcb`.
+- **Original author:** University of Dundee, School of Dentistry.
+- **Licence:** Creative Commons Attribution 4.0 International (CC BY 4.0), as declared in the source repository README.
+- **Required attribution:** “3D models © University of Dundee, School of Dentistry”, with a link to the source repository and [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- **Included models:** ten individual primary teeth, FDI 61–65 (upper left) and 71–75 (lower left). The source repository contains a broader set of permanent-tooth and molar-variant models as well, but those are not copied into this primary-dentition feature.
+- **Application modifications:** original GLB geometry is downloaded from the pinned commit and loaded as separate meshes. The viewer applies only parent positioning, centering/scaling and interaction metadata; it does not claim to alter or validate the source anatomy.
+- **Coverage limitation:** these ten teeth represent only the left quadrants of the primary dentition. They are not a complete primary dentition, mixed-dentition atlas or age-specific eruption model. The app labels this limitation in the UI.
+- **Clinical limitation:** the source licence establishes reuse rights, not clinical or educational validation. Qualified paediatric dental specialists must review model geometry, terminology and teaching context before formal teaching or clinical use.
+- **Share/attribution:** preserve the author attribution, link the licence and indicate any changes made to the source material. No claim of endorsement by the University of Dundee is made.
