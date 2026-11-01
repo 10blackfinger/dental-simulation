@@ -10,7 +10,7 @@ A browser-based dental education prototype built with Vite and Babylon.js. The a
 - Models are fetched automatically before `npm run dev` and `npm run build`. The oral anatomy file is verified against a pinned SHA-256 hash before it is accepted.
 - The project keeps a procedural fallback scene if a remote asset cannot be obtained.
 
-See [3D asset credits, source provenance and licences](public/models/ASSET_CREDITS.md).
+See [3D asset credits, source provenance and licences](public/models/ASSET_CREDITS.md). Dental Scope assets are under CC BY-SA 2.1 Japan and CC BY-SA 4.0 (neurovascular contribution); the individual source credits and ShareAlike obligations are recorded there.
 
 ### Interactive training
 - Orbit, front, side and top camera presets.
