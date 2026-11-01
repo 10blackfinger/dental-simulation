@@ -6,6 +6,24 @@ test('clinic, oral anatomy, people and training flow render without browser erro
 
   await page.goto('./');
   await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة', { timeout: 45000 });
+  await expect(page.locator('#view-treatment')).toHaveClass(/selected/);
+  await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريض', { timeout: 30000 });
+  await expect(page.locator('#patient-variant-controls')).toBeVisible();
+  await expect(page.locator('#ai-assistant-section')).toBeVisible();
+  await expect(page.locator('#scenario-select option')).toHaveCount(11);
+
+  await page.locator('#inventory-category').selectOption('materials');
+  await expect(page.locator('.inventory-item')).toContainText('راتنج كومبوزيت');
+  await page.locator('.inventory-item').filter({hasText:'راتنج كومبوزيت'}).click();
+  await expect(page.locator('#inventory-detail')).toContainText('مادة');
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#tool-to-tray').click();
+  await page.locator('#inventory-category').selectOption('exam');
+  await page.locator('.inventory-item').filter({hasText:'مرآة فحص الأسنان'}).click();
+  await page.locator('#patient-mouth-toggle').click();
+  await page.locator('#patient-mouth-toggle').click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#tool-to-tray').click();
 
   await page.locator('#view-anatomy').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل 33 تركيبًا تشريحيًا منفصلًا', { timeout: 45000 });
@@ -18,7 +36,7 @@ test('clinic, oral anatomy, people and training flow render without browser erro
 
   await page.locator('#scenario-select').selectOption('exam');
   await page.locator('#start-case').click();
-  for (let step = 0; step < 5; step += 1) {
+  for (let step = 0; step < 6; step += 1) {
     await page.locator('#next-step').click();
   }
   await expect(page.locator('#case-progress')).toContainText('اكتمل السيناريو التعليمي');
