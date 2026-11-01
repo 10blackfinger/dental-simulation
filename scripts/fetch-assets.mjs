@@ -38,7 +38,7 @@ function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 function gitBlobSha1(bytes) {
-  const header = Buffer.from(`blob ${bytes.length}\\0`, 'utf8');
+  const header = Buffer.from(`blob ${bytes.length}\0`, 'utf8');
   return createHash('sha1').update(header).update(bytes).digest('hex');
 }
 
