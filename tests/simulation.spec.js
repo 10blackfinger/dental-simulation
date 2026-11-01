@@ -10,7 +10,7 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريض', { timeout: 30000 });
   await expect(page.locator('#patient-variant-controls')).toBeVisible();
   await expect(page.locator('#ai-assistant-section')).toBeVisible();
-  await expect(page.locator('#scenario-select option')).toHaveCount(11);
+  await expect(page.locator('#scenario-select option')).toHaveCount(12);
 
   await page.locator('#inventory-category').selectOption('materials');
   await expect(page.locator('.inventory-item').filter({hasText:'راتنج كومبوزيت'})).toHaveCount(1);
@@ -64,6 +64,11 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   expect(bodyRegistryResponse.ok()).toBeTruthy();
   const bodyRegistry = await bodyRegistryResponse.json();
   expect(bodyRegistry).toHaveLength(634);
+  await page.locator('#view-pediatric').click();
+  await expect(page.locator('#pediatric-atlas-status')).toContainText('تم تحميل 10 نماذج', { timeout: 45000 });
+  await expect(page.locator('.pediatric-tooth-button')).toHaveCount(10);
+  await page.locator('.pediatric-tooth-button').filter({hasText:'74'}).click();
+  await expect(page.locator('#selection-name')).toContainText('74');
   await page.locator('#view-clinic').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة');
   await expect(page.locator('#view-clinic')).toHaveClass(/selected/);
