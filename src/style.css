@@ -64,3 +64,11 @@
 #ai-send:disabled{opacity:.5;cursor:wait}
 .treatment-interaction-section,.inventory-section,.ai-assistant-section{scroll-margin:12px}
 @media(max-width:760px){.inventory-list{grid-template-columns:1fr 1fr}.ai-messages{max-height:220px}}
+
+
+.pediatric-section[hidden]{display:none}
+.pediatric-tooth-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:10px 0;max-height:260px;overflow:auto}
+.pediatric-tooth-button{min-height:38px;font-size:10px}
+.pediatric-tooth-button.selected{background:#17443f;border-color:#39bda9;color:#a3f1df}
+.pediatric-section .inventory-detail{margin-top:10px}
+@media(max-width:420px){.pediatric-tooth-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
