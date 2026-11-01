@@ -1,4 +1,7 @@
 import './style.css';
+import '@babylonjs/loaders/glTF';
+import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
+import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import {
   Engine, Scene, Vector3, Color3, Color4, HemisphericLight, DirectionalLight,
   ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager,
@@ -187,6 +190,7 @@ describe(mirrorHead,'مرآة فحص الأسنان','أداة فحص توضيح
 describe(probeHandle,'مسبار الأسنان','أداة فحص تعليمية مبسطة.');
 
 let selectedTool = 'select';
+let activeExperience = 'procedural';
 let chairHeight = 0;
 let lampOn = true;
 scene.onPointerObservable.add((pointerInfo) => {
@@ -209,6 +213,30 @@ scene.onPointerObservable.add((pointerInfo) => {
 });
 
 function setCamera(mode) {
+  if (activeExperience === 'anatomy') {
+    const angles = {
+      orbit: [-Math.PI / 2.3, 1.05, 5.4, new Vector3(0, 0.05, 0)],
+      front: [-Math.PI / 2, 1.15, 5.4, new Vector3(0, 0.05, 0)],
+      side: [0, 1.15, 5.4, new Vector3(0, 0.05, 0)],
+      top: [-Math.PI / 2, 0.22, 5.6, new Vector3(0, 0, 0)]
+    };
+    const view = angles[mode] || angles.orbit;
+    camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    return;
+  }
+  if (activeExperience === 'clinic-pack') {
+    const angles = {
+      orbit: [-Math.PI / 2.35, 1.12, 10.5, new Vector3(0, 0.75, 0)],
+      front: [-Math.PI / 2, 1.18, 10.5, new Vector3(0, 0.75, 0)],
+      side: [0, 1.18, 10.5, new Vector3(0, 0.75, 0)],
+      top: [-Math.PI / 2, 0.3, 12, new Vector3(0, 0.5, 0)]
+    };
+    const view = angles[mode] || angles.orbit;
+    camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    return;
+  }
   const presets = {
     orbit: [-Math.PI/2.35,1.08,9.5,new Vector3(0,1.25,0)],
     front: [-Math.PI/2,1.15,9.3,new Vector3(0,1.35,-.2)],
@@ -244,6 +272,363 @@ document.getElementById('lamp-toggle').addEventListener('click',()=>{
   lampOn=!lampOn; lampGlow.setEnabled(lampOn); lamp.setEnabled(lampOn);
   document.getElementById('lamp-state').textContent=lampOn?'الإضاءة تعمل':'الإضاءة متوقفة';
 });
+
+
+const assetStatus = document.getElementById('asset-status');
+const loadingOverlay = document.getElementById('loading');
+const anatomyPanel = document.getElementById('anatomy-section');
+const structureList = document.getElementById('structure-list');
+const highlight = new HighlightLayer('SelectedStructure', scene);
+let clinicAssetRoot = null;
+let anatomyAssetRoot = null;
+let clinicContainer = null;
+let anatomyContainer = null;
+let selectedAnatomyId = null;
+
+const anatomyCatalog = [];
+const toothKinds = [
+  ['central-incisor','القاطع المركزي'],
+  ['lateral-incisor','القاطع الجانبي'],
+  ['canine','الناب'],
+  ['first-premolar','الضاحك الأول'],
+  ['second-premolar','الضاحك الثاني'],
+  ['first-molar','الضرس الأول'],
+  ['second-molar','الضرس الثاني']
+];
+for (const [arch, archName] of [['upper','الفك العلوي'],['lower','الفك السفلي']]) {
+  for (const [side, sideName] of [['right','الأيمن'],['left','الأيسر']]) {
+    for (const [kind, kindName] of toothKinds) {
+      anatomyCatalog.push({
+        id: `${arch}-${side}-${kind}`,
+        label: `${kindName} — ${archName} ${sideName}`,
+        group: `${archName} — ${sideName}`
+      });
+    }
+  }
+}
+anatomyCatalog.push(
+  {id:'upper-gum',label:'اللثة العلوية',group:'اللثة'},
+  {id:'lower-gum',label:'اللثة السفلية',group:'اللثة'},
+  {id:'right-maxilla',label:'عظم الفك العلوي الأيمن',group:'عظام الفك'},
+  {id:'left-maxilla',label:'عظم الفك العلوي الأيسر',group:'عظام الفك'},
+  {id:'mandible',label:'عظم الفك السفلي',group:'عظام الفك'}
+);
+
+function setAssetStatus(message, state = '') {
+  if (!assetStatus) return;
+  assetStatus.textContent = message;
+  assetStatus.classList.remove('ok','warn');
+  if (state) assetStatus.classList.add(state);
+}
+
+const modelBase = new URL(import.meta.env.BASE_URL, window.location.href);
+const localModelRoot = new URL('models/', modelBase).href;
+
+async function loadContainer(localFile, remoteRoot, remoteFile) {
+  try {
+    return await SceneLoader.LoadAssetContainerAsync(localModelRoot, localFile, scene);
+  } catch (localError) {
+    console.warn(`Local model ${localFile} not present; trying its published source.`, localError);
+    return await SceneLoader.LoadAssetContainerAsync(remoteRoot, remoteFile, scene);
+  }
+}
+
+function attachCenteredContainer(container, nodeName, desiredSpan) {
+  container.addAllToScene();
+  const renderMeshes = container.meshes.filter(mesh => mesh.getTotalVertices() > 0 && mesh.getBoundingInfo);
+  if (!renderMeshes.length) throw new Error('ملف GLB لا يحتوي على مجسمات قابلة للعرض.');
+  for (const mesh of renderMeshes) mesh.computeWorldMatrix(true);
+
+  const min = new Vector3(Infinity, Infinity, Infinity);
+  const max = new Vector3(-Infinity, -Infinity, -Infinity);
+  for (const mesh of renderMeshes) {
+    const bounds = mesh.getBoundingInfo().boundingBox;
+    min.minimizeInPlace(bounds.minimumWorld);
+    max.maximizeInPlace(bounds.maximumWorld);
+  }
+  const size = max.subtract(min);
+  const largest = Math.max(size.x, size.y, size.z, 0.001);
+  const scale = desiredSpan / largest;
+
+  const group = new TransformNode(nodeName, scene);
+  for (const node of container.rootNodes) node.parent = group;
+  group.scaling.setAll(scale);
+  const centerX = (min.x + max.x) / 2;
+  const centerZ = (min.z + max.z) / 2;
+  group.position.set(-centerX * scale, -min.y * scale, -centerZ * scale);
+  group.computeWorldMatrix(true);
+  return { group, meshes: renderMeshes, size: size.scale(scale) };
+}
+
+async function ensureClinicModel() {
+  if (clinicAssetRoot) return;
+  setAssetStatus('جارٍ تحميل نموذج العيادة المتكامل…');
+  try {
+    clinicContainer = await loadContainer(
+      'clinic-practice.glb',
+      'https://cdn.3dassets.dev/assets/34423/v1/',
+      'model.glb'
+    );
+    const mounted = attachCenteredContainer(clinicContainer, 'ExternalClinicPack', 8.4);
+    clinicAssetRoot = mounted.group;
+    root.setEnabled(false);
+    clinicAssetRoot.setEnabled(true);
+    camera.lowerRadiusLimit = 3;
+    camera.upperRadiusLimit = 28;
+    setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد، غرفة علاج وتجهيزات ومناطق مساندة.', 'ok');
+  } catch (error) {
+    console.error('Clinic asset load failed', error);
+    root.setEnabled(true);
+    setAssetStatus('تعذر تحميل الحزمة الخارجية؛ تم تشغيل العيادة البديلة المولّدة داخل المشروع.', 'warn');
+  }
+}
+
+function selectAnatomy(id) {
+  selectedAnatomyId = id;
+  for (const mesh of anatomyContainer?.meshes || []) {
+    if (mesh.name === id || mesh.name.startsWith(id + '_')) {
+      highlight.addMesh(mesh, Color3.FromHexString('#42d6bd'));
+      document.getElementById('selection-name').textContent = anatomyCatalog.find(x=>x.id===id)?.label || mesh.name;
+      document.getElementById('selection-description').textContent = 'تركيب تشريحي من نموذج BodyParts3D / Anatomography 4.3. استخدمه كمرجع تعليمي بصري فقط.';
+    } else {
+      highlight.removeMesh(mesh);
+    }
+  }
+  structureList?.querySelectorAll('.structure-button').forEach(button => {
+    button.classList.toggle('selected', button.dataset.structure === id);
+  });
+}
+
+function renderAnatomyList(filter = '') {
+  if (!structureList) return;
+  structureList.replaceChildren();
+  const query = filter.trim().toLocaleLowerCase('ar');
+  const groups = new Map();
+  for (const item of anatomyCatalog) {
+    if (query && !item.label.toLocaleLowerCase('ar').includes(query) && !item.group.toLocaleLowerCase('ar').includes(query)) continue;
+    if (!groups.has(item.group)) groups.set(item.group, []);
+    groups.get(item.group).push(item);
+  }
+  for (const [groupName, items] of groups) {
+    const heading = document.createElement('div');
+    heading.className = 'anatomy-group-title';
+    heading.textContent = groupName;
+    structureList.appendChild(heading);
+    for (const item of items) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'structure-button';
+      button.dataset.structure = item.id;
+      button.textContent = item.label;
+      button.addEventListener('click', () => selectAnatomy(item.id));
+      structureList.appendChild(button);
+    }
+  }
+}
+renderAnatomyList();
+
+async function ensureAnatomyModel() {
+  if (anatomyAssetRoot) return;
+  setAssetStatus('جارٍ تحميل نموذج الفكين والأسنان والتراكيب التشريحية…');
+  try {
+    anatomyContainer = await loadContainer(
+      'oral-anatomy.glb',
+      'https://raw.githubusercontent.com/organui/teeth-3d/main/public/models/',
+      'teeth.glb'
+    );
+    const mounted = attachCenteredContainer(anatomyContainer, 'ExternalOralAnatomy', 4.6);
+    anatomyAssetRoot = mounted.group;
+    anatomyAssetRoot.setEnabled(true);
+    if (clinicAssetRoot) clinicAssetRoot.setEnabled(false);
+    root.setEnabled(false);
+    activeExperience = 'anatomy';
+    anatomyPanel.hidden = false;
+    camera.lowerRadiusLimit = 2.2;
+    camera.upperRadiusLimit = 15;
+    setCamera('orbit');
+    document.getElementById('selection-name').textContent = 'التشريح الفموي';
+    document.getElementById('selection-description').textContent = '28 سنًا دائمًا، اللثة، عظمتا الفك العلوي والفك السفلي.';
+    setAssetStatus('تم تحميل 33 تركيبًا تشريحيًا منفصلًا. يمكنك اختيار كل سن أو عزل أي تركيب.', 'ok');
+  } catch (error) {
+    console.error('Anatomy model load failed', error);
+    setAssetStatus('تعذر تحميل ملف التشريح الخارجي. بقي النموذج التوضيحي البديل متاحًا.', 'warn');
+    anatomyPanel.hidden = true;
+    root.setEnabled(true);
+    activeExperience = 'procedural';
+  }
+}
+
+async function showClinicExperience() {
+  activeExperience = 'clinic-pack';
+  anatomyPanel.hidden = true;
+  document.getElementById('view-clinic')?.classList.add('selected');
+  document.getElementById('view-anatomy')?.classList.remove('selected');
+  loadingOverlay?.classList.remove('hidden');
+  await ensureClinicModel();
+  if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
+  if (clinicAssetRoot) {
+    clinicAssetRoot.setEnabled(true);
+    root.setEnabled(false);
+    activeExperience = 'clinic-pack';
+  } else {
+    root.setEnabled(true);
+    activeExperience = 'procedural';
+  }
+  camera.lowerRadiusLimit = 3;
+  camera.upperRadiusLimit = 28;
+  setCamera('orbit');
+  loadingOverlay?.classList.add('hidden');
+}
+
+async function showAnatomyExperience() {
+  document.getElementById('view-clinic')?.classList.remove('selected');
+  document.getElementById('view-anatomy')?.classList.add('selected');
+  loadingOverlay?.classList.remove('hidden');
+  await ensureAnatomyModel();
+  loadingOverlay?.classList.add('hidden');
+}
+
+document.getElementById('view-clinic')?.addEventListener('click', showClinicExperience);
+document.getElementById('view-anatomy')?.addEventListener('click', showAnatomyExperience);
+document.getElementById('anatomy-search')?.addEventListener('input', event => renderAnatomyList(event.target.value));
+document.getElementById('isolate-structure')?.addEventListener('click', () => {
+  if (!anatomyContainer || !selectedAnatomyId) return;
+  for (const mesh of anatomyContainer.meshes) {
+    mesh.setEnabled(mesh.name === selectedAnatomyId || mesh.name.startsWith(selectedAnatomyId + '_'));
+  }
+});
+document.getElementById('restore-structures')?.addEventListener('click', () => {
+  for (const mesh of anatomyContainer?.meshes || []) mesh.setEnabled(true);
+  if (selectedAnatomyId) selectAnatomy(selectedAnatomyId);
+});
+document.getElementById('toggle-jaw')?.addEventListener('change', event => {
+  if (activeExperience === 'anatomy' && anatomyAssetRoot) anatomyAssetRoot.setEnabled(event.target.checked);
+});
+
+// Browser-only training records. No patient names, identifiers, or clinical records are collected.
+const trainingCases = {
+  exam: {
+    title: 'فحص سريري أولي',
+    description: 'تسلسل تعليمي لتنظيم خطوات الفحص والملاحظات دون تسجيل بيانات تعريفية للمريض.',
+    steps: [
+      ['تهيئة بيئة العمل', 'تأكد من جاهزية بيئة التدريب ومعدات الوقاية وفق سياسة منشأتك التعليمية.'],
+      ['جمع التاريخ المرضي', 'راجع التاريخ المرضي والحساسية والأدوية مع استخدام حالة افتراضية خالية من بيانات شخصية.'],
+      ['الفحص خارج الفم وداخله', 'اتبع تسلسل فحص منهجي، وسجل الملاحظات الموضوعية دون افتراض تشخيص.'],
+      ['الفحوص المساندة', 'حدد ما إذا كانت صور الأشعة أو الاختبارات الإضافية مطلوبة وفق إشراف المختص.'],
+      ['ملخص الحالة', 'اعرض النتائج والملاحظات على المشرف قبل صياغة أي خطة علاج.']
+    ]
+  },
+  restoration: {
+    title: 'خطوات ترميم تعليمي',
+    description: 'سيناريو مفاهيمي لمراحل الترميم؛ لا يحدد مقاسات تحضير أو إعدادات أجهزة أو وصفة سريرية.',
+    steps: [
+      ['تقييم السن', 'راجع الشكوى والفحص السريري ووسائل التشخيص المناسبة مع المشرف.'],
+      ['تحديد الخطة', 'ناقش التشخيص والبدائل والمخاطر والموافقة المستنيرة في حالة افتراضية.'],
+      ['التحضير والعزل', 'تعرف إلى أهداف العزل والتحضير المحافظ تحت إشراف سريري مباشر.'],
+      ['اختيار المادة', 'قارن خصائص مواد الترميم واستخداماتها وفق تعليمات الشركة والمقرر التعليمي.'],
+      ['التقييم النهائي', 'راجع سلامة الترميم والتلامسات والإطباق وخطة المتابعة مع المشرف.']
+    ]
+  },
+  endo: {
+    title: 'مبادئ علاج الجذور',
+    description: 'تسلسل تعليمي عام لمبادئ التشخيص والتوثيق والعزل، وليس بروتوكولًا علاجيًا تنفيذيًا.',
+    steps: [
+      ['التشخيص', 'راجع التاريخ المرضي والاختبارات السريرية والتصوير المناسب مع المشرف.'],
+      ['تقييم قابلية العلاج', 'ناقش حالة السن والإنذار والبدائل العلاجية قبل اتخاذ القرار.'],
+      ['العزل', 'تعرف إلى أهمية العزل ومنع التلوث المتبادل وفق بروتوكول الكلية.'],
+      ['فهم التشريح الداخلي', 'استخدم نموذج التشريح لفهم الحجرة والقنوات مع الانتباه إلى الاختلافات التشريحية.'],
+      ['التوثيق والمتابعة', 'سجل الإجراءات التعليمية وناقش النتيجة وخطة المتابعة مع المشرف.']
+    ]
+  },
+  hygiene: {
+    title: 'إزالة اللويحة والتوعية',
+    description: 'حالة تعليمية حول تقييم صحة الفم والتواصل الوقائي مع المريض.',
+    steps: [
+      ['تقييم صحة اللثة', 'راجع مؤشرات اللثة واللويحة ضمن إطار تدريبي موحد.'],
+      ['تحديد عوامل الخطورة', 'ناقش العادات والعوامل السلوكية المؤثرة في صحة الفم.'],
+      ['شرح الوقاية', 'اشرح للمريض الافتراضي دور العناية اليومية والمتابعة الدورية.'],
+      ['اختيار أداة مناسبة', 'قارن أدوات التنظيف على مستوى الاستخدام التعليمي وموانع الاستعمال العامة.'],
+      ['مراجعة النتائج', 'وثق التغيرات التعليمية وخطة المتابعة مع المشرف.']
+    ]
+  }
+};
+let currentCase = 'exam';
+let currentStep = -1;
+let completedSteps = [];
+const scenarioSelect = document.getElementById('scenario-select');
+const caseDescription = document.getElementById('case-description');
+const caseProgress = document.getElementById('case-progress');
+const caseProgressBar = document.getElementById('case-progress-bar');
+const caseFeedback = document.getElementById('case-feedback');
+const nextStepButton = document.getElementById('next-step');
+
+function updateCaseView() {
+  const scenario = trainingCases[currentCase];
+  const total = scenario.steps.length;
+  const progress = completedSteps.length;
+  caseDescription.textContent = currentStep < 0
+    ? scenario.description
+    : `${progress} / ${total} — ${scenario.steps[currentStep][0]}: ${scenario.steps[currentStep][1]}`;
+  caseProgress.textContent = currentStep < 0 ? 'لم يبدأ التدريب' : (progress === total ? 'اكتمل السيناريو التعليمي' : `الخطوة ${currentStep + 1} من ${total}`);
+  caseProgressBar.style.width = `${(progress / total) * 100}%`;
+  nextStepButton.disabled = currentStep < 0 || progress >= total;
+}
+scenarioSelect?.addEventListener('change', event => {
+  currentCase = event.target.value;
+  currentStep = -1;
+  completedSteps = [];
+  caseFeedback.textContent = 'تم اختيار السيناريو. اضغط ابدأ التدريب لعرض الخطوات.';
+  updateCaseView();
+});
+document.getElementById('start-case')?.addEventListener('click', () => {
+  currentCase = scenarioSelect.value;
+  currentStep = 0;
+  completedSteps = [];
+  caseFeedback.textContent = trainingCases[currentCase].steps[0][1];
+  updateCaseView();
+});
+nextStepButton?.addEventListener('click', () => {
+  const steps = trainingCases[currentCase].steps;
+  if (currentStep < 0 || currentStep >= steps.length) return;
+  completedSteps.push({ title: steps[currentStep][0], completedAt: new Date().toISOString() });
+  if (completedSteps.length < steps.length) {
+    currentStep += 1;
+    caseFeedback.textContent = steps[currentStep][1];
+  } else {
+    currentStep = steps.length;
+    caseFeedback.textContent = 'اكتمل السيناريو. راجع الملاحظات مع المشرف؛ الإكمال لا يعني اجتياز كفاءة سريرية.';
+    nextStepButton.disabled = true;
+    const history = JSON.parse(localStorage.getItem('dental-sim-training') || '[]');
+    history.push({ scenario: currentCase, title: trainingCases[currentCase].title, completedAt: new Date().toISOString(), steps: completedSteps });
+    localStorage.setItem('dental-sim-training', JSON.stringify(history.slice(-50)));
+  }
+  updateCaseView();
+});
+document.getElementById('export-report')?.addEventListener('click', () => {
+  const report = {
+    application: 'Dental Simulation',
+    reportType: 'educational-training-checklist',
+    createdAt: new Date().toISOString(),
+    scenario: currentCase,
+    title: trainingCases[currentCase].title,
+    completed: completedSteps.length,
+    total: trainingCases[currentCase].steps.length,
+    steps: completedSteps,
+    privacy: 'No patient identifiers or clinical records are included.',
+    safety: 'Educational checklist only. Not evidence of clinical competency or a validated treatment protocol.'
+  };
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `dental-training-${currentCase}-${new Date().toISOString().slice(0,10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+updateCaseView();
+setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتبة العيادة والتشريح…');
+setTimeout(() => showClinicExperience(), 50);
 
 document.getElementById('mesh-count').textContent=String(scene.meshes.length);
 engine.runRenderLoop(()=>{scene.render();});
