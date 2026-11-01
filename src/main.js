@@ -536,6 +536,7 @@ function setCamera(mode) {
   const p = presets[mode] || presets.orbit;
   camera.alpha=p[0]; camera.beta=p[1]; camera.radius=p[2]; camera.setTarget(p[3]);
   document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
+  setTimeout(fitVisibleSceneToSquare, 120);
 }
 
 function fitVisibleSceneToSquare() {
@@ -2259,6 +2260,10 @@ function configureAiProvider() {
 }
 aiProviderSelect?.addEventListener('change', configureAiProvider);
 aiApiKeyInput?.addEventListener('input', () => { aiApiKey = aiApiKeyInput.value.trim(); });
+window.addEventListener('pagehide', () => {
+  aiApiKey = '';
+  if (aiApiKeyInput) aiApiKeyInput.value = '';
+});
 aiClearKeyButton?.addEventListener('click', () => {
   aiApiKey = '';
   if (aiApiKeyInput) aiApiKeyInput.value = '';
