@@ -72,6 +72,8 @@ const peopleRoot = new TransformNode('PeoplePreviewRoot', scene);
 peopleRoot.setEnabled(false);
 const treatmentRoot = new TransformNode('IntegratedTreatmentRoot', scene);
 treatmentRoot.setEnabled(false);
+const pediatricRoot = new TransformNode('PrimaryDentitionAtlasRoot', scene);
+pediatricRoot.setEnabled(false);
 const treatmentLight = new PointLight('ChairsideExamLight', new Vector3(0, 2.65, -0.8), scene);
 treatmentLight.intensity = 0;
 treatmentLight.range = 4.2;
@@ -355,6 +357,11 @@ scene.onPointerObservable.add((pointerInfo) => {
   if (pointerInfo.type !== PointerEventTypes.POINTERPICK || !pointerInfo.pickInfo?.hit) return;
   const picked = pointerInfo.pickInfo.pickedMesh;
   if (!picked || picked === scene.meshes[0]) return;
+  if (activeExperience === 'pediatric') {
+    const fdi = picked.metadata?.pediatricToothFdi;
+    if (fdi) selectPediatricTooth(fdi);
+    return;
+  }
   if (activeExperience === 'dental-scope') {
     const dentalKey = picked.metadata?.dentalScopeKey;
     if (dentalKey) {
@@ -389,6 +396,18 @@ scene.onPointerObservable.add((pointerInfo) => {
 });
 
 function setCamera(mode) {
+  if (activeExperience === 'pediatric') {
+    const views = {
+      orbit: [-Math.PI/2, 1.12, 4.8, new Vector3(-.8, 0, 0)],
+      front: [-Math.PI/2, 1.2, 4.8, new Vector3(-.8, 0, 0)],
+      side: [0, 1.2, 4.8, new Vector3(-.8, 0, 0)],
+      top: [-Math.PI/2, .22, 5.2, new Vector3(-.8, 0, 0)]
+    };
+    const view = views[mode] || views.orbit;
+    camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    return;
+  }
   if (activeExperience === 'treatment') {
     const views = {
       orbit: [-Math.PI/2.25, 1.12, 8.1, new Vector3(0, 1.35, 0)],
@@ -501,6 +520,7 @@ document.getElementById('lamp-toggle').addEventListener('click',()=>{
 const assetStatus = document.getElementById('asset-status');
 const loadingOverlay = document.getElementById('loading');
 const anatomyPanel = document.getElementById('anatomy-section');
+const pediatricPanel = document.getElementById('pediatric-section');
 const structureList = document.getElementById('structure-list');
 const highlight = new HighlightLayer('SelectedStructure', scene);
 let clinicAssetRoot = null;
@@ -702,6 +722,8 @@ async function ensureAnatomyModel() {
 }
 
 async function showClinicExperience() {
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
   treatmentRoot.setEnabled(false);
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
@@ -716,7 +738,7 @@ async function showClinicExperience() {
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -744,13 +766,15 @@ async function showClinicExperience() {
 
 
 async function showTreatmentExperience() {
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
   patientVariantControls.hidden = false;
   peopleRoot.setEnabled(false);
   anatomyPanel.hidden = true;
   bodyPanel.hidden = true;
   dentalAtlasPanel.hidden = true;
   activeExperience = 'treatment';
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected', id === 'view-treatment');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -845,6 +869,8 @@ document.getElementById('patient-male')?.addEventListener('click',()=>void selec
 document.getElementById('patient-female')?.addEventListener('click',()=>void selectPatientVariant('female'));
 
 async function showPeopleExperience() {
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
   treatmentRoot.setEnabled(false);
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
@@ -855,7 +881,7 @@ async function showPeopleExperience() {
   activeExperience = 'people';
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   root.setEnabled(false);
@@ -864,7 +890,7 @@ async function showPeopleExperience() {
   peopleRoot.setEnabled(true);
   patientVariantControls.hidden = false;
   anatomyPanel.hidden = true;
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   setProceduralControlsEnabled(false,'clinic');
@@ -879,6 +905,8 @@ async function showPeopleExperience() {
 document.getElementById('view-people')?.addEventListener('click',showPeopleExperience);
 
 async function showAnatomyExperience() {
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
   treatmentRoot.setEnabled(false);
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
@@ -890,7 +918,7 @@ async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -1065,6 +1093,8 @@ async function ensureBodyModel() {
   }
 }
 async function showBodyExperience() {
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
   treatmentRoot.setEnabled(false);
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
@@ -1414,6 +1444,8 @@ async function ensureDentalScope() {
   }
 }
 async function showDentalAtlasExperience() {
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
   treatmentRoot.setEnabled(false);
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
@@ -1483,6 +1515,128 @@ const clinicalReferenceIndex = {
   iadt: { label: 'IADT — إرشادات إصابات الأسنان الرضحية', url: 'https://iadt-dentaltrauma.org/guidelines-and-resources/guidelines/' },
   fda: { label: 'FDA — اعتبارات دعم القرار السريري بالبرمجيات', url: 'https://www.fda.gov/medical-devices/digital-health-center-excellence/step-6-software-function-intended-provide-clinical-decision-support' }
 };
+
+const pediatricToothCatalog = [
+  { fdi:'61', file:'primary-tooth-61.glb', label:'القاطع المركزي العلوي الأيسر', arch:'علوي', position:0 },
+  { fdi:'62', file:'primary-tooth-62.glb', label:'القاطع الجانبي العلوي الأيسر', arch:'علوي', position:1 },
+  { fdi:'63', file:'primary-tooth-63.glb', label:'الناب العلوي الأيسر', arch:'علوي', position:2 },
+  { fdi:'64', file:'primary-tooth-64.glb', label:'الضرس اللبني الأول العلوي الأيسر', arch:'علوي', position:3 },
+  { fdi:'65', file:'primary-tooth-65.glb', label:'الضرس اللبني الثاني العلوي الأيسر', arch:'علوي', position:4 },
+  { fdi:'71', file:'primary-tooth-71.glb', label:'القاطع المركزي السفلي الأيسر', arch:'سفلي', position:0 },
+  { fdi:'72', file:'primary-tooth-72.glb', label:'القاطع الجانبي السفلي الأيسر', arch:'سفلي', position:1 },
+  { fdi:'73', file:'primary-tooth-73.glb', label:'الناب السفلي الأيسر', arch:'سفلي', position:2 },
+  { fdi:'74', file:'primary-tooth-74.glb', label:'الضرس اللبني الأول السفلي الأيسر', arch:'سفلي', position:3 },
+  { fdi:'75', file:'primary-tooth-75.glb', label:'الضرس اللبني الثاني السفلي الأيسر', arch:'سفلي', position:4 }
+];
+const pediatricSourceRoot = 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/';
+const pediatricRecords = [];
+let selectedPediatricFdi = null;
+const pediatricStatus = document.getElementById('pediatric-atlas-status');
+function setPediatricStatus(message, state='') {
+  if (!pediatricStatus) return;
+  pediatricStatus.textContent = message;
+  pediatricStatus.classList.remove('ok','warn');
+  if (state) pediatricStatus.classList.add(state);
+}
+async function ensurePediatricDentition() {
+  if (pediatricRecords.length === pediatricToothCatalog.length) return;
+  setPediatricStatus('جارٍ تحميل 10 نماذج أسنان لبنية مرخصة من جامعة دندي…');
+  const localRoot = new URL('pediatric-dentition/', localModelRoot).href;
+  try {
+    const loaded = await Promise.all(pediatricToothCatalog.map(async tooth => {
+      let container;
+      try {
+        container = await SceneLoader.LoadAssetContainerAsync(localRoot, tooth.file, scene);
+      } catch (localError) {
+        console.warn('Local primary tooth not present; using pinned public source.', tooth.fdi, localError);
+        container = await SceneLoader.LoadAssetContainerAsync(pediatricSourceRoot, tooth.file.replace('primary-tooth-', 'primary_').replace('.glb', '_fdi_' + tooth.fdi + '.glb'), scene);
+      }
+      const mounted = attachCenteredContainer(container, 'PrimaryToothModel_' + tooth.fdi, .55);
+      const placement = new TransformNode('PrimaryToothPlacement_' + tooth.fdi, scene);
+      placement.parent = pediatricRoot;
+      const xPositions = [-.12, -.43, -.78, -1.13, -1.48];
+      placement.position.set(xPositions[tooth.position], tooth.arch === 'علوي' ? .52 : -.52, tooth.arch === 'علوي' ? -.12 : .12);
+      mounted.group.parent = placement;
+      const meshes = container.meshes.filter(mesh => mesh.getTotalVertices && mesh.getTotalVertices() > 0);
+      for (const mesh of meshes) {
+        mesh.isPickable = true;
+        mesh.metadata = { ...(mesh.metadata || {}), pediatricToothFdi: tooth.fdi };
+      }
+      return { ...tooth, container, group: mounted.group, placement, meshes };
+    }));
+    pediatricRecords.push(...loaded);
+    pediatricRoot.setEnabled(true);
+    setPediatricStatus('تم تحميل 10 نماذج أسنان لبنية منفصلة. المجموعة تمثل الأسنان اليسرى فقط، وليست فكًا كاملًا.', 'ok');
+    renderPediatricToothGrid();
+  } catch (error) {
+    console.error('Primary dentition models could not be loaded.', error);
+    pediatricRoot.setEnabled(false);
+    setPediatricStatus('تعذر تحميل مجموعة الأسنان اللبنية. بقية مشاهد المحاكي متاحة.', 'warn');
+  }
+}
+function selectPediatricTooth(fdi) {
+  const record = pediatricRecords.find(item => item.fdi === String(fdi));
+  if (!record) return;
+  selectedPediatricFdi = record.fdi;
+  highlight.removeAllMeshes();
+  for (const mesh of record.meshes) highlight.addMesh(mesh, Color3.FromHexString('#42d6bd'));
+  document.getElementById('selection-name').textContent = record.label + ' (FDI ' + record.fdi + ')';
+  document.getElementById('selection-description').textContent = 'نموذج سن لبني منفرد من جامعة دندي. لا يمثل هذا الملف وحده الفك الكامل أو مرحلة بزوغ مكتملة.';
+  document.getElementById('pediatric-tooth-detail').textContent = record.label + ' — FDI ' + record.fdi + '. نموذج تعليمي بصيغة GLB، مرخص CC BY 4.0. راجع الإسناد ومحدودية التغطية قبل استخدامه في تدريس رسمي.';
+  document.querySelectorAll('.pediatric-tooth-button').forEach(button => button.classList.toggle('selected', button.dataset.fdi === record.fdi));
+}
+function renderPediatricToothGrid(filter='') {
+  const grid = document.getElementById('pediatric-tooth-grid');
+  if (!grid) return;
+  const query = String(filter || '').toLowerCase().trim();
+  grid.replaceChildren();
+  for (const tooth of pediatricToothCatalog) {
+    if (query && !tooth.fdi.includes(query) && !tooth.label.toLowerCase().includes(query)) continue;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tooth-chip pediatric-tooth-button' + (tooth.fdi === selectedPediatricFdi ? ' selected' : '');
+    button.dataset.fdi = tooth.fdi;
+    button.textContent = tooth.fdi;
+    button.title = tooth.label;
+    button.addEventListener('click', () => selectPediatricTooth(tooth.fdi));
+    grid.appendChild(button);
+  }
+}
+async function showPediatricDentitionExperience() {
+  patientVariantControls.hidden = true;
+  pediatricPanel.hidden = false;
+  anatomyPanel.hidden = true;
+  bodyPanel.hidden = true;
+  dentalAtlasPanel.hidden = true;
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
+  peopleRoot.setEnabled(false);
+  root.setEnabled(false);
+  clinicAssetRoot?.setEnabled(false);
+  anatomyAssetRoot?.setEnabled(false);
+  bodyAssetRoot?.setEnabled(false);
+  dentalScopeRoot?.setEnabled(false);
+  dentalToothDetails.forEach(item => item.root.setEnabled(false));
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+    document.getElementById(id)?.classList.toggle('selected', id === 'view-pediatric');
+  }
+  activeExperience = 'pediatric';
+  loadingOverlay?.classList.remove('hidden');
+  await ensurePediatricDentition();
+  if (pediatricRecords.length) {
+    pediatricRoot.setEnabled(true);
+    setProceduralControlsEnabled(false, 'pediatric');
+    camera.lowerRadiusLimit = 1.5;
+    camera.upperRadiusLimit = 12;
+    setCamera('orbit');
+    setAssetStatus('تم تحميل أطلس الأسنان اللبنية: 10 نماذج مفردة من جامعة دندي.', 'ok');
+    if (!selectedPediatricFdi) selectPediatricTooth('61');
+  }
+  loadingOverlay?.classList.add('hidden');
+}
+document.getElementById('view-pediatric')?.addEventListener('click', showPediatricDentitionExperience);
+document.getElementById('pediatric-tooth-search')?.addEventListener('input', event => renderPediatricToothGrid(event.target.value));
 
 const trainingCases = {
   exam: {
@@ -1613,6 +1767,19 @@ const trainingCases = {
       ['الفحص والتصوير', 'افحص الأنسجة الرخوة وحركة السن والإطباق والأنسجة الداعمة واختر التصوير وفق إرشادات الرضوض.'],
       ['الرجوع إلى مسار IADT', 'استخدم الدليل المناسب لنوع الإصابة والعمر والزمن، ولا تعمم توصية إصابة على نوع آخر.'],
       ['التواصل والمتابعة', 'اشرح الإنذار والمتابعة الطويلة ومراقبة اللب والجذر والأنسجة الداعمة، ووثق كل شيء.']
+    ]
+  },
+  pediatric: {
+    title: 'تقييم أسنان الأطفال والأسنان اللبنية',
+    description: 'مسار تعليمي يراعي التاريخ الصحي والنمو والتعاون واختلاف الأسنان اللبنية والدائمة، وليس بروتوكول علاج لطفل بعينه.',
+    sources: ['adaEvidence','iadt','sdcepAcute'],
+    steps: [
+      ['التاريخ والتواصل مع الطفل وولي الأمر', 'اجمع الشكوى والتاريخ الطبي والسني والحساسية والأدوية، وراعِ مستوى فهم الطفل ووجود ولي الأمر والموافقة المناسبة.'],
+      ['تقييم النمو والسلوك', 'قدّر العمر النمائي والتعاون والقلق والقدرة على تحمل الزيارة، واختر أسلوب تواصل سلوكي مناسبًا للطفل.'],
+      ['تمييز الأسنان اللبنية والدائمة', 'استخدم نظام FDI وتحقق من مرحلة البزوغ والسن المتوقع، ولا تخلط بين بروتوكولات الأسنان اللبنية والدائمة.'],
+      ['تقييم التسوس واللب والرضوض', 'راجع نشاط الآفة وأعراض اللب والأنسجة الداعمة وأي إصابة رضحية، واستخدم دليل الحالة المناسب.'],
+      ['مناقشة الخيارات الوقائية والعلاجية', 'ناقش الوقاية والتدبير غير الترميمي والترميم أو الإحالة وفق حالة الطفل والدليل المحلي وإشراف المختص.'],
+      ['المتابعة والتوثيق', 'حدد مواعيد مراجعة ملائمة للمخاطر والنمو، وسجل التغيرات وتواصل مع ولي الأمر دون إدخال بيانات تعريفية في المحاكي.']
     ]
   },
   emergency: {
