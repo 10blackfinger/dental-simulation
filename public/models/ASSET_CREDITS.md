@@ -64,3 +64,17 @@ Those character models are static rather than rigged/animated according to their
 - **Viewer changes:** no source mesh geometry is edited by the preparation script. The application applies a parent transform for framing and changes per-mesh visibility/opacity for interactive layer viewing.
 - **Limits:** one adult male anatomical figure; simplified real-time geometry; no internal organs, vessels, nerves, ligaments, joint capsules or skin. The source notes facial muscles were not run through the same layering pass and positions are accurate only to a few millimetres. The source expressly says not for clinical use.
 - **ShareAlike:** redistribution or adaptations must preserve the attribution, licence link and modification notice, and share adaptations under CC BY-SA 4.0.
+
+
+## 6. Detailed dental anatomy atlas (Dental Scope)
+
+- **Asset source:** [Dental Scope](https://github.com/Yoosseph/dental-scope), pinned commit `4ca93c04c7ed500fdc06e31ac82fcd668a34cae5`.
+- **Model source:** BodyParts3D 3.0, © The Database Center for Life Science (DBCLS).
+- **Licence:** the base dental atlas is CC BY-SA 2.1 Japan. The neurovascular extension also incorporates Z-Anatomy material under CC BY-SA 4.0; retain both notices and comply with the applicable ShareAlike licence for the combined file.
+- **Required credit for base atlas:** “BodyParts3D 3.0, © The Database Center for Life Science (DBCLS), adapted in Dental Scope. CC BY-SA 2.1 Japan.”
+- **Neurovascular credit:** “Z-Anatomy by Gauthier Kervyn, CC BY-SA 4.0, as incorporated in the Dental Scope neurovascular extension.”
+- **Files downloaded:** `core.glb` (6,389,592 bytes), `context.glb` (1,031,904 bytes), `neurovascular.glb` (383,276 bytes), `manifest.json` (299,017 bytes), and 32 per-tooth GLB files (FDI 11–18, 21–28, 31–38, 41–48; 54,320,881 bytes across these 36 files).
+- **Coverage:** 415 named mesh-registry entries, 32 permanent tooth models, and separate enamel, coronal/radicular dentin, cementum, periodontal ligament, pulp chamber and root-canal meshes. Shared structures include gingiva, maxilla, mandible, skull context, muscles, TMJ/disc, maxillary sinuses and neurovascular structures as present in the pinned source manifest.
+- **Runtime behavior:** shared jaw/context/neurovascular meshes load on opening the dental atlas. Detailed tooth layers are loaded on demand when the user chooses an FDI tooth. The preparation script pins each file to its GitHub blob SHA and exact byte size and rejects altered, partial or non-GLB data.
+- **Modeling limits:** the source project labels several dental layers and measurements as schematic/estimated rather than measured tissue segmentation. Canal configurations, landmarks and paths should not be presented as universal anatomy. Some cranial paths and nerve branches are explicitly schematic and remain subject to specialist review.
+- **ShareAlike:** attribution must be retained, sources linked, changes noted, and derivative model files redistributed under the corresponding ShareAlike licence. Do not combine these model licences with the project's code licence.
