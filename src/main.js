@@ -197,6 +197,10 @@ scene.onPointerObservable.add((pointerInfo) => {
   if (pointerInfo.type !== PointerEventTypes.POINTERPICK || !pointerInfo.pickInfo?.hit) return;
   const picked = pointerInfo.pickInfo.pickedMesh;
   if (!picked || picked === scene.meshes[0]) return;
+  if (activeExperience === 'anatomy' && typeof anatomyCatalog !== 'undefined' && anatomyCatalog.some(item => item.id === picked.name)) {
+    selectAnatomy(picked.name);
+    return;
+  }
   let node = picked;
   while (node && !node.metadata?.title && node.parent) node = node.parent;
   const data = node?.metadata || picked.metadata;
