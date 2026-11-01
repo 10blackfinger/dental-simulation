@@ -3,9 +3,9 @@ import '@babylonjs/loaders/glTF';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import {
-  Engine, Scene, Vector3, Color3, Color4, HemisphericLight, DirectionalLight,
+  Engine, Scene, Vector3, Color3, Color4, HemisphericLight, DirectionalLight, PointLight,
   ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager,
-  ExecuteCodeAction, PointerEventTypes
+  ExecuteCodeAction, PointerEventTypes, Animation, CubicEase, EasingFunction
 } from '@babylonjs/core';
 
 const canvas = document.getElementById('render-canvas');
@@ -70,6 +70,12 @@ const jawGroup = new TransformNode('JawGroup', scene); jawGroup.parent = root;
 const toolGroup = new TransformNode('InstrumentGroup', scene); toolGroup.parent = root;
 const peopleRoot = new TransformNode('PeoplePreviewRoot', scene);
 peopleRoot.setEnabled(false);
+const treatmentRoot = new TransformNode('IntegratedTreatmentRoot', scene);
+treatmentRoot.setEnabled(false);
+const treatmentLight = new PointLight('ChairsideExamLight', new Vector3(0, 2.65, -0.8), scene);
+treatmentLight.intensity = 0;
+treatmentLight.range = 4.2;
+treatmentLight.diffuse = new Color3(1, 0.91, 0.77);
 
 function box(name, size, pos, mat, parent, extra = {}) {
   const mesh = MeshBuilder.CreateBox(name, size, scene);
@@ -213,9 +219,9 @@ function addPersonFace(prefix, group, y, z, skinName = 'skin', hairName = 'hair'
   }
 }
 
-function buildStandingPerson(prefix, x, z, clothing, masked = false, withCoat = false) {
+function buildStandingPerson(prefix, x, z, clothing, masked = false, withCoat = false, parentRoot = peopleRoot) {
   const group = new TransformNode(prefix, scene);
-  group.parent = peopleRoot;
+  group.parent = parentRoot;
   group.position.set(x,0,z);
   sphere(prefix+'_Pelvis',.46,[0,.85,0],withCoat?'trousers':clothing,group,[.74,.75,.55]);
   sphere(prefix+'_Torso',.82,[0,1.23,0],withCoat?'coat':clothing,group,[.79,.78,.48]);
@@ -269,6 +275,62 @@ const proceduralPatient = buildSeatedPatient();
 proceduralPatient.setEnabled(true);
 buildStandingPerson('DentistPreview',-1.75,.25,'coat',false,true);
 buildStandingPerson('AssistantPreview',1.75,.25,'scrubs',true,false);
+
+// Integrated chairside encounter: the patient, dentist, assistant and tray share one clinic scene.
+const treatmentPatient = new TransformNode('PatientSupineOnDentalChair', scene);
+treatmentPatient.parent = treatmentRoot;
+treatmentPatient.position.set(0, 1.2, 0);
+const patientBody = sphere('TreatmentPatientTorso', .9, [0, 0, 0.05], 'gown', treatmentPatient, [.68, .48, 1.08]);
+const patientPelvis = sphere('TreatmentPatientPelvis', .58, [0, -.025, .79], 'gown', treatmentPatient, [.7, .65, .72]);
+const patientNeck = cylinder('TreatmentPatientNeck', .24, .22, [0, .02, -.78], 'skin', treatmentPatient, 20);
+const patientHead = sphere('TreatmentPatientHead', .72, [0, .035, -1.08], 'skin', treatmentPatient, [.78, .72, .9]);
+sphere('TreatmentPatientHair', .73, [0, .12, -1.22], 'hair', treatmentPatient, [.8, .45, .8]);
+for (const side of [-1, 1]) {
+  sphere('TreatmentPatientEar_' + side, .14, [side * .28, .04, -1.05], 'skin', treatmentPatient, [.65, 1, 1]);
+  sphere('TreatmentPatientEye_' + side, .095, [side * .105, .29, -1.19], 'eye', treatmentPatient, [1, .6, .8]);
+  sphere('TreatmentPatientPupil_' + side, .04, [side * .105, .33, -1.2], 'pupil', treatmentPatient);
+}
+sphere('TreatmentPatientNose', .12, [0, .29, -.98], 'skin', treatmentPatient, [.7, .65, 1.1]);
+sphere('TreatmentPatientMouth', .17, [0, .277, -.84], 'rubber', treatmentPatient, [1, .18, .55]);
+const patientJawPivot = new TransformNode('TreatmentPatientLowerJawPivot', scene);
+patientJawPivot.parent = treatmentPatient;
+patientJawPivot.position.set(0, .08, -.81);
+box('TreatmentPatientLowerJaw', [.31, .085, .2], [0, -.015, -.045], 'skin', patientJawPivot);
+for (let i = 0; i < 4; i++) {
+  sphere('TreatmentPatientUpperTooth_' + i, .055, [-.09 + i * .06, .315, -.865], 'tooth', treatmentPatient, [1, .35, .7]);
+  sphere('TreatmentPatientLowerTooth_' + i, .05, [-.09 + i * .06, .085, -.85], 'tooth', patientJawPivot, [1, .35, .7]);
+}
+box('TreatmentPatientBib', [.62, .045, .72], [0, .39, -.12], 'white', treatmentPatient);
+for (const side of [-1, 1]) {
+  tube('TreatmentPatientUpperArm_' + side, [[side*.32,.02,-.5],[side*.52,-.02,-.18],[side*.56,-.08,.2]], .105, 'gown', treatmentPatient);
+  sphere('TreatmentPatientHand_' + side, .16, [side*.56,-.08,.27], 'skin', treatmentPatient, [.8,.65,1]);
+  tube('TreatmentPatientThigh_' + side, [[side*.14,0,.72],[side*.17,-.04,1.12],[side*.17,-.08,1.42]], .15, 'gown', treatmentPatient);
+  tube('TreatmentPatientShin_' + side, [[side*.17,-.08,1.42],[side*.17,-.08,1.78],[side*.17,-.08,2.05]], .12, 'gown', treatmentPatient);
+  sphere('TreatmentPatientShoe_' + side, .28, [side*.17,-.1,2.12], 'shoe', treatmentPatient, [.8,.6,1.4]);
+}
+const treatmentDentist = buildStandingPerson('IntegratedDentist', -1.55, .02, 'coat', true, true, treatmentRoot);
+treatmentDentist.rotation.y = Math.PI / 2;
+const treatmentAssistant = buildStandingPerson('IntegratedAssistant', 1.55, .02, 'scrubs', true, false, treatmentRoot);
+treatmentAssistant.rotation.y = -Math.PI / 2;
+
+// Chairside delivery tray and a reusable, selectable instrument proxy.
+box('TreatmentTrayStand', [.12, .82, .12], [-1.58, .48, 1.12], 'metal', treatmentRoot);
+box('TreatmentTraySurface', [1.05, .09, .72], [-1.58, .91, 1.12], 'metal', treatmentRoot);
+for (let i = 0; i < 4; i++) {
+  const trayInstrument = cylinder('TrayInstrument_' + i, .58, .055, [-1.92 + i * .22, .99, 1.08], i % 2 ? 'tealDark' : 'metal', treatmentRoot, 20);
+  trayInstrument.rotation.x = Math.PI / 2;
+  trayInstrument.metadata = { treatmentLabel: ['مرآة الفحص','مسبار الأسنان','ملقط قطني','مقبض أداة دوارة'][i], detail: 'أداة عرض تعليمية على صينية الطبيب.' };
+}
+const activeInstrumentRoot = new TransformNode('ActiveTreatmentInstrument', scene);
+activeInstrumentRoot.parent = treatmentRoot;
+activeInstrumentRoot.position.set(-1.58, 1.08, 1.12);
+const activeInstrumentHandle = cylinder('ActiveInstrumentHandle', .78, .065, [0,0,0], 'metal', activeInstrumentRoot, 24);
+activeInstrumentHandle.rotation.x = Math.PI / 2;
+const activeInstrumentGrip = cylinder('ActiveInstrumentGrip', .22, .095, [0,0,.18], 'tealDark', activeInstrumentRoot, 24);
+activeInstrumentGrip.rotation.x = Math.PI / 2;
+const activeInstrumentTip = sphere('ActiveInstrumentTip', .105, [0,0,-.42], 'white', activeInstrumentRoot, [1,.65,1.4]);
+activeInstrumentRoot.metadata = { treatmentLabel: 'الأداة المختارة', detail: 'أداة تعليمية متحركة؛ لا تحاكي قوة أو دقة أداة سريرية حقيقية.' };
+
 
 // Selection and metadata.
 const descriptions = new Map();
