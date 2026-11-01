@@ -29,6 +29,7 @@
             <button id="view-clinic" class="asset-switch-button selected" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
             <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
             <button id="view-people" class="asset-switch-button" type="button"><b>الشخصيات</b><small>طبيب ومريض ومساعد</small></button>
+            <button id="view-dental-atlas" class="asset-switch-button" type="button"><b>الأطلس السني المتقدم</b><small>32 سنًا + أعصاب + مفاصل</small></button>
             <button id="view-body" class="asset-switch-button" type="button"><b>التشريح الكامل</b><small>634 تركيبًا — عظام وعضلات</small></button>
           </div>
           <p id="asset-status" class="asset-status" role="status">تحميل مكتبة المجسمات عند بدء التشغيل…</p>
@@ -60,6 +61,42 @@
             <button id="restore-structures" class="small-action" type="button">إظهار الكل</button>
           </div>
           <p class="asset-license-note">المصدر الحالي يضم 28 سنًا دائمًا، ولا يشمل ضروس العقل أو الأسنان اللبنية أو الأعصاب والأوعية.</p>
+        </section>
+        <section id="dental-atlas-section" class="control-section dental-atlas-section" hidden>
+          <h2>الأطلس السني التفصيلي</h2>
+          <p class="asset-license-note">415 تركيبًا في دليل الأطلس، و32 نموذج سنّ منفصلًا مع طبقات داخلية وقنوات جذرية، إلى جانب اللثة وعظام الفك ومفصل الفك والأعصاب والأوعية والجيوب الفكية.</p>
+          <div id="dental-atlas-status" class="case-progress" role="status">تحميل مكتبة التشريح السني…</div>
+          <div class="body-layer-controls">
+            <label class="switch-row"><span>العظام والجمجمة والعضلات</span><input id="dental-context-toggle" type="checkbox" checked><i></i></label>
+            <label class="switch-row"><span>الأعصاب والأوعية</span><input id="dental-nerve-toggle" type="checkbox" checked><i></i></label>
+            <label class="switch-row"><span>اللثة</span><input id="dental-gum-toggle" type="checkbox" checked><i></i></label>
+            <label class="switch-row"><span>تيجان الأسنان في الفك</span><input id="dental-shell-toggle" type="checkbox" checked><i></i></label>
+          </div>
+          <h3 class="mini-heading">اختيار السن بنظام FDI</h3>
+          <input id="dental-tooth-search" class="text-filter" type="search" placeholder="ابحث برقم السن أو اسمه…" aria-label="البحث عن سن">
+          <div id="dental-tooth-grid" class="dental-tooth-grid"></div>
+          <div id="dental-tooth-detail-panel" hidden>
+            <div class="selected-tooth-heading"><b id="dental-selected-tooth-name">السن المحدد</b><button id="dental-tooth-back" class="small-action" type="button">العودة إلى الفك الكامل</button></div>
+            <p class="asset-license-note">الطبقات الداخلية في هذا النموذج تقريبية ومشتقة من سطح السن وليست قياسات نسيجية أو خطة علاجية.</p>
+            <div class="tissue-grid">
+              <label><input type="checkbox" data-tooth-layer="enamel" checked> المينا</label>
+              <label><input type="checkbox" data-tooth-layer="dentin-coronal" checked> عاج التاج</label>
+              <label><input type="checkbox" data-tooth-layer="dentin-radicular" checked> عاج الجذر</label>
+              <label><input type="checkbox" data-tooth-layer="cementum" checked> الملاط</label>
+              <label><input type="checkbox" data-tooth-layer="pdl" checked> الرباط حول السني</label>
+              <label><input type="checkbox" data-tooth-layer="pulp-chamber" checked> حجرة اللب</label>
+              <label><input type="checkbox" data-tooth-layer="canal" checked> القنوات الجذرية</label>
+            </div>
+            <div id="dental-tooth-mesh-status" class="case-progress">اختر سنًا لتحميل طبقاته الداخلية.</div>
+          </div>
+          <h3 class="mini-heading">مستكشف تراكيب الفم</h3>
+          <input id="dental-structure-search" class="text-filter" type="search" placeholder="ابحث مثل: nerve أو sinus أو mandible…" aria-label="البحث في تراكيب الفم">
+          <div id="dental-structure-list" class="structure-list dental-structure-list"></div>
+          <div class="button-row">
+            <button id="dental-isolate-structure" class="small-action" type="button">عزل المحدد</button>
+            <button id="dental-restore-structures" class="small-action" type="button">إظهار الكل</button>
+          </div>
+          <p class="asset-license-note">المصدر BodyParts3D 3.0 (DBCLS) بترخيص CC BY-SA 2.1 Japan. طبقات الأعصاب والأوعية مستمدة جزئيًا من Z-Anatomy بترخيص CC BY-SA 4.0. الإسناد الكامل وحدود الأجزاء التخطيطية موثقة في ASSET_CREDITS.md.</p>
         </section>
         <section id="body-section" class="control-section body-section" hidden>
           <h2>مستكشف الجسم البشري</h2>
