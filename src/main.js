@@ -538,12 +538,13 @@ function setCamera(mode) {
   setTimeout(fitVisibleSceneToSquare, 120);
 }
 
-function fitVisibleSceneToSquare() {
+function fitVisibleSceneToSquare(meshesToFit = null) {
   if (!scene || !camera || scene.isDisposed) return;
   const min = new Vector3(Infinity, Infinity, Infinity);
   const max = new Vector3(-Infinity, -Infinity, -Infinity);
   let found = 0;
-  for (const mesh of scene.meshes) {
+  const candidateMeshes = Array.isArray(meshesToFit) && meshesToFit.length ? meshesToFit : scene.meshes;
+  for (const mesh of candidateMeshes) {
     try {
       if (!mesh.getTotalVertices || mesh.getTotalVertices() === 0 || !mesh.isVisible || !mesh.isEnabled()) continue;
       mesh.computeWorldMatrix(true);
@@ -564,7 +565,7 @@ function fitVisibleSceneToSquare() {
   const fitRadius = Math.max(1.6, (boundingRadius / Math.sin(safeFov * 0.5)) * 1.12);
   camera.setTarget(center);
   camera.radius = fitRadius;
-  camera.lowerRadiusLimit = Math.max(0.8, fitRadius * 0.52);
+  camera.lowerRadiusLimit = fitRadius * 0.94;
   camera.upperRadiusLimit = Math.max(fitRadius * 2.5, fitRadius + 4);
   camera.panningSensibility = 0;
   camera.maxZ = Math.max(100, fitRadius * 30);
@@ -726,8 +727,10 @@ async function ensureClinicModel() {
 
 function selectAnatomy(id) {
   selectedAnatomyId = id;
+  const selectedMeshes = [];
   for (const mesh of anatomyContainer?.meshes || []) {
     if (mesh.name === id || mesh.name.startsWith(id + '_')) {
+      selectedMeshes.push(mesh);
       highlight.addMesh(mesh, Color3.FromHexString('#42d6bd'));
       document.getElementById('selection-name').textContent = anatomyCatalog.find(x=>x.id===id)?.label || mesh.name;
       document.getElementById('selection-description').textContent = 'تركيب تشريحي من نموذج BodyParts3D / Anatomography 4.3. استخدمه كمرجع تعليمي بصري فقط.';
@@ -735,6 +738,7 @@ function selectAnatomy(id) {
       highlight.removeMesh(mesh);
     }
   }
+  if (selectedMeshes.length) setTimeout(() => fitVisibleSceneToSquare(selectedMeshes), 80);
   structureList?.querySelectorAll('.structure-button').forEach(button => {
     button.classList.toggle('selected', button.dataset.structure === id);
   });
@@ -1062,6 +1066,7 @@ function selectBodyStructure(record) {
     document.getElementById('selection-name').textContent = record.info.name;
     const detail = [record.info.layer,record.info.side,record.info.tissue,record.info.fma].filter(Boolean).join(' · ');
     document.getElementById('selection-description').textContent = detail + ' — Écorché atlas, visual educational reference only.';
+    setTimeout(() => fitVisibleSceneToSquare([record.mesh]), 80);
   }
   document.querySelectorAll('.body-structure-button').forEach(button => {
     button.classList.toggle('selected',button.dataset.name===record?.info.name);
@@ -1382,6 +1387,7 @@ function selectDentalStructure(key) {
   highlight.removeAllMeshes();
   const meshes=dentalMeshByKey.get(key)||[];
   for(const mesh of meshes)highlight.addMesh(mesh,Color3.FromHexString('#43dbc2'));
+  if(meshes.length)setTimeout(()=>fitVisibleSceneToSquare(meshes),80);
   const label=dentalArabicLabel(key);
   document.getElementById('selection-name').textContent=label;
   const info=dentalManifest?.meshes?.[key];
@@ -1666,6 +1672,7 @@ function selectPediatricTooth(fdi) {
   selectedPediatricFdi = record.fdi;
   highlight.removeAllMeshes();
   for (const mesh of record.meshes) highlight.addMesh(mesh, Color3.FromHexString('#42d6bd'));
+  if(record.meshes.length)setTimeout(()=>fitVisibleSceneToSquare(record.meshes),80);
   document.getElementById('selection-name').textContent = record.label + ' (FDI ' + record.fdi + ')';
   document.getElementById('selection-description').textContent = 'نموذج سن لبني منفرد من جامعة دندي. لا يمثل هذا الملف وحده الفك الكامل أو مرحلة بزوغ مكتملة.';
   document.getElementById('pediatric-tooth-detail').textContent = record.label + ' — FDI ' + record.fdi + '. نموذج تعليمي بصيغة GLB، مرخص CC BY 4.0. راجع الإسناد ومحدودية التغطية قبل استخدامه في تدريس رسمي.';
