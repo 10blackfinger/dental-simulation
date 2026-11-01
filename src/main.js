@@ -596,6 +596,9 @@ async function showClinicExperience() {
   }
   loadingOverlay?.classList.remove('hidden');
   await ensureClinicModel();
+  if (clinicAssetRoot) {
+    setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد، غرفة علاج وتجهيزات ومناطق مساندة.', 'ok');
+  }
   if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
   if (clinicAssetRoot) {
     clinicAssetRoot.setEnabled(true);
