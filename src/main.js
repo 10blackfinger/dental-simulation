@@ -471,8 +471,7 @@ function setCamera(mode) {
     const view=views[mode]||views.orbit;
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
-  setTimeout(fitVisibleSceneToSquare, 120);
-
+    setTimeout(fitVisibleSceneToSquare, 120);
     return;
   }
   if (activeExperience === 'body-anatomy') {
@@ -1653,7 +1652,7 @@ async function ensurePediatricDentition() {
     const failedCount = results.length - pediatricRecords.length;
     if (!pediatricRecords.length) throw new Error('لم يتم تحميل أي نموذج من مجموعة الأسنان اللبنية.');
     pediatricRoot.setEnabled(true);
-    setPediatricStatus('تم تحميل ' + pediatricRecords.length + ' من 10 نماذج أسنان لبنية.' + (failedCount ? ' تعذر تحميل ' + failedCount + ' نماذج؛ النماذج المتاحة تعمل.' : '') + ' المجموعة تمثل الأسنان اليسرى فقط، وليست فكًا كاملًا.', failedCount ? 'warn' : 'ok');
+    setPediatricStatus('تم تحميل ' + pediatricRecords.length + ' نماذج من أصل 10 أسنان لبنية.' + (failedCount ? ' تعذر تحميل ' + failedCount + ' نماذج؛ النماذج المتاحة تعمل.' : '') + ' المجموعة تمثل الأسنان اليسرى فقط، وليست فكًا كاملًا.', failedCount ? 'warn' : 'ok');
     renderPediatricToothGrid();
   } catch (error) {
     console.error('Primary dentition models could not be loaded.', error);
