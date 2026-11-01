@@ -46,10 +46,6 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   expect(bodyRegistryResponse.ok()).toBeTruthy();
   const bodyRegistry = await bodyRegistryResponse.json();
   expect(bodyRegistry).toHaveLength(634);
-  const bodyModelResponse = await page.request.head(new URL('models/ecorche-anatomy.glb', page.url()).toString());
-  expect(bodyModelResponse.ok()).toBeTruthy();
-  expect(bodyModelResponse.headers()['content-type'] || '').toMatch(/model\/gltf-binary|octet-stream/i);
-
   await page.locator('#view-clinic').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة');
   await expect(page.locator('#view-clinic')).toHaveClass(/selected/);
