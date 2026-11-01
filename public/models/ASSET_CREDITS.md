@@ -96,4 +96,13 @@ Those character models are static rather than rigged/animated according to their
 - **Licence:** CC0 1.0 Universal for the exported models and MakeHuman core assets. Official [MakeHuman licence](https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md).
 - **Files:** `patient.glb` — 447,192 bytes, Git blob SHA `ff8e88f3faac09d23577d6b21e741e2d8f440b4d`; `patient-female.glb` — 445,616 bytes, Git blob SHA `516b8323004ab3248e640070ee7a860f01978f84`.
 - **Rig:** source project reports a reduced 57-bone rig. They are loaded as skinned GLB assets; this app currently provides no validated patient pose/animation library.
-- **Application use:** optional patient figures in the character-preview scene. They are generic teaching assets, not patient-specific digital twins or diagnostic representations.
+- **Application use:** patient figures in the character-preview scene and the integrated dental-chair treatment scene. The application places the selected GLB in a fixed horizontal orientation for the visual demonstrator; it does not animate the 57-bone rig or claim a clinically validated patient position. They are generic teaching assets, not patient-specific digital twins or diagnostic representations.
+
+
+## 8. Integrated treatment scene stand-ins
+
+- **Patient:** the same OSCE Sim / MakeHuman-derived CC0 models recorded in section 7 are now placed in the integrated chairside scene. The model is oriented horizontally as a static whole-body transform; the source rig is retained but no bone animation is currently played.
+- **Dentist and assistant:** original low-poly procedural geometry authored in this repository and parented into the treatment scene. These are illustrative placeholders, not third-party assets, scanned individuals, photorealistic models or anatomically validated characters.
+- **Chairside tray and selected instrument/material proxy:** original procedural geometry authored in this repository. The user can request slow tray-to-mouth and mouth-to-tray object transforms. There is no collision/contact physics, tool tracking, force calibration or tissue interaction.
+- **Licence:** original procedural scene parts are part of the repository code. The imported patient GLBs retain the CC0 1.0 Universal terms described in section 7.
+- **Visual caveat:** the static clinic room, imported patient geometry and procedural staff are aligned for a software demonstration. A dentist must review the exact scene layout, posture and visual realism before use as a formal ergonomics or clinical-skills teaching resource.
