@@ -1517,16 +1517,16 @@ const clinicalReferenceIndex = {
 };
 
 const pediatricToothCatalog = [
-  { fdi:'61', file:'primary-tooth-61.glb', label:'القاطع المركزي العلوي الأيسر', arch:'علوي', position:0 },
-  { fdi:'62', file:'primary-tooth-62.glb', label:'القاطع الجانبي العلوي الأيسر', arch:'علوي', position:1 },
-  { fdi:'63', file:'primary-tooth-63.glb', label:'الناب العلوي الأيسر', arch:'علوي', position:2 },
-  { fdi:'64', file:'primary-tooth-64.glb', label:'الضرس اللبني الأول العلوي الأيسر', arch:'علوي', position:3 },
-  { fdi:'65', file:'primary-tooth-65.glb', label:'الضرس اللبني الثاني العلوي الأيسر', arch:'علوي', position:4 },
-  { fdi:'71', file:'primary-tooth-71.glb', label:'القاطع المركزي السفلي الأيسر', arch:'سفلي', position:0 },
-  { fdi:'72', file:'primary-tooth-72.glb', label:'القاطع الجانبي السفلي الأيسر', arch:'سفلي', position:1 },
-  { fdi:'73', file:'primary-tooth-73.glb', label:'الناب السفلي الأيسر', arch:'سفلي', position:2 },
-  { fdi:'74', file:'primary-tooth-74.glb', label:'الضرس اللبني الأول السفلي الأيسر', arch:'سفلي', position:3 },
-  { fdi:'75', file:'primary-tooth-75.glb', label:'الضرس اللبني الثاني السفلي الأيسر', arch:'سفلي', position:4 }
+  { fdi:'61', file:'primary-tooth-61.glb', sourceFile:'primary_upper_left_central_incisor_fdi_61.glb', label:'القاطع المركزي العلوي الأيسر', arch:'علوي', position:0 },
+  { fdi:'62', file:'primary-tooth-62.glb', sourceFile:'primary_upper_left_lateral_incisor_fdi_62.glb', label:'القاطع الجانبي العلوي الأيسر', arch:'علوي', position:1 },
+  { fdi:'63', file:'primary-tooth-63.glb', sourceFile:'primary_upper_left_canine_fdi_63.glb', label:'الناب العلوي الأيسر', arch:'علوي', position:2 },
+  { fdi:'64', file:'primary-tooth-64.glb', sourceFile:'primary_upper_left_first_molar_fdi_64.glb', label:'الضرس اللبني الأول العلوي الأيسر', arch:'علوي', position:3 },
+  { fdi:'65', file:'primary-tooth-65.glb', sourceFile:'primary_upper_left_second_molar_fdi_65.glb', label:'الضرس اللبني الثاني العلوي الأيسر', arch:'علوي', position:4 },
+  { fdi:'71', file:'primary-tooth-71.glb', sourceFile:'primary_lower_left_central_incisor_fdi_71.glb', label:'القاطع المركزي السفلي الأيسر', arch:'سفلي', position:0 },
+  { fdi:'72', file:'primary-tooth-72.glb', sourceFile:'primary_lower_left_lateral_incisor_fdi_72.glb', label:'القاطع الجانبي السفلي الأيسر', arch:'سفلي', position:1 },
+  { fdi:'73', file:'primary-tooth-73.glb', sourceFile:'primary_lower_left_canine_fdi_73.glb', label:'الناب السفلي الأيسر', arch:'سفلي', position:2 },
+  { fdi:'74', file:'primary-tooth-74.glb', sourceFile:'primary_lower_left_first_molar_fdi_74.glb', label:'الضرس اللبني الأول السفلي الأيسر', arch:'سفلي', position:3 },
+  { fdi:'75', file:'primary-tooth-75.glb', sourceFile:'primary_lower_left_second_molar_fdi_75.glb', label:'الضرس اللبني الثاني السفلي الأيسر', arch:'سفلي', position:4 }
 ];
 const pediatricSourceRoot = 'https://raw.githubusercontent.com/sameralseedbth-Dental/dental-3d-models/4f0ffb651998a4641ddf45c7632ea236cc164fcb/';
 const pediatricRecords = [];
@@ -1549,7 +1549,7 @@ async function ensurePediatricDentition() {
         container = await SceneLoader.LoadAssetContainerAsync(localRoot, tooth.file, scene);
       } catch (localError) {
         console.warn('Local primary tooth not present; using pinned public source.', tooth.fdi, localError);
-        container = await SceneLoader.LoadAssetContainerAsync(pediatricSourceRoot, tooth.file.replace('primary-tooth-', 'primary_').replace('.glb', '_fdi_' + tooth.fdi + '.glb'), scene);
+        container = await SceneLoader.LoadAssetContainerAsync(pediatricSourceRoot, tooth.sourceFile, scene);
       }
       const mounted = attachCenteredContainer(container, 'PrimaryToothModel_' + tooth.fdi, .55);
       const placement = new TransformNode('PrimaryToothPlacement_' + tooth.fdi, scene);
