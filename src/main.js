@@ -325,6 +325,21 @@ function setAssetStatus(message, state = '') {
   if (state) assetStatus.classList.add(state);
 }
 
+function setProceduralControlsEnabled(enabled, mode = 'clinic') {
+  for (const id of ['toggle-room','toggle-unit','toggle-tools']) {
+    const control = document.getElementById(id);
+    if (control) control.disabled = !enabled;
+  }
+  const jawControl = document.getElementById('toggle-jaw');
+  if (jawControl) jawControl.disabled = mode === 'anatomy' ? false : !enabled;
+  for (const id of ['chair-up','chair-down']) {
+    const control = document.getElementById(id);
+    if (control) control.disabled = !enabled;
+  }
+  const chairNote = document.querySelector('#chair-up small');
+  if (chairNote) chairNote.textContent = enabled ? 'تحريك توضيحي للنموذج البديل' : 'الكرسي المستورد ثابت بدون تحريك';
+}
+
 const modelBase = new URL(import.meta.env.BASE_URL, window.location.href);
 const localModelRoot = new URL('models/', modelBase).href;
 
@@ -377,12 +392,14 @@ async function ensureClinicModel() {
     clinicAssetRoot = mounted.group;
     root.setEnabled(false);
     clinicAssetRoot.setEnabled(true);
+    setProceduralControlsEnabled(false, 'clinic');
     camera.lowerRadiusLimit = 3;
     camera.upperRadiusLimit = 28;
     setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد، غرفة علاج وتجهيزات ومناطق مساندة.', 'ok');
   } catch (error) {
     console.error('Clinic asset load failed', error);
     root.setEnabled(true);
+    setProceduralControlsEnabled(true, 'clinic');
     setAssetStatus('تعذر تحميل الحزمة الخارجية؛ تم تشغيل العيادة البديلة المولّدة داخل المشروع.', 'warn');
   }
 }
@@ -447,6 +464,7 @@ async function ensureAnatomyModel() {
     root.setEnabled(false);
     activeExperience = 'anatomy';
     anatomyPanel.hidden = false;
+    setProceduralControlsEnabled(false, 'anatomy');
     camera.lowerRadiusLimit = 2.2;
     camera.upperRadiusLimit = 15;
     setCamera('orbit');
@@ -458,6 +476,7 @@ async function ensureAnatomyModel() {
     setAssetStatus('تعذر تحميل ملف التشريح الخارجي. بقي النموذج التوضيحي البديل متاحًا.', 'warn');
     anatomyPanel.hidden = true;
     root.setEnabled(true);
+    setProceduralControlsEnabled(true, 'clinic');
     activeExperience = 'procedural';
   }
 }
@@ -474,9 +493,11 @@ async function showClinicExperience() {
     clinicAssetRoot.setEnabled(true);
     root.setEnabled(false);
     activeExperience = 'clinic-pack';
+    setProceduralControlsEnabled(false, 'clinic');
   } else {
     root.setEnabled(true);
     activeExperience = 'procedural';
+    setProceduralControlsEnabled(true, 'clinic');
   }
   camera.lowerRadiusLimit = 3;
   camera.upperRadiusLimit = 28;
@@ -570,12 +591,18 @@ function updateCaseView() {
   const scenario = trainingCases[currentCase];
   const total = scenario.steps.length;
   const progress = completedSteps.length;
-  caseDescription.textContent = currentStep < 0
-    ? scenario.description
-    : `${progress} / ${total} — ${scenario.steps[currentStep][0]}: ${scenario.steps[currentStep][1]}`;
-  caseProgress.textContent = currentStep < 0 ? 'لم يبدأ التدريب' : (progress === total ? 'اكتمل السيناريو التعليمي' : `الخطوة ${currentStep + 1} من ${total}`);
+  const complete = progress >= total;
+  if (currentStep < 0) {
+    caseDescription.textContent = scenario.description;
+  } else if (complete) {
+    caseDescription.textContent = `اكتمل السيناريو: ${scenario.title}. راجع التقييم مع المشرف.`;
+  } else {
+    const [title, detail] = scenario.steps[currentStep];
+    caseDescription.textContent = `${progress} / ${total} — ${title}: ${detail}`;
+  }
+  caseProgress.textContent = currentStep < 0 ? 'لم يبدأ التدريب' : (complete ? 'اكتمل السيناريو التعليمي' : `الخطوة ${currentStep + 1} من ${total}`);
   caseProgressBar.style.width = `${(progress / total) * 100}%`;
-  nextStepButton.disabled = currentStep < 0 || progress >= total;
+  nextStepButton.disabled = currentStep < 0 || complete;
 }
 scenarioSelect?.addEventListener('change', event => {
   currentCase = event.target.value;
@@ -602,9 +629,15 @@ nextStepButton?.addEventListener('click', () => {
     currentStep = steps.length;
     caseFeedback.textContent = 'اكتمل السيناريو. راجع الملاحظات مع المشرف؛ الإكمال لا يعني اجتياز كفاءة سريرية.';
     nextStepButton.disabled = true;
-    const history = JSON.parse(localStorage.getItem('dental-sim-training') || '[]');
-    history.push({ scenario: currentCase, title: trainingCases[currentCase].title, completedAt: new Date().toISOString(), steps: completedSteps });
-    localStorage.setItem('dental-sim-training', JSON.stringify(history.slice(-50)));
+    try {
+      const stored = localStorage.getItem('dental-sim-training');
+      const history = stored ? JSON.parse(stored) : [];
+      const safeHistory = Array.isArray(history) ? history : [];
+      safeHistory.push({ scenario: currentCase, title: trainingCases[currentCase].title, completedAt: new Date().toISOString(), steps: completedSteps });
+      localStorage.setItem('dental-sim-training', JSON.stringify(safeHistory.slice(-50)));
+    } catch (storageError) {
+      console.warn('Training progress could not be stored in this browser.', storageError);
+    }
   }
   updateCaseView();
 });
