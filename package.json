@@ -1,15 +1,19 @@
 {
   "name": "dental-simulation",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/fetch-assets.mjs",
     "dev": "vite --host 0.0.0.0",
+    "prebuild": "node scripts/fetch-assets.mjs",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "node --check src/main.js && node --check scripts/fetch-assets.mjs"
   },
   "dependencies": {
-    "@babylonjs/core": "^8.29.0"
+    "@babylonjs/core": "^8.29.0",
+    "@babylonjs/loaders": "^8.29.0"
   },
   "devDependencies": {
     "vite": "^6.4.1"
