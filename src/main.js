@@ -2085,7 +2085,7 @@ document.getElementById('patient-mouth-toggle')?.addEventListener('click', () =>
   document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم في النموذج التوضيحي.' : 'تم إغلاق الفم في النموذج التوضيحي.';
 });
 
-// Locally hosted open-weight assistant (Qwen 3.5) through Ollama. No provider key is stored.
+// Online AI via OpenRouter (Bring Your Own Key) plus optional local providers.
 const aiEndpointInput = document.getElementById('ai-endpoint');
 const aiProviderSelect = document.getElementById('ai-provider');
 const aiModelSelect = document.getElementById('ai-model');
@@ -2093,7 +2093,14 @@ const aiStatus = document.getElementById('ai-status');
 const aiMessages = document.getElementById('ai-messages');
 const aiForm = document.getElementById('ai-form');
 const aiQuestion = document.getElementById('ai-question');
+const aiApiKeyInput = document.getElementById('ai-api-key');
+const aiOnlineSettings = document.getElementById('ai-online-settings');
+const aiLocalSettings = document.getElementById('ai-local-settings');
+const aiClearKeyButton = document.getElementById('ai-clear-key');
 const aiConversation = [];
+const aiOpenRouterBase = 'https://openrouter.ai/api/v1';
+let aiApiKey = '';
+let aiFreeModels = [];
 const aiClinicalContext = [
   'Use these official clinical reference entry points as the preferred sources. Do not invent quotations, doses, or guideline recommendations.',
   'SDCEP Management of Acute Dental Problems, 2nd edition (March 2026), updated support tools announced 30 September 2026: https://www.acutedentalproblems.sdcep.org.uk/ ; covers pain, swelling, bleeding, trauma, ulceration and urgency/referral.',
@@ -2109,130 +2116,210 @@ const aiClinicalContext = [
   'FDA Clinical Decision Support overview: https://www.fda.gov/medical-devices/digital-health-center-excellence/step-6-software-function-intended-provide-clinical-decision-support ; emphasizes clinician ability to independently review the basis of recommendations.'
 ].join('\n');
 
-function addAiMessage(role, text) {
+function addAiMessage(role, message) {
   if (!aiMessages) return;
   const bubble = document.createElement('div');
   bubble.className = 'ai-message ' + role;
-  bubble.textContent = text;
+  bubble.textContent = String(message);
   aiMessages.appendChild(bubble);
   aiMessages.scrollTop = aiMessages.scrollHeight;
 }
 function normalizeAiEndpoint() {
   return (aiEndpointInput?.value || 'http://localhost:11434').trim().replace(/\/+$/, '');
 }
+function isOpenRouterProvider() {
+  return aiProviderSelect?.value === 'openrouter';
+}
 function isPallProvider() {
   return aiProviderSelect?.value === 'openai-compatible';
 }
+function makeAiOption(value, label) {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
 function configureAiProvider() {
-  if (!aiModelSelect || !aiEndpointInput) return;
-  const usePall = isPallProvider();
+  if (!aiModelSelect) return;
+  const online = isOpenRouterProvider();
+  const pall = isPallProvider();
   aiModelSelect.replaceChildren();
-  const options = usePall
-    ? [['Harisundar/PALL-Text', 'PALL-Text 8B — تخصص سني، إنجليزي']]
-    : [
-        ['qwen3.5:4b', 'Qwen3.5 4B — مناسب كبداية'],
-        ['qwen3.5:9b', 'Qwen3.5 9B — يحتاج ذاكرة أكبر'],
-        ['qwen3.5:27b', 'Qwen3.5 27B — جهاز قوي']
-      ];
-  for (const [value, label] of options) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = label;
-    aiModelSelect.appendChild(option);
+  if (online) {
+    aiModelSelect.appendChild(makeAiOption('openrouter/free', 'الموجّه المجاني — يختار نموذجًا متاحًا تلقائيًا'));
+    for (const model of aiFreeModels) {
+      if (model.id === 'openrouter/free') continue;
+      aiModelSelect.appendChild(makeAiOption(model.id, (model.name || model.id) + ' — مجاني'));
+    }
+    if (aiEndpointInput) aiEndpointInput.value = aiOpenRouterBase;
+    if (aiOnlineSettings) aiOnlineSettings.hidden = false;
+    if (aiLocalSettings) aiLocalSettings.hidden = true;
+    if (aiClearKeyButton) aiClearKeyButton.hidden = false;
+    if (aiStatus) aiStatus.textContent = aiApiKey ? 'المفتاح موجود في هذه الجلسة — اختبر الاتصال' : 'أدخل مفتاح OpenRouter للاتصال';
+  } else {
+    aiModelSelect.replaceChildren();
+    const models = pall
+      ? [['Harisundar/PALL-Text', 'PALL-Text 8B — تخصص سني، إنجليزي']]
+      : [
+          ['qwen3.5:4b', 'Qwen3.5 4B — مناسب كبداية'],
+          ['qwen3.5:9b', 'Qwen3.5 9B — يحتاج ذاكرة أكبر'],
+          ['qwen3.5:27b', 'Qwen3.5 27B — جهاز قوي']
+        ];
+    for (const [value, label] of models) aiModelSelect.appendChild(makeAiOption(value, label));
+    if (aiEndpointInput) aiEndpointInput.value = pall ? 'http://localhost:8000' : 'http://localhost:11434';
+    if (aiOnlineSettings) aiOnlineSettings.hidden = true;
+    if (aiLocalSettings) aiLocalSettings.hidden = false;
+    if (aiClearKeyButton) aiClearKeyButton.hidden = true;
+    if (aiStatus) aiStatus.textContent = pall ? 'يتطلب تشغيل PALL-Text عبر vLLM' : 'يتطلب تشغيل Ollama على هذا الجهاز';
   }
-  aiEndpointInput.value = usePall ? 'http://localhost:8000' : 'http://localhost:11434';
   const endpointLabel = document.querySelector('label[for="ai-endpoint"]');
-  if (endpointLabel) endpointLabel.textContent = usePall ? 'عنوان خادم vLLM' : 'عنوان خادم Ollama';
-  aiStatus.textContent = usePall ? 'يتطلب تشغيل PALL-Text عبر vLLM' : 'غير متصل';
-  aiStatus.classList.remove('good','bad');
+  if (endpointLabel) endpointLabel.textContent = pall ? 'عنوان خادم vLLM' : 'عنوان خادم Ollama';
+  aiStatus?.classList.remove('good','bad');
 }
 aiProviderSelect?.addEventListener('change', configureAiProvider);
-async function testLocalAiConnection() {
-  aiStatus.textContent = 'جارٍ الاتصال…';
+aiApiKeyInput?.addEventListener('input', () => { aiApiKey = aiApiKeyInput.value.trim(); });
+aiClearKeyButton?.addEventListener('click', () => {
+  aiApiKey = '';
+  if (aiApiKeyInput) aiApiKeyInput.value = '';
+  aiStatus.textContent = 'تم مسح المفتاح من ذاكرة الصفحة';
+  aiStatus.classList.remove('good','bad');
+});
+
+async function readAiResponse(response) {
+  let payload = {};
+  try { payload = await response.json(); } catch { /* handled below */ }
+  if (!response.ok) {
+    const detail = payload?.error?.message || payload?.error || payload?.message || ('HTTP ' + response.status);
+    throw new Error(String(detail));
+  }
+  return payload;
+}
+async function testAiConnection() {
+  aiStatus.textContent = 'جارٍ اختبار الاتصال…';
   aiStatus.classList.remove('good','bad');
   try {
+    if (isOpenRouterProvider()) {
+      if (!aiApiKey) throw new Error('أدخل مفتاح OpenRouter في الحقل المخصص أولًا.');
+      const response = await fetch(aiOpenRouterBase + '/models', {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + aiApiKey },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(25000)
+      });
+      const payload = await readAiResponse(response);
+      const models = Array.isArray(payload.data) ? payload.data : [];
+      aiFreeModels = models.filter(model => {
+        const id = String(model.id || '');
+        const output = model.architecture?.output_modalities;
+        return id.endsWith(':free') && (!Array.isArray(output) || output.includes('text'));
+      }).sort((a,b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+      const selectedModel = aiModelSelect.value;
+      configureAiProvider();
+      if ([...aiModelSelect.options].some(option => option.value === selectedModel)) aiModelSelect.value = selectedModel;
+      aiStatus.textContent = 'متصل بالإنترنت · ' + aiFreeModels.length + ' نموذجًا مجانيًا ظاهرًا';
+      aiStatus.classList.add('good');
+      addAiMessage('assistant', 'نجح الاتصال السحابي. يمكنك استخدام الموجّه المجاني أو اختيار نموذج مجاني بعينه من القائمة. التوافر والحدود قد تتغير لدى مزود النماذج.');
+      return true;
+    }
     if (isPallProvider()) {
-      const response = await fetch(normalizeAiEndpoint() + '/v1/models');
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const payload = await response.json();
+      const response = await fetch(normalizeAiEndpoint() + '/v1/models', { signal: AbortSignal.timeout(15000) });
+      const payload = await readAiResponse(response);
       const models = Array.isArray(payload.data) ? payload.data : [];
       const requested = aiModelSelect.value;
       const installed = models.some(model => model.id === requested || String(model.id || '').toLowerCase().includes('pall'));
-      aiStatus.textContent = installed ? 'متصل · PALL-Text ظاهر' : 'الخادم متصل · تحقق من تحميل PALL-Text';
-      aiStatus.classList.add('good');
-      if (!installed) addAiMessage('assistant', 'خادم vLLM متصل، لكن PALL-Text غير ظاهر في /v1/models. راجع أمر تشغيل النموذج في دليل الإعداد.');
-      return installed;
+      if (!installed) throw new Error('الخادم متصل لكن PALL-Text غير ظاهر في /v1/models.');
+    } else {
+      const response = await fetch(normalizeAiEndpoint() + '/api/tags', { signal: AbortSignal.timeout(15000) });
+      const payload = await readAiResponse(response);
+      const models = Array.isArray(payload.models) ? payload.models : [];
+      const requested = aiModelSelect.value;
+      const installed = models.some(model => model.name === requested || model.name.startsWith(requested + ':') || requested.startsWith(model.name.split(':')[0] + ':'));
+      if (!installed) throw new Error('خادم Ollama متصل لكن النموذج ' + requested + ' غير محمّل.');
     }
-    const response = await fetch(normalizeAiEndpoint() + '/api/tags');
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const payload = await response.json();
-    const models = Array.isArray(payload.models) ? payload.models : [];
-    const requested = aiModelSelect.value;
-    const installed = models.some(model => model.name === requested || model.name.startsWith(requested + ':') || requested.startsWith(model.name.split(':')[0] + ':'));
-    aiStatus.textContent = installed ? 'متصل · النموذج موجود' : 'الخادم متصل · حمّل النموذج';
+    aiStatus.textContent = 'متصل · النموذج جاهز';
     aiStatus.classList.add('good');
-    if (!installed) addAiMessage('assistant', 'اتصال Ollama يعمل، لكن النموذج ' + requested + ' غير ظاهر في قائمة النماذج. نفّذ أمر التحميل الموضح أسفل لوحة المساعد ثم اختبر الاتصال مجددًا.');
-    return installed;
+    return true;
   } catch (error) {
     aiStatus.textContent = 'تعذر الاتصال';
     aiStatus.classList.add('bad');
-    const service = isPallProvider() ? 'خادم vLLM' : 'Ollama';
-    addAiMessage('assistant', 'لم أستطع الوصول إلى ' + service + ' على ' + normalizeAiEndpoint() + '. تحقق من تشغيله والسماح بأصل الموقع في إعدادات CORS. التفاصيل: ' + error.message);
+    addAiMessage('assistant', 'فشل اختبار الاتصال: ' + error.message + (isOpenRouterProvider() ? ' تأكد من صحة مفتاح OpenRouter واتصال الإنترنت.' : ' تأكد من تشغيل الخادم المحلي وإعداد CORS.'));
     return false;
   }
 }
-document.getElementById('ai-connect')?.addEventListener('click', () => void testLocalAiConnection());
+document.getElementById('ai-connect')?.addEventListener('click', () => void testAiConnection());
+
+function extractAiText(payload, provider) {
+  if (provider === 'ollama') return payload.message?.content || '';
+  const content = payload.choices?.[0]?.message?.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map(part => part?.text || '').join('\n');
+  return '';
+}
+
 aiForm?.addEventListener('submit', async event => {
   event.preventDefault();
   const question = (aiQuestion?.value || '').trim();
   if (!question) return;
+  if (isOpenRouterProvider() && !aiApiKey) {
+    addAiMessage('assistant', 'قبل إرسال السؤال، أدخل مفتاح OpenRouter ثم اختبر الاتصال. المفتاح لا يُحفظ على المنصة.');
+    return;
+  }
   const model = aiModelSelect.value;
   addAiMessage('user', question);
   aiQuestion.value = '';
   const submitButton = document.getElementById('ai-send');
   submitButton.disabled = true;
-  aiStatus.textContent = 'يفكر محليًا…';
+  aiStatus.textContent = isOpenRouterProvider() ? 'جارٍ إرسال السؤال عبر الإنترنت…' : 'يفكر النموذج المحلي…';
+  aiStatus.classList.remove('good','bad');
   aiConversation.push({ role: 'user', content: question });
   const languageInstruction = isPallProvider()
-    ? 'This PALL-Text model is English-first. Answer technical questions in clear English by default; if the user asks in Arabic, provide Arabic only when confident and retain standard English dental terminology in parentheses.'
-    : 'Answer in clear Arabic unless the user requests another language.';
+    ? 'PALL-Text is English-first. Answer technical questions in clear English by default. If the user asks in Arabic, answer in Arabic only when confident and retain standard English dental terms in parentheses.'
+    : 'Answer in clear Arabic by default unless the user requests another language.';
   const systemPrompt = [
-    'You are a cautious dental education assistant for dental students and licensed dental professionals.',
-    languageInstruction + ' Explain dental anatomy, instruments, materials, clinical reasoning and educational workflows.',
-    'This application is an educational simulator, not a clinical decision system. Never diagnose a real patient or write patient-specific prescriptions. Do not supply drug doses, emergency treatment directives, or invasive procedural instructions for unsupervised use.',
-    'For urgent symptoms, advise immediate assessment using the local emergency pathway; do not delay emergency care for an AI response.',
-    'Use the reference index below as starting points. Separate guideline facts from general explanation, name the relevant organization and date when known, and link only sources listed below. Never fabricate a citation, recommendation, quote, or guideline update.',
-    'If evidence is insufficient or guidelines differ by jurisdiction, say so and ask the clinician to verify current local guidance. UK SDCEP resources are not automatically Egyptian prescribing rules.',
-    'Mention uncertainty and limitations, especially for anatomy variants, medicines, radiology, trauma and surgery. Encourage review by a qualified supervisor.',
-    'Never request or retain patient identifiers. Do not claim that you are clinically validated.',
+    'You are a careful dental education tutor for dental students, interns and licensed dental professionals.',
+    languageInstruction + ' Teach concepts step by step, explain the reason for each stage, instruments, material selection, anatomy, alternatives and common mistakes. Prefer headings and short structured explanations.',
+    'This application is an educational simulator, not a clinical decision system. Never diagnose a real patient or write patient-specific prescriptions. Do not provide drug doses, anesthesia doses, or invasive procedural directions for unsupervised use.',
+    'For urgent symptoms, advise immediate assessment through the local emergency pathway; never delay emergency care for an AI response.',
+    'Use the reference index below as starting points. Separate guideline facts from general explanation, name the organization and publication/revision date when known, and link only sources listed below. Never fabricate a citation, recommendation, quotation or guideline update.',
+    'If evidence is insufficient or guidelines differ by jurisdiction, state that and tell the learner to verify current Egyptian law, local formulary, institutional policy and their clinical supervisor. UK SDCEP and US AAPD guidance are not automatically Egyptian rules.',
+    'Mention uncertainty and limitations, especially for anatomy variants, medicines, radiology, trauma and surgery. Encourage the learner to ask a supervisor before patient care.',
+    'Never request or retain patient identifiers, photos or identifiable clinical records. Do not claim clinical validation or replace a supervisor.',
     'Reference index:\n' + aiClinicalContext
   ].join('\n\n');
   try {
     const messages = [{ role: 'system', content: systemPrompt }, ...aiConversation.slice(-10)];
-    const usePall = isPallProvider();
-    const endpoint = usePall
-      ? normalizeAiEndpoint() + '/v1/chat/completions'
-      : normalizeAiEndpoint() + '/api/chat';
-    const requestBody = usePall
-      ? { model, messages, stream: false, temperature: 0.2, max_tokens: 850 }
-      : { model, messages, stream: false, options: { temperature: 0.25, num_ctx: 8192, num_predict: 900 } };
+    const provider = aiProviderSelect.value;
+    const endpoint = provider === 'openrouter'
+      ? aiOpenRouterBase + '/chat/completions'
+      : (isPallProvider() ? normalizeAiEndpoint() + '/v1/chat/completions' : normalizeAiEndpoint() + '/api/chat');
+    const requestBody = provider === 'openrouter' || isPallProvider()
+      ? { model, messages, stream: false, temperature: 0.2, max_tokens: 1100 }
+      : { model, messages, stream: false, options: { temperature: 0.25, num_ctx: 8192, num_predict: 1100 } };
+    const headers = { 'Content-Type': 'application/json' };
+    if (provider === 'openrouter') {
+      headers.Authorization = 'Bearer ' + aiApiKey;
+      headers['HTTP-Referer'] = window.location.origin;
+      headers['X-OpenRouter-Title'] = 'Dental Simulation';
+    }
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(90000)
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error?.message || payload.error || ('HTTP ' + response.status));
-    const answer = usePall
-      ? (payload.choices?.[0]?.message?.content || 'لم يرجع PALL-Text إجابة نصية.')
-      : (payload.message?.content || 'لم يرجع النموذج إجابة نصية.');
+    const payload = await readAiResponse(response);
+    const answer = extractAiText(payload, provider === 'ollama' ? 'ollama' : 'openai-compatible');
+    if (!answer.trim()) throw new Error('لم يرجع مزود الذكاء الاصطناعي إجابة نصية.');
     aiConversation.push({ role: 'assistant', content: answer });
     addAiMessage('assistant', answer);
-    aiStatus.textContent = 'تمت الإجابة محليًا';
+    aiStatus.textContent = provider === 'openrouter' ? 'تم الرد من النموذج السحابي' : 'تم الرد من النموذج المحلي';
     aiStatus.classList.add('good');
   } catch (error) {
     aiConversation.pop();
-    addAiMessage('assistant', 'تعذر الحصول على الإجابة. تأكد من تشغيل الخادم المحلي وإعداد CORS أو OLLAMA_ORIGINS حسب نوع النموذج. لا تستخدم الإجابة بديلًا عن الأدلة أو المشرف. التفاصيل: ' + error.message);
+    let note = error.message;
+    if (String(note).includes('402')) note += ' قد تكون الحصة المجانية أو رصيد الحساب قد انتهى.';
+    if (String(note).includes('429')) note += ' تجاوزت الحد المؤقت للطلبات؛ انتظر قليلًا أو اختر نموذجًا مجانيًا آخر.';
+    if (String(note).includes('401')) note += ' المفتاح غير صحيح أو لم يعد صالحًا.';
+    addAiMessage('assistant', 'تعذر الحصول على الإجابة. ' + note + ' لا تستخدم النظام بديلًا عن الأدلة السريرية أو المشرف.');
     aiStatus.textContent = 'فشل الطلب';
     aiStatus.classList.add('bad');
   } finally {
