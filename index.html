@@ -16,12 +16,14 @@
       </a>
       <div class="topbar-right">
         <span class="live-state"><i></i> المشهد جاهز</span>
+        <button id="mobile-open-library" class="button button-quiet mobile-panel-button" type="button" aria-controls="sidebar-left" aria-expanded="false">المكتبة والمساعد</button>
+        <button id="mobile-open-controls" class="button button-quiet mobile-panel-button" type="button" aria-controls="sidebar-right" aria-expanded="false">التحكم</button>
         <button id="reset-camera" class="button button-quiet">إعادة ضبط الكاميرا</button>
       </div>
     </header>
 
     <main class="layout">
-      <aside class="sidebar sidebar-right">
+      <aside id="sidebar-right" class="sidebar sidebar-right">
         <div class="section-title"><span class="eyebrow">مساحة العمل</span><h1>عيادة الأسنان</h1><p>نموذج أولي تفاعلي ثلاثي الأبعاد</p></div>
         <section class="control-section asset-section">
           <h2>المشاهد والمجسمات</h2>
@@ -156,7 +158,7 @@
         <div id="loading" class="loading-overlay"><div class="loader"></div><b>جارٍ تجهيز العيادة ثلاثية الأبعاد</b><small>إنشاء المجسمات والإضاءة</small></div>
       </section>
 
-      <aside class="sidebar sidebar-left">
+      <aside id="sidebar-left" class="sidebar sidebar-left">
         <div class="section-title"><span class="eyebrow">لوحة التحكم</span><h2>مكونات العيادة</h2><p>تحكم سريع في التجهيزات</p></div>
         <section class="control-section">
           <h2>وحدة الأسنان</h2>
@@ -221,39 +223,39 @@
           <button id="export-report" class="report-button" type="button">تصدير تقرير التدريب JSON</button>
         </section>
         <section class="control-section ai-assistant-section" id="ai-assistant-section">
-          <h2>مساعد طب الأسنان بالذكاء الاصطناعي</h2>
-          <p class="asset-license-note">يعمل محليًا عبر Qwen3.5/Ollama أو PALL-Text/vLLM. اختر الخادم المثبت على جهازك؛ لا تُرسل الأسئلة إلى خدمة استدلال سحابية ضمن هذا الربط المحلي.</p>
-          <label class="field-label" for="ai-provider">طريقة تشغيل المساعد</label>
+          <h2>مساعد طب الأسنان السحابي</h2>
+          <p class="asset-license-note">اتصال مباشر عبر الإنترنت بخدمة OpenRouter ونماذج متعددة. تحتاج إلى مفتاح API شخصي؛ اكتب المفتاح في هذه الجلسة فقط، ولن يُحفظ في الموقع أو يُرفع إلى GitHub. رسالتك ستُرسل إلى مزود النموذج الذي تختاره، لذلك لا تُدخل أسماء مرضى أو صورًا أو أي بيانات تعريفية.</p>
+          <label class="field-label" for="ai-provider">مصدر الذكاء الاصطناعي</label>
           <select id="ai-provider" class="scenario-select">
-            <option value="ollama">Qwen3.5 عبر Ollama — تشغيل محلي أبسط</option>
-            <option value="openai-compatible">PALL-Text 8B عبر vLLM — نموذج سني متخصص (إنجليزي)</option>
+            <option value="openrouter">OpenRouter — ذكاء اصطناعي سحابي عبر الإنترنت</option>
+            <option value="ollama">Ollama — نموذج محلي اختياري</option>
+            <option value="openai-compatible">PALL-Text عبر vLLM — نموذج سني محلي اختياري</option>
           </select>
-          <label class="field-label" for="ai-model">النموذج المحلي</label>
+          <div id="ai-online-settings">
+            <label class="field-label" for="ai-api-key">مفتاح OpenRouter الشخصي</label>
+            <input id="ai-api-key" class="text-filter" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="الصق مفتاح sk-or-v1-…" aria-label="مفتاح OpenRouter الشخصي">
+            <p class="asset-license-note">أنشئ مفتاحًا من <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">صفحة مفاتيح OpenRouter</a>. لا تضع المفتاح في أي ملف برمجي أو رسالة عامة.</p>
+          </div>
+          <label class="field-label" for="ai-model">النموذج</label>
           <select id="ai-model" class="scenario-select">
-            <option value="qwen3.5:4b">Qwen3.5 4B — مناسب كبداية</option>
-            <option value="qwen3.5:9b">Qwen3.5 9B — يحتاج ذاكرة أكبر</option>
-            <option value="qwen3.5:27b">Qwen3.5 27B — جهاز قوي</option>
+            <option value="openrouter/free">الموجّه المجاني — يختار نموذجًا مجانيًا متاحًا</option>
           </select>
-          <label class="field-label" for="ai-endpoint">عنوان خادم النموذج المحلي</label>
-          <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم النموذج المحلي">
-          <div class="button-row"><button id="ai-connect" class="small-action primary-action" type="button">اختبار الاتصال</button><span id="ai-status" class="ai-status">غير متصل</span></div>
-          <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">اسأل عن التشريح أو الأدوات أو المبادئ التعليمية. شغّل Ollama أو vLLM محليًا أولًا حسب النموذج المختار.</div></div>
+          <div id="ai-local-settings" hidden>
+            <label class="field-label" for="ai-endpoint">عنوان خادم النموذج المحلي</label>
+            <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم النموذج المحلي">
+          </div>
+          <div class="button-row"><button id="ai-connect" class="small-action primary-action" type="button">اختبار الاتصال</button><button id="ai-clear-key" class="small-action" type="button">مسح المفتاح</button><span id="ai-status" class="ai-status">أدخل مفتاحك للاتصال</span></div>
+          <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">أدخل مفتاح OpenRouter ثم اضغط «اختبار الاتصال». يمكنك اختيار الموجّه المجاني أو نموذج مجاني محدد.</div></div>
           <form id="ai-form" class="ai-form">
-            <textarea id="ai-question" rows="2" placeholder="اكتب سؤالك في طب الأسنان…" aria-label="سؤال لمساعد طب الأسنان"></textarea>
+            <textarea id="ai-question" rows="2" placeholder="اكتب سؤالك العلمي في طب الأسنان…" aria-label="سؤال لمساعد طب الأسنان"></textarea>
             <button id="ai-send" class="small-action primary-action" type="submit">إرسال السؤال</button>
           </form>
           <details class="ai-setup">
-            <summary>إعداد المساعد المحلي</summary>
-            <strong>الخيار الأول — Qwen3.5 عبر Ollama</strong>
-            <code>ollama pull qwen3.5:4b</code>
-            <p>شغّل Ollama محليًا، واسمح لأصل الموقع ضمن OLLAMA_ORIGINS.</p>
-            <strong>الخيار المتقدم — PALL‑Text عبر vLLM</strong>
-            <code>pip install "vllm>=0.32.0"</code>
-            <code>vllm serve Harisundar/PALL-Text --host 127.0.0.1 --port 8000 --allowed-origins https://10blackfinger.github.io http://localhost:5173 --allowed-methods GET POST OPTIONS --allowed-headers Content-Type</code>
-            <p>PALL‑Text نموذج سني متخصص باللغة الإنجليزية، وترخيص أوزانه Llama 3.1 Community License. اقرأ شروط الترخيص قبل الاستخدام التجاري. قد يحتاج إعداد GPU وذاكرة مناسبة.</p>
-            <p>التفاصيل في docs/LOCAL_AI_SETUP.md. لا تضع مفاتيح سرية داخل ملفات الواجهة.</p>
+            <summary>عن الاتصال السحابي والخصوصية</summary>
+            <p>تُرسل الأسئلة إلى OpenRouter ثم إلى مزود النموذج المطلوب عبر اتصال HTTPS. الموجّه المجاني لا يضمن نموذجًا واحدًا ثابتًا، وقد تتغير النماذج والحدود والتوافر. خدمة الاستخدام المجاني محدودة الحصة والسرعة.</p>
+            <p>مفتاح الخدمة محفوظ في ذاكرة الصفحة فقط، ويُمسح عند تحديثها أو عند الضغط على «مسح المفتاح». إذا كان الاستخدام لمؤسسة أو لعدد كبير من الطلاب، فالأفضل لاحقًا وضع وسيط API آمن على خادم تتحكم فيه المؤسسة مع حدود استخدام ومراقبة وتسجيل موافقات الخصوصية.</p>
+            <p>المساعد للتعليم ومراجعة المعلومات وليس للتشخيص أو وصف العلاج. راجع الأدلة الأصلية والمشرف المختص، ولا ترسل أي سجل طبي حقيقي.</p>
           </details>
-          <p class="asset-license-note">المساعد ليس طبيبًا ولا مصدرًا للتشخيص أو وصف العلاج. راجع الأدلة الأصلية والمشرف المختص، ولا ترسل بيانات مرضى حقيقية.</p>
         </section>
         <section class="control-section">
           <h2>حالة المشهد</h2>
