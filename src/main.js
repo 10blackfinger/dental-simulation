@@ -610,7 +610,7 @@ async function showClinicExperience() {
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
-  for (const id of ['view-clinic','view-anatomy','view-people']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -647,7 +647,7 @@ async function showPeopleExperience() {
   anatomyAssetRoot?.setEnabled(false);
   peopleRoot.setEnabled(true);
   anatomyPanel.hidden = true;
-  for (const id of ['view-clinic','view-anatomy','view-people']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   setProceduralControlsEnabled(false,'clinic');
@@ -664,7 +664,7 @@ async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-clinic','view-anatomy','view-people']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
   loadingOverlay?.classList.remove('hidden');

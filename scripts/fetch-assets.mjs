@@ -29,7 +29,7 @@ const assets = [
     url: 'https://raw.githubusercontent.com/Charleeh/ecorche/320805e06aee51e2e6f6b22533eb2a59d43f2d4d/model/ecorche.glb',
     license: 'CC BY-SA 4.0',
     source: 'Écorché — BodyParts3D and Z-Anatomy, pinned commit 320805e06aee51e2e6f6b22533eb2a59d43f2d4d',
-    expectedGitBlobSha1: '4360e0abeed7892e2585f257857b6d2d040af85d',
+    expectedGitBlobSha1: '769efcb5b01a772225fd8bb39cb44fb127c753cd',
     expectedMinBytes: 14_000_000
   }
 ];

@@ -60,7 +60,7 @@ Those character models are static rather than rigged/animated according to their
 - **Licence:** CC BY-SA 4.0 for the model and derived meshes: https://creativecommons.org/licenses/by-sa/4.0/
 - **Required credit:** “Écorché (github.com/Charleeh/ecorche), CC BY-SA 4.0. Based on BodyParts3D, © The Database Center for Life Science, CC BY 4.0, and Z-Anatomy by Gauthier Kervyn, CC BY-SA 4.0.”
 - **Contents:** 634 named structures: 198 bones, 42 cartilages, 28 teeth, eyes, deep-muscle structures and superficial-muscle structures. The upstream project documents 486,005 vertices and 984,688 triangles.
-- **Runtime file:** `model/ecorche.glb`, pinned upstream size 14,314,536 bytes. The downloader validates the GLB header, minimum size and upstream Git blob SHA-1 `4360e0abeed7892e2585f257857b6d2d040af85d`.
+- **Runtime file:** `model/ecorche.glb`, pinned upstream size 14,314,536 bytes. The downloader validates the GLB header, minimum size and download integrity fingerprint `769efcb5b01a772225fd8bb39cb44fb127c753cd` (computed from the pinned raw-file bytes).
 - **Viewer changes:** no source mesh geometry is edited by the preparation script. The application applies a parent transform for framing and changes per-mesh visibility/opacity for interactive layer viewing.
 - **Limits:** one adult male anatomical figure; simplified real-time geometry; no internal organs, vessels, nerves, ligaments, joint capsules or skin. The source notes facial muscles were not run through the same layering pass and positions are accurate only to a few millimetres. The source expressly says not for clinical use.
 - **ShareAlike:** redistribution or adaptations must preserve the attribution, licence link and modification notice, and share adaptations under CC BY-SA 4.0.
