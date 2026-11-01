@@ -27,6 +27,15 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await expect(page.locator('#asset-status')).toContainText('وضع الشخصيات');
   await expect(page.locator('#view-people')).toHaveClass(/selected/);
 
+  await page.locator('#view-dental-atlas').click();
+  await expect(page.locator('#dental-atlas-status')).toContainText('تركيبًا مسجلًا', { timeout: 60000 });
+  await expect(page.locator('.tooth-chip')).toHaveCount(32);
+  await page.locator('.tooth-chip').filter({hasText:'36'}).click();
+  await expect(page.locator('#dental-tooth-mesh-status')).toContainText('مجسمات طبقية', { timeout: 60000 });
+  await page.locator('[data-tooth-layer="pulp-chamber"]').uncheck();
+  await page.locator('[data-tooth-layer="pulp-chamber"]').check();
+  await page.locator('#dental-tooth-back').click();
+
   await page.locator('#view-body').click();
   await expect(page.locator('#body-mesh-map-status')).toContainText('634 تركيبًا', { timeout: 45000 });
   await expect(page.locator('.body-structure-button')).toHaveCount(634);
