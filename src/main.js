@@ -1513,6 +1513,10 @@ const clinicalReferenceIndex = {
   sdcepPrescribing: { label: 'SDCEP — مرجع وصف الأدوية في طب الأسنان', url: 'https://www.sdcepdentalprescribing.nhs.scot/' },
   efp: { label: 'EFP — إرشادات علاج التهاب دواعم السن للمراحل I–III', url: 'https://www.efp.org/education/continuing-education/clinical-guidelines/guideline-on-treatment-of-stage-i-iii-periodontitis/' },
   iadt: { label: 'IADT — إرشادات إصابات الأسنان الرضحية', url: 'https://iadt-dentaltrauma.org/guidelines-and-resources/guidelines/' },
+  aapd: { label: 'AAPD — مرجع طب أسنان الأطفال 2026–2027', url: 'https://www.aapd.org/research/oral-health-policies--recommendations/' },
+  aapdPulp: { label: 'AAPD — علاج اللب للأسنان اللبنية والدائمة غير مكتملة الجذور', url: 'https://www.aapd.org/research/oral-health-policies--recommendations/pulp-therapy-for-primary-and-immature-permanent-teeth/' },
+  aapdCaries: { label: 'AAPD — تقييم وإدارة مخاطر التسوس للأطفال', url: 'https://www.aapd.org/research/oral-health-policies--recommendations/caries-risk-assessment-and-management-for-infants-children-and-adolescents/' },
+  aapdBehavior: { label: 'AAPD — التوجيه السلوكي لمريض الأسنان الطفل', url: 'https://www.aapd.org/research/oral-health-policies--recommendations/behavior-guidance-for-the-pediatric-dental-patient/' },
   fda: { label: 'FDA — اعتبارات دعم القرار السريري بالبرمجيات', url: 'https://www.fda.gov/medical-devices/digital-health-center-excellence/step-6-software-function-intended-provide-clinical-decision-support' }
 };
 
@@ -1772,7 +1776,7 @@ const trainingCases = {
   pediatric: {
     title: 'تقييم أسنان الأطفال والأسنان اللبنية',
     description: 'مسار تعليمي يراعي التاريخ الصحي والنمو والتعاون واختلاف الأسنان اللبنية والدائمة، وليس بروتوكول علاج لطفل بعينه.',
-    sources: ['adaEvidence','iadt','sdcepAcute'],
+    sources: ['aapd','aapdPulp','aapdCaries','aapdBehavior','iadt'],
     steps: [
       ['التاريخ والتواصل مع الطفل وولي الأمر', 'اجمع الشكوى والتاريخ الطبي والسني والحساسية والأدوية، وراعِ مستوى فهم الطفل ووجود ولي الأمر والموافقة المناسبة.'],
       ['تقييم النمو والسلوك', 'قدّر العمر النمائي والتعاون والقلق والقدرة على تحمل الزيارة، واختر أسلوب تواصل سلوكي مناسبًا للطفل.'],
@@ -2098,6 +2102,10 @@ const aiClinicalContext = [
   'AAE Clinical Guidelines and Position Statements: https://www.aae.org/specialty/clinical-resources/guidelines-position-statements/ ; includes vital pulp therapy and endodontic resources.',
   'EFP Stage I-III Periodontitis Guideline: https://www.efp.org/education/continuing-education/clinical-guidelines/guideline-on-treatment-of-stage-i-iii-periodontitis/ ; evidence-based guideline published 2020.',
   'IADT Dental Trauma Guidelines: https://iadt-dentaltrauma.org/guidelines-and-resources/guidelines/ ; 2020 guidelines cover fractures/luxations, avulsion of permanent teeth and injuries in primary dentition.',
+  'AAPD Reference Manual 2026-2027: https://www.aapd.org/research/oral-health-policies--recommendations/ ; includes clinical practice guidelines and best practices for pediatric dentistry.',
+  'AAPD Pulp Therapy for Primary and Immature Permanent Teeth, latest revision 2026: https://www.aapd.org/research/oral-health-policies--recommendations/pulp-therapy-for-primary-and-immature-permanent-teeth/ .',
+  'AAPD Caries-risk Assessment and Management for Infants, Children, and Adolescents: https://www.aapd.org/research/oral-health-policies--recommendations/caries-risk-assessment-and-management-for-infants-children-and-adolescents/ ; latest revision 2022.',
+  'AAPD Behavior Guidance for the Pediatric Dental Patient: https://www.aapd.org/research/oral-health-policies--recommendations/behavior-guidance-for-the-pediatric-dental-patient/ ; latest revision 2024.',
   'FDA Clinical Decision Support overview: https://www.fda.gov/medical-devices/digital-health-center-excellence/step-6-software-function-intended-provide-clinical-decision-support ; emphasizes clinician ability to independently review the basis of recommendations.'
 ].join('\n');
 
