@@ -222,7 +222,7 @@
         </section>
         <section class="control-section ai-assistant-section" id="ai-assistant-section">
           <h2>مساعد طب الأسنان بالذكاء الاصطناعي</h2>
-          <p class="asset-license-note">يتصل بنموذج Qwen3.5 محليًا عبر Ollama. الأسئلة لا تغادر جهازك عند استخدام الخادم المحلي.</p>
+          <p class="asset-license-note">يعمل محليًا عبر Qwen3.5/Ollama أو PALL-Text/vLLM. اختر الخادم المثبت على جهازك؛ لا تُرسل الأسئلة إلى خدمة استدلال سحابية ضمن هذا الربط المحلي.</p>
           <label class="field-label" for="ai-provider">طريقة تشغيل المساعد</label>
           <select id="ai-provider" class="scenario-select">
             <option value="ollama">Qwen3.5 عبر Ollama — تشغيل محلي أبسط</option>
@@ -237,7 +237,7 @@
           <label class="field-label" for="ai-endpoint">عنوان خادم النموذج المحلي</label>
           <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم النموذج المحلي">
           <div class="button-row"><button id="ai-connect" class="small-action primary-action" type="button">اختبار الاتصال</button><span id="ai-status" class="ai-status">غير متصل</span></div>
-          <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">اسأل عن التشريح أو الأدوات أو المبادئ التعليمية. يلزم تشغيل Ollama وتحميل النموذج محليًا أولًا.</div></div>
+          <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">اسأل عن التشريح أو الأدوات أو المبادئ التعليمية. شغّل Ollama أو vLLM محليًا أولًا حسب النموذج المختار.</div></div>
           <form id="ai-form" class="ai-form">
             <textarea id="ai-question" rows="2" placeholder="اكتب سؤالك في طب الأسنان…" aria-label="سؤال لمساعد طب الأسنان"></textarea>
             <button id="ai-send" class="small-action primary-action" type="submit">إرسال السؤال</button>
