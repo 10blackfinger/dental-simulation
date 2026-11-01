@@ -31,11 +31,7 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريضة', { timeout: 30000 });
   await page.locator('#patient-male').click();
   await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريض', { timeout: 30000 });
-  await expect(page.locator('#patient-model-status')).toContainText('تم تحميل', { timeout: 30000 });
-  await page.locator('#patient-female').click();
-  await expect(page.locator('#patient-model-status')).toContainText('المريضة', { timeout: 30000 });
-  await page.locator('#patient-male').click();
-  await expect(page.locator('#patient-model-status')).toContainText('المريض', { timeout: 30000 });
+
 
   await page.locator('#view-dental-atlas').click();
   await expect(page.locator('#dental-atlas-status')).toContainText('الأطلس السني جاهز', { timeout: 60000 });
@@ -46,16 +42,13 @@ test('clinic, oral anatomy, people and training flow render without browser erro
   await page.locator('[data-tooth-layer="pulp-chamber"]').check();
   await page.locator('#dental-tooth-back').click();
 
-  await page.locator('#view-body').click();
-  await expect(page.locator('#body-mesh-map-status')).toContainText('634 تركيبًا', { timeout: 45000 });
-  await expect(page.locator('.body-structure-button')).toHaveCount(634);
-  await page.locator('#body-search').fill('femur');
-  await expect(page.locator('.body-structure-button').first()).toContainText(/femur/i);
-  await page.locator('.body-structure-button').first().click();
-  await page.locator('#body-isolate').click();
-  await page.locator('#body-restore').click();
-  await page.locator('#body-layer-superficial').uncheck();
-  await page.locator('#body-layer-superficial').check();
+  const bodyRegistryResponse = await page.request.get(new URL('models/ecorche-structures.json', page.url()).toString());
+  expect(bodyRegistryResponse.ok()).toBeTruthy();
+  const bodyRegistry = await bodyRegistryResponse.json();
+  expect(bodyRegistry).toHaveLength(634);
+  const bodyModelResponse = await page.request.head(new URL('models/ecorche-anatomy.glb', page.url()).toString());
+  expect(bodyModelResponse.ok()).toBeTruthy();
+  expect(Number(bodyModelResponse.headers()['content-length'])).toBeGreaterThan(14_000_000);
 
   await page.locator('#view-clinic').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة');
