@@ -1649,6 +1649,21 @@ function updateCaseView() {
   caseProgress.textContent = currentStep < 0 ? 'لم يبدأ التدريب' : (complete ? 'اكتمل السيناريو التعليمي' : `الخطوة ${currentStep + 1} من ${total}`);
   caseProgressBar.style.width = `${(progress / total) * 100}%`;
   nextStepButton.disabled = currentStep < 0 || complete;
+  const sourceBox = document.getElementById('case-source-links');
+  if (sourceBox) {
+    sourceBox.replaceChildren(document.createTextNode('مراجع للمراجعة: '));
+    (scenario.sources || ['adaEvidence']).forEach((key, index) => {
+      const source = clinicalReferenceIndex[key];
+      if (!source) return;
+      if (index) sourceBox.appendChild(document.createTextNode(' · '));
+      const link = document.createElement('a');
+      link.href = source.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = source.label;
+      sourceBox.appendChild(link);
+    });
+  }
 }
 scenarioSelect?.addEventListener('change', event => {
   currentCase = event.target.value;
@@ -1697,6 +1712,7 @@ document.getElementById('export-report')?.addEventListener('click', () => {
     completed: completedSteps.length,
     total: trainingCases[currentCase].steps.length,
     steps: completedSteps,
+    references: (trainingCases[currentCase].sources || []).map(key => clinicalReferenceIndex[key]?.url).filter(Boolean),
     privacy: 'No patient identifiers or clinical records are included.',
     safety: 'Educational checklist only. Not evidence of clinical competency or a validated treatment protocol.'
   };
@@ -1707,6 +1723,292 @@ document.getElementById('export-report')?.addEventListener('click', () => {
   link.download = `dental-training-${currentCase}-${new Date().toISOString().slice(0,10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
+});
+
+// Educational chairside inventory. Every entry has a purpose and a safety/context note.
+const dentalInventory = [
+  {id:'mirror',name:'مرآة فحص الأسنان',category:'exam',type:'tool',keywords:'mirror mouth inspection',detail:'تعطي رؤية غير مباشرة وتساعد على إبعاد الخد واللسان أثناء الفحص.',note:'تحقق من سلامة السطح والتعقيم، ولا تستخدمها كأداة ضغط أو رفع.'},
+  {id:'explorer',name:'مسبار استكشافي',category:'exam',type:'tool',keywords:'explorer probe',detail:'أداة فحص لمعاينة الأسطح والحواف ضمن فحص منهجي.',note:'التعامل اللطيف مهم؛ لا تحول المسبار إلى أداة حفر في الآفات.'},
+  {id:'periodontal-probe',name:'مسبار دواعم السن',category:'exam',type:'tool',keywords:'periodontal probing pocket depth',detail:'يستخدم ضمن تسجيلات دواعم السن لتقييم أعماق الجيوب والنزف عند الجس.',note:'التسجيل يحتاج قوة قياس متسقة وتفسيرًا وفق التصنيف السريري.'},
+  {id:'cotton-pliers',name:'ملقط قطني',category:'exam',type:'tool',keywords:'tweezers college pliers',detail:'لنقل الكرات القطنية والقطع الصغيرة داخل المجال الفموي.',note:'حافظ على السيطرة على الأشياء الصغيرة وتجنب ابتلاعها أو استنشاقها.'},
+  {id:'air-water',name:'سرنجة هواء وماء',category:'exam',type:'tool',keywords:'triple syringe air water',detail:'تساعد في شطف وتجفيف المجال حسب نوع الإجراء.',note:'تحقق من سلامة الطرف ومنع الرذاذ والتلوث المتبادل.'},
+  {id:'saliva-ejector',name:'شفاط لعاب منخفض الحجم',category:'exam',type:'tool',keywords:'saliva ejector suction',detail:'لإزالة اللعاب والسوائل من جوف الفم.',note:'راقب وضع الطرف وراحة المريض، واتبع تعليمات مكافحة العدوى.'},
+  {id:'high-volume-suction',name:'شفاط عالي الحجم',category:'exam',type:'tool',keywords:'HVE suction evacuator',detail:'للتحكم في السوائل والرذاذ أثناء الإجراءات.',note:'اختيار القطر والموضع يعتمد على الإجراء وتدريب المساعد.'},
+  {id:'bite-block',name:'حاجز فتح الفم',category:'exam',type:'tool',keywords:'mouth prop bite block',detail:'قد يساعد في دعم فتح الفم في حالات مختارة.',note:'استخدمه فقط عند الحاجة وبعد تقييم راحة المريض وموانع الاستعمال.'},
+  {id:'high-speed',name:'قبضة عالية السرعة',category:'restorative',type:'tool',keywords:'high speed handpiece turbine',detail:'قبضة دوارة تستخدم مع أدوات قطع مخصصة في إجراءات سنية مختلفة.',note:'لا تستخدمها دون تدريب ووسائل تبريد وحماية واتباع تعليمات الجهاز.'},
+  {id:'low-speed',name:'قبضة منخفضة السرعة',category:'restorative',type:'tool',keywords:'low speed contra angle micromotor',detail:'تستخدم مع ملحقات مختلفة للتشطيب والتلميع وبعض أعمال إزالة المواد.',note:'اختيار السرعة والملحق يعتمد على تعليمات الشركة والإجراء.'},
+  {id:'bur-kit',name:'مجموعة رؤوس الحفر',category:'restorative',type:'tool',keywords:'bur diamond carbide round fissure',detail:'مجموعة أشكال وأحجام مختلفة من رؤوس القطع والتشطيب.',note:'اللون والشكل لا يكفيان للتعرف؛ راجع مواصفات المنتج وملاءمته.'},
+  {id:'rubber-dam',name:'طقم العزل المطاطي',category:'restorative',type:'tool',keywords:'rubber dam clamp frame sheet',detail:'يتضمن الصفيحة والإطار والمشابك وأدوات الثقب والتركيب.',note:'تحقق من ملاءمة المشبك وسلامة النسج وخطر حساسية اللاتكس.'},
+  {id:'matrix',name:'نظام المصفوفة',category:'restorative',type:'tool',keywords:'matrix band sectional ring',detail:'يساعد في إعادة بناء الجدار والتلامس التقريبي في ترميمات مختارة.',note:'الاختيار والموضع يحتاجان تدريبًا ومراجعة شكل السن والتلامس.'},
+  {id:'wedges',name:'أوتاد بينية',category:'restorative',type:'tool',keywords:'wood wedge plastic wedge',detail:'تساعد على تكييف شريط المصفوفة وإدارة المجال التقريبي.',note:'اختر الحجم المناسب وتجنب أذية الحليمة اللثوية.'},
+  {id:'composite-instrument',name:'أداة وضع الكومبوزيت',category:'restorative',type:'tool',keywords:'composite placement instrument spatula',detail:'للتعامل مع المادة الترميمية وتكييفها ضمن تقنية معتمدة.',note:'نظافة الأداة وتوافقها مع المادة وتعليمات الشركة مهمة.'},
+  {id:'curing-light',name:'مصباح التصلب الضوئي',category:'restorative',type:'tool',keywords:'LED curing light',detail:'جهاز ضوئي لتصلب مواد متوافقة مع طيفه.',note:'راجع توافق الطيف والشدة والزمن وفق تعليمات المادة والجهاز، واستخدم حماية العين.'},
+  {id:'endo-files',name:'ملفات علاج الجذور',category:'endo',type:'tool',keywords:'endodontic files hand rotary NiTi',detail:'أدوات يدوية أو آلية لإجراءات تنظيف وتشكيل القنوات الجذرية.',note:'اختلاف التشريح ومخاطر الانفصال يفرضان التدريب وخطة طول عمل موثقة.'},
+  {id:'apex-locator',name:'جهاز تحديد الذروة الإلكتروني',category:'endo',type:'tool',keywords:'apex locator endodontic',detail:'يساعد في تقدير موضع النهاية العاملة للقناة ضمن سياق التشخيص.',note:'لا يستبدل فهم التشريح أو التحقق السريري والشعاعي عند الحاجة.'},
+  {id:'endo-irrigation',name:'سرنجة وريّ بقنية مخصصة',category:'endo',type:'tool',keywords:'irrigation syringe side vented needle',detail:'منظومة توصيل سوائل الري داخل قناة الجذر ضمن إجراءات علاج الجذور.',note:'خطر دفع السائل خارج الذروة يستلزم التدريب والالتزام بالبروتوكول المحلي.'},
+  {id:'paper-points',name:'مخاريط ورقية',category:'endo',type:'tool',keywords:'paper points absorbent',detail:'مواد ماصة تستخدم في مرحلة تجفيف القنوات ضمن الإجراء.',note:'الحجم والملاءمة مرتبطان بالقناة وخطة الإجراء.'},
+  {id:'endo-spreader',name:'مباعد قنوات',category:'endo',type:'tool',keywords:'endo spreader plugger',detail:'أداة ضمن بعض تقنيات حشو القنوات.',note:'تتبع التقنية المعتمدة وتجنب الضغط غير المسيطر عليه.'},
+  {id:'extraction-forceps',name:'ملقط خلع الأسنان',category:'surgery',type:'tool',keywords:'extraction forceps',detail:'أداة جراحية مخصصة للإمساك بالسن أثناء الخلع.',note:'اختيار التصميم يعتمد على السن والجذور والتشريح؛ لا يوضح هذا النموذج قوى الخلع.'},
+  {id:'elevator',name:'رافعة جذور',category:'surgery',type:'tool',keywords:'elevator luxator root',detail:'أداة جراحية تستخدم ضمن مبادئ تحريك السن أو الجذر في حالات مختارة.',note:'التوجيه والقوة ومخاطر الأنسجة المجاورة تتطلب تدريبًا جراحيًا مباشرًا.'},
+  {id:'periotome',name:'مشرط/رافعة حول سنية دقيقة',category:'surgery',type:'tool',keywords:'periotome luxator',detail:'أداة دقيقة للمساعدة في فصل ألياف الرباط حول السني في سياقات مختارة.',note:'لا تستخدم كبديل عن تقييم صعوبة الحالة وخطة الحماية.'},
+  {id:'scalpel',name:'مقبض مشرط جراحي',category:'surgery',type:'tool',keywords:'scalpel blade surgical',detail:'أداة قطع جراحية ضمن إجراءات جراحية مدروسة.',note:'التعامل الآمن والتخلص من الشفرات الحادة وفق سياسة المنشأة.'},
+  {id:'curette',name:'مكشطة/ملعقة جراحية',category:'surgery',type:'tool',keywords:'curette surgical bone',detail:'أداة لإزالة أو تنظيف أنسجة ضمن إجراءات جراحية محددة.',note:'الاستعمال التشريحي الدقيق يتطلب تدريبًا وإشرافًا.'},
+  {id:'needle-holder',name:'ماسك إبرة جراحية',category:'surgery',type:'tool',keywords:'needle holder suturing',detail:'لإمساك الإبرة أثناء الخياطة الجراحية.',note:'اختر أداة مناسبة لنوع الإبرة والخيط وتدرب على المناولة الآمنة.'},
+  {id:'suture-scissors',name:'مقص جراحي',category:'surgery',type:'tool',keywords:'suture scissors surgical',detail:'لقطع الخيوط أو المواد المناسبة وفق الإجراء.',note:'احفظ الحواف الحادة وتعامل مع الأدوات وفق بروتوكول التعقيم.'},
+  {id:'ultrasonic-scaler',name:'جهاز إزالة الترسبات فوق الصوتي',category:'perio',type:'tool',keywords:'ultrasonic scaler perio',detail:'أداة اهتزازية لإزالة الترسبات ضمن عناية دواعم السن.',note:'اختيار الطرف والطاقة والتبريد يعتمد على تعليمات الجهاز وحالة المريض.'},
+  {id:'gracey-curette',name:'مكشطة Gracey',category:'perio',type:'tool',keywords:'Gracey curette periodontal',detail:'أداة يدوية بتصميمات مختلفة لمناطق محددة من الأسنان.',note:'التعرف على رقم الأداة والسطح العامل يحتاج تدريبًا عمليًا.'},
+  {id:'impression-tray',name:'ملعقة طبعة',category:'prostho',type:'tool',keywords:'impression tray',detail:'حامل لمادة الطبعة التقليدية عند استخدامها.',note:'اختيار المقاس والملاءمة قبل أخذ الطبعة أساسيان.'},
+  {id:'intraoral-scanner',name:'ماسح داخل الفم',category:'prostho',type:'tool',keywords:'intraoral scanner digital scan',detail:'يلتقط بيانات رقمية لأسطح الأسنان والنسج الظاهرة.',note:'جودة المسح تعتمد على المجال والرطوبة وخطة المسح والمعايرة.'},
+  {id:'shade-guide',name:'دليل اختيار اللون',category:'prostho',type:'tool',keywords:'shade guide color',detail:'مرجع بصري لتسجيل لون الأسنان والتواصل مع المختبر.',note:'الإضاءة والبيئة والشفافية تؤثر في التقييم.'},
+  {id:'orthodontic-pliers',name:'كماشات تقويمية',category:'ortho',type:'tool',keywords:'orthodontic pliers bracket wire',detail:'أدوات مخصصة لمناولة الأسلاك والملحقات التقويمية.',note:'كل تصميم له وظيفة محددة؛ يلزم تدريب اختصاصي التقويم.'},
+  {id:'composite-resin',name:'راتنج كومبوزيت',category:'materials',type:'material',keywords:'composite resin restorative',detail:'مادة ترميمية راتنجية ذات خصائص تختلف حسب المنتج واللزوجة والحشوات.',note:'التزم بنشرة الشركة والتوافق اللاصق والتخزين وتاريخ الصلاحية.'},
+  {id:'glass-ionomer',name:'إسمنت زجاجي أيوني',category:'materials',type:'material',keywords:'glass ionomer GIC restorative',detail:'مادة ذات استخدامات ترميمية أو قاعدية أو إسمنتية بحسب الصيغة.',note:'لا تفترض أن جميع الأنواع قابلة للتبادل؛ راجع الاستطبابات وتعليمات الشركة.'},
+  {id:'etchant',name:'مادة تخريش',category:'materials',type:'material',keywords:'etch phosphoric acid',detail:'مادة لمعالجة السطح ضمن نظم التصاق محددة.',note:'احمِ النسج الرخوة والتزم بتعليمات المادة ولا تعمم زمنًا واحدًا.'},
+  {id:'adhesive',name:'نظام لاصق',category:'materials',type:'material',keywords:'bonding adhesive dental',detail:'نظام لاصق يهيئ الارتباط بين بنية السن والمادة الترميمية.',note:'تختلف الأنظمة والخطوات؛ اتبع النشرة الخاصة بالمنتج.'},
+  {id:'calcium-silicate',name:'مادة سيليكات الكالسيوم الحيوية',category:'materials',type:'material',keywords:'MTA bioceramic calcium silicate',detail:'فئة مواد حيوية تستخدم في استطبابات لبيّة وترميمية محددة.',note:'الاختيار والتعامل يحدده التشخيص وتعليمات الشركة والمشرف.'},
+  {id:'temporary-restoration',name:'مادة ترميم مؤقت',category:'materials',type:'material',keywords:'temporary filling cement',detail:'مادة إغلاق أو ترميم مؤقتة لحالات مختارة.',note:'راجع مدة الاستخدام وخطة الاستبدال ومتطلبات الإغلاق.'},
+  {id:'endodontic-sealer',name:'مادة إغلاق قنوات',category:'materials',type:'material',keywords:'root canal sealer',detail:'مادة تستخدم مع مادة الحشو ضمن نظم إغلاق قنوات الجذر.',note:'التركيب والتوافق والتعامل تختلف بين المنتجات.'},
+  {id:'gutta-percha',name:'مخاريط غوتا بيركا',category:'materials',type:'material',keywords:'gutta percha obturation',detail:'مادة حشو شائعة ضمن نظم علاج الجذور.',note:'الحجم والتقنية مرتبطان بتشكيل القناة ونظام الحشو.'},
+  {id:'impression-silicone',name:'سيليكون طبعات',category:'materials',type:'material',keywords:'PVS addition silicone impression',detail:'مادة طبعة مرنة تستخدم في تطبيقات تعويضية مختلفة.',note:'الخلط وزمن العمل والتخزين وفق المنتج المحدد.'},
+  {id:'luting-cement',name:'إسمنت تثبيت تعويضي',category:'materials',type:'material',keywords:'resin cement glass ionomer luting',detail:'مواد لتثبيت التعويضات بحسب نوع الترميم والسطح والمادة.',note:'لا يوجد إسمنت واحد مناسب لكل التعويضات؛ اتبع تعليمات الشركة.'},
+  {id:'suture-material',name:'خيوط جراحية',category:'materials',type:'material',keywords:'suture silk vicryl nylon',detail:'خيوط جراحية تختلف في الامتصاص والقطر والبنية.',note:'اختيار النوع والحجم والتوقيت ضمن التدريب الجراحي وبروتوكول المنشأة.'},
+  {id:'ppe-gloves',name:'قفازات طبية',category:'ppe',type:'material',keywords:'gloves nitrile latex',detail:'حاجز وقائي لليدين ضمن احتياطات مكافحة العدوى.',note:'اختر مادة متوافقة مع الحساسية وسياسة المنشأة، وبدلها بين المهام.'},
+  {id:'ppe-mask',name:'كمامة طبية/حماية تنفسية',category:'ppe',type:'material',keywords:'mask respirator',detail:'وسيلة حماية تنفسية تختار وفق نوع الإجراء وتقييم المخاطر.',note:'الملاءمة والاستخدام وفق السياسة الصحية الحالية.'},
+  {id:'eye-protection',name:'نظارات واقية ودرع وجه',category:'ppe',type:'material',keywords:'goggles face shield',detail:'حماية العين والوجه من الرذاذ والجزيئات.',note:'نظفها وعقمها أو استبدلها وفق تعليمات الشركة ومكافحة العدوى.'},
+  {id:'sterile-drape',name:'غطاء وحاجز أحادي الاستخدام',category:'ppe',type:'material',keywords:'barrier drape disposable',detail:'حواجز للأسطح ومناطق التلامس لتقليل انتقال التلوث.',note:'إزالة آمنة وتبديل بين المرضى وفق بروتوكول المنشأة.'}
+];
+
+const inventoryList = document.getElementById('inventory-list');
+const inventoryDetail = document.getElementById('inventory-detail');
+const inventorySearch = document.getElementById('inventory-search');
+const inventoryCategory = document.getElementById('inventory-category');
+let selectedInventoryItem = dentalInventory[0];
+
+const activeMaterialRoot = new TransformNode('ActiveTreatmentMaterial', scene);
+activeMaterialRoot.parent = treatmentRoot;
+activeMaterialRoot.position.set(-1.58, 1.08, 1.12);
+const materialBottle = cylinder('ActiveMaterialBottle', .38, .18, [0,0,0], 'glass', activeMaterialRoot, 24);
+const materialBottleCap = cylinder('ActiveMaterialCap', .09, .12, [0,.22,0], 'tealDark', activeMaterialRoot, 20);
+activeMaterialRoot.setEnabled(false);
+
+function selectInventoryItem(item) {
+  selectedInventoryItem = item;
+  if (inventoryDetail) {
+    inventoryDetail.replaceChildren();
+    const title = document.createElement('strong');
+    title.textContent = item.name + (item.type === 'material' ? ' · مادة' : ' · أداة');
+    const purpose = document.createElement('p');
+    purpose.textContent = item.detail;
+    const note = document.createElement('p');
+    note.textContent = 'ملاحظة: ' + item.note;
+    inventoryDetail.append(title, purpose, note);
+  }
+  const isMaterial = item.type === 'material';
+  activeInstrumentRoot.setEnabled(!isMaterial);
+  activeMaterialRoot.setEnabled(isMaterial);
+  activeInstrumentRoot.metadata = { treatmentLabel: item.name, detail: item.detail };
+  document.getElementById('treatment-interaction-status').textContent =
+    'تم اختيار ' + item.name + '. اضغط تحريك الأداة للفم لنقل المجسم بهدوء، أو إرجاعه للصينية.';
+  document.getElementById('selection-name').textContent = item.name;
+  document.getElementById('selection-description').textContent = item.detail;
+  inventoryList?.querySelectorAll('.inventory-item').forEach(button => {
+    button.classList.toggle('selected', button.dataset.inventoryId === item.id);
+  });
+}
+function renderInventory() {
+  if (!inventoryList) return;
+  const query = (inventorySearch?.value || '').trim().toLocaleLowerCase('ar');
+  const category = inventoryCategory?.value || 'all';
+  inventoryList.replaceChildren();
+  const rows = dentalInventory.filter(item => {
+    const matchesCategory = category === 'all' || item.category === category;
+    const haystack = (item.name + ' ' + item.keywords + ' ' + item.detail).toLocaleLowerCase('ar');
+    return matchesCategory && (!query || haystack.includes(query));
+  });
+  for (const item of rows) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'inventory-item' + (item.id === selectedInventoryItem.id ? ' selected' : '');
+    button.dataset.inventoryId = item.id;
+    const name = document.createElement('b');
+    name.textContent = item.name;
+    const tag = document.createElement('small');
+    tag.textContent = item.type === 'material' ? 'مادة / مستهلك' : 'أداة';
+    button.append(name, tag);
+    button.addEventListener('click', () => selectInventoryItem(item));
+    inventoryList.appendChild(button);
+  }
+  if (!rows.length) {
+    const empty = document.createElement('p');
+    empty.className = 'asset-license-note';
+    empty.textContent = 'لا توجد عناصر مطابقة للبحث.';
+    inventoryList.appendChild(empty);
+  }
+}
+inventorySearch?.addEventListener('input', renderInventory);
+inventoryCategory?.addEventListener('change', renderInventory);
+renderInventory();
+selectInventoryItem(selectedInventoryItem);
+
+function animateTreatmentNode(node, destination, rotation) {
+  const positionAnimation = new Animation(
+    'ChairsideToolPosition', 'position', 30,
+    Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT
+  );
+  positionAnimation.setKeys([
+    { frame: 0, value: node.position.clone() },
+    { frame: 48, value: destination.clone() }
+  ]);
+  const rotationAnimation = new Animation(
+    'ChairsideToolRotation', 'rotation', 30,
+    Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT
+  );
+  rotationAnimation.setKeys([
+    { frame: 0, value: node.rotation.clone() },
+    { frame: 48, value: rotation.clone() }
+  ]);
+  const ease = new CubicEase();
+  ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+  positionAnimation.setEasingFunction(ease);
+  rotationAnimation.setEasingFunction(ease);
+  scene.beginDirectAnimation(node, [positionAnimation, rotationAnimation], 0, 48, false);
+}
+let isPatientMouthOpen = true;
+let isPropAtMouth = false;
+document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
+  if (activeExperience !== 'treatment') {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع جلسة العلاج أولًا.';
+    return;
+  }
+  const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
+  prop.setEnabled(true);
+  animateTreatmentNode(prop, new Vector3(-.25, 1.72, -.47), new Vector3(0, 0, -.22));
+  isPropAtMouth = true;
+  document.getElementById('treatment-interaction-status').textContent =
+    'تتحرك ' + selectedInventoryItem.name + ' إلى موضع العمل بسرعة هادئة. الحركة تعليمية ولا تحاكي القوة أو مسارًا سريريًا حقيقيًا.';
+});
+document.getElementById('tool-to-tray')?.addEventListener('click', () => {
+  const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
+  animateTreatmentNode(prop, new Vector3(-1.58, 1.08, 1.12), new Vector3(0, 0, 0));
+  isPropAtMouth = false;
+  document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى صينية العمل.';
+});
+document.getElementById('patient-mouth-toggle')?.addEventListener('click', () => {
+  isPatientMouthOpen = !isPatientMouthOpen;
+  const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+  animation.setKeys([
+    { frame: 0, value: patientJawPivot.rotation.x },
+    { frame: 24, value: isPatientMouthOpen ? .24 : 0 }
+  ]);
+  const ease = new CubicEase();
+  ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+  animation.setEasingFunction(ease);
+  scene.beginDirectAnimation(patientJawPivot, [animation], 0, 24, false);
+  document.getElementById('patient-mouth-toggle').textContent = isPatientMouthOpen ? 'إغلاق الفم' : 'فتح الفم';
+  document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم في النموذج التوضيحي.' : 'تم إغلاق الفم في النموذج التوضيحي.';
+});
+
+// Locally hosted open-weight assistant (Qwen 3.5) through Ollama. No provider key is stored.
+const aiEndpointInput = document.getElementById('ai-endpoint');
+const aiModelSelect = document.getElementById('ai-model');
+const aiStatus = document.getElementById('ai-status');
+const aiMessages = document.getElementById('ai-messages');
+const aiForm = document.getElementById('ai-form');
+const aiQuestion = document.getElementById('ai-question');
+const aiConversation = [];
+const aiClinicalContext = [
+  'Use these official clinical reference entry points as the preferred sources. Do not invent quotations, doses, or guideline recommendations.',
+  'SDCEP Management of Acute Dental Problems, 2nd edition (March 2026), updated support tools announced 30 September 2026: https://www.acutedentalproblems.sdcep.org.uk/ ; covers pain, swelling, bleeding, trauma, ulceration and urgency/referral.',
+  'SDCEP Drug Prescribing for Dentistry: https://www.sdcepdentalprescribing.nhs.scot/ ; website notes update to BNF 92 / BNFC 2026-27 and bacterial-infections section updated May 2026. This is UK guidance and is not automatically the local Egyptian formulary.',
+  'ADA Caries Management Clinical Practice Guidelines: https://www.ada.org/resources/research/science/evidence-based-dental-research/caries-management-clinical-practice-guidelines ; restorative guideline published 2023 and non-restorative guideline published 2018.',
+  'AAE Clinical Guidelines and Position Statements: https://www.aae.org/specialty/clinical-resources/guidelines-position-statements/ ; includes vital pulp therapy and endodontic resources.',
+  'EFP Stage I-III Periodontitis Guideline: https://www.efp.org/education/continuing-education/clinical-guidelines/guideline-on-treatment-of-stage-i-iii-periodontitis/ ; evidence-based guideline published 2020.',
+  'IADT Dental Trauma Guidelines: https://iadt-dentaltrauma.org/guidelines-and-resources/guidelines/ ; 2020 guidelines cover fractures/luxations, avulsion of permanent teeth and injuries in primary dentition.',
+  'FDA Clinical Decision Support overview: https://www.fda.gov/medical-devices/digital-health-center-excellence/step-6-software-function-intended-provide-clinical-decision-support ; emphasizes clinician ability to independently review the basis of recommendations.'
+].join('\n');
+
+function addAiMessage(role, text) {
+  if (!aiMessages) return;
+  const bubble = document.createElement('div');
+  bubble.className = 'ai-message ' + role;
+  bubble.textContent = text;
+  aiMessages.appendChild(bubble);
+  aiMessages.scrollTop = aiMessages.scrollHeight;
+}
+function normalizeAiEndpoint() {
+  return (aiEndpointInput?.value || 'http://localhost:11434').trim().replace(/\/+$/, '');
+}
+async function testLocalAiConnection() {
+  aiStatus.textContent = 'جارٍ الاتصال…';
+  aiStatus.classList.remove('good','bad');
+  try {
+    const response = await fetch(normalizeAiEndpoint() + '/api/tags');
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const payload = await response.json();
+    const models = Array.isArray(payload.models) ? payload.models : [];
+    const requested = aiModelSelect.value;
+    const installed = models.some(model => model.name === requested || model.name.startsWith(requested + ':') || requested.startsWith(model.name.split(':')[0] + ':'));
+    aiStatus.textContent = installed ? 'متصل · النموذج موجود' : 'الخادم متصل · حمّل النموذج';
+    aiStatus.classList.add('good');
+    if (!installed) addAiMessage('assistant', 'اتصال Ollama يعمل، لكن النموذج ' + requested + ' غير ظاهر في قائمة النماذج. نفّذ أمر التحميل الموضح أسفل لوحة المساعد ثم اختبر الاتصال مجددًا.');
+    return true;
+  } catch (error) {
+    aiStatus.textContent = 'تعذر الاتصال';
+    aiStatus.classList.add('bad');
+    addAiMessage('assistant', 'لم أستطع الوصول إلى Ollama على ' + normalizeAiEndpoint() + '. تحقق من تشغيل Ollama والسماح بأصل الموقع في OLLAMA_ORIGINS. تفاصيل الاتصال: ' + error.message);
+    return false;
+  }
+}
+document.getElementById('ai-connect')?.addEventListener('click', () => void testLocalAiConnection());
+aiForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const question = (aiQuestion?.value || '').trim();
+  if (!question) return;
+  const model = aiModelSelect.value;
+  addAiMessage('user', question);
+  aiQuestion.value = '';
+  const submitButton = document.getElementById('ai-send');
+  submitButton.disabled = true;
+  aiStatus.textContent = 'يفكر محليًا…';
+  aiConversation.push({ role: 'user', content: question });
+  const systemPrompt = [
+    'You are a cautious Arabic-first dental education assistant for dental students and licensed dental professionals.',
+    'Answer in clear Arabic unless the user requests another language. Explain dental anatomy, instruments, materials, clinical reasoning and educational workflows.',
+    'This application is an educational simulator, not a clinical decision system. Never diagnose a real patient or write patient-specific prescriptions. Do not supply drug doses, emergency treatment directives, or invasive procedural instructions for unsupervised use.',
+    'For urgent symptoms, advise immediate assessment using the local emergency pathway; do not delay emergency care for an AI response.',
+    'Use the reference index below as starting points. Separate guideline facts from general explanation, name the relevant organization and date when known, and link only sources listed below. Never fabricate a citation, recommendation, quote, or guideline update.',
+    'If evidence is insufficient or guidelines differ by jurisdiction, say so and ask the clinician to verify current local guidance. UK SDCEP resources are not automatically Egyptian prescribing rules.',
+    'Mention uncertainty and limitations, especially for anatomy variants, medicines, radiology, trauma and surgery. Encourage review by a qualified supervisor.',
+    'Never request or retain patient identifiers. Do not claim that you are clinically validated.',
+    'Reference index:\n' + aiClinicalContext
+  ].join('\n\n');
+  try {
+    const messages = [{ role: 'system', content: systemPrompt }, ...aiConversation.slice(-10)];
+    const response = await fetch(normalizeAiEndpoint() + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: false,
+        options: { temperature: 0.25, num_ctx: 8192, num_predict: 900 }
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || ('HTTP ' + response.status));
+    const answer = payload.message?.content || 'لم يرجع النموذج إجابة نصية.';
+    aiConversation.push({ role: 'assistant', content: answer });
+    addAiMessage('assistant', answer);
+    aiStatus.textContent = 'تمت الإجابة محليًا';
+    aiStatus.classList.add('good');
+  } catch (error) {
+    aiConversation.pop();
+    addAiMessage('assistant', 'تعذر الحصول على الإجابة. تأكد من تثبيت النموذج والسماح باتصال المتصفح بخادم Ollama المحلي. لا تستخدم الإجابة بديلًا عن الأدلة أو المشرف. التفاصيل: ' + error.message);
+    aiStatus.textContent = 'فشل الطلب';
+    aiStatus.classList.add('bad');
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 updateCaseView();
