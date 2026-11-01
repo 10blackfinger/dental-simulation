@@ -389,6 +389,18 @@ scene.onPointerObservable.add((pointerInfo) => {
 });
 
 function setCamera(mode) {
+  if (activeExperience === 'treatment') {
+    const views = {
+      orbit: [-Math.PI/2.25, 1.12, 8.1, new Vector3(0, 1.35, 0)],
+      front: [-Math.PI/2, 1.18, 8.0, new Vector3(0, 1.35, 0)],
+      side: [0, 1.18, 8.0, new Vector3(0, 1.35, 0)],
+      top: [-Math.PI/2, .24, 9.2, new Vector3(0, 1.15, 0)]
+    };
+    const view = views[mode] || views.orbit;
+    camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    return;
+  }
   if (activeExperience === 'dental-scope') {
     const views = {
       orbit: [-Math.PI/2.25,1.13,12.8,new Vector3(0,0,0)],
@@ -690,6 +702,9 @@ async function ensureAnatomyModel() {
 }
 
 async function showClinicExperience() {
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
   peopleRoot.setEnabled(false);
   dentalScopeRoot?.setEnabled(false);
@@ -701,7 +716,7 @@ async function showClinicExperience() {
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -727,6 +742,43 @@ async function showClinicExperience() {
   loadingOverlay?.classList.add('hidden');
 }
 
+
+async function showTreatmentExperience() {
+  patientVariantControls.hidden = true;
+  peopleRoot.setEnabled(false);
+  anatomyPanel.hidden = true;
+  bodyPanel.hidden = true;
+  dentalAtlasPanel.hidden = true;
+  activeExperience = 'treatment';
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+    document.getElementById(id)?.classList.toggle('selected', id === 'view-treatment');
+  }
+  loadingOverlay?.classList.remove('hidden');
+  await ensureClinicModel();
+  if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
+  if (bodyAssetRoot) bodyAssetRoot.setEnabled(false);
+  if (dentalScopeRoot) dentalScopeRoot.setEnabled(false);
+  for (const item of dentalToothDetails.values()) item.root.setEnabled(false);
+  for (const item of patientVariants.values()) item.root.setEnabled(false);
+  if (clinicAssetRoot) {
+    clinicAssetRoot.setEnabled(true);
+    root.setEnabled(false);
+    setProceduralControlsEnabled(false, 'clinic');
+    setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد. المريض مستلقٍ والطبيب والمساعد داخل جلسة علاج واحدة.', 'ok');
+  } else {
+    root.setEnabled(true);
+    setProceduralControlsEnabled(true, 'clinic');
+    setAssetStatus('تم تشغيل العيادة البديلة: المريض مستلقٍ والطبيب والمساعد داخل جلسة علاج واحدة.', 'warn');
+  }
+  treatmentRoot.setEnabled(true);
+  treatmentLight.setEnabled(true);
+  treatmentLight.intensity = .85;
+  camera.lowerRadiusLimit = 3.4;
+  camera.upperRadiusLimit = 22;
+  setCamera('treatment');
+  loadingOverlay?.classList.add('hidden');
+}
+document.getElementById('view-treatment')?.addEventListener('click', showTreatmentExperience);
 
 const patientModelStatus = document.getElementById('patient-model-status');
 const patientVariantControls = document.getElementById('patient-variant-controls');
@@ -787,6 +839,9 @@ document.getElementById('patient-male')?.addEventListener('click',()=>void selec
 document.getElementById('patient-female')?.addEventListener('click',()=>void selectPatientVariant('female'));
 
 async function showPeopleExperience() {
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
   dentalAtlasPanel.hidden=true;
@@ -794,7 +849,7 @@ async function showPeopleExperience() {
   activeExperience = 'people';
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   root.setEnabled(false);
@@ -803,7 +858,7 @@ async function showPeopleExperience() {
   peopleRoot.setEnabled(true);
   patientVariantControls.hidden = false;
   anatomyPanel.hidden = true;
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   setProceduralControlsEnabled(false,'clinic');
@@ -818,6 +873,9 @@ async function showPeopleExperience() {
 document.getElementById('view-people')?.addEventListener('click',showPeopleExperience);
 
 async function showAnatomyExperience() {
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
@@ -826,7 +884,7 @@ async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -1001,6 +1059,9 @@ async function ensureBodyModel() {
   }
 }
 async function showBodyExperience() {
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
@@ -1347,6 +1408,9 @@ async function ensureDentalScope() {
   }
 }
 async function showDentalAtlasExperience() {
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
   for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
@@ -1403,49 +1467,159 @@ document.getElementById('dental-restore-structures')?.addEventListener('click',(
   dentalIsolatedKey=null;applyDentalBaseVisibility();
 });
 
+const clinicalReferenceIndex = {
+  adaCaries: { label: 'ADA — إرشادات تدبير التسوس', url: 'https://www.ada.org/resources/research/science/evidence-based-dental-research/caries-management-clinical-practice-guidelines' },
+  adaEvidence: { label: 'ADA — أدلة الممارسة السنية', url: 'https://www.ada.org/resources/research/science/evidence-based-dental-research' },
+  aae: { label: 'AAE — الإرشادات والمواقف السريرية لعلاج الجذور', url: 'https://www.aae.org/specialty/clinical-resources/guidelines-position-statements/' },
+  sdcepAcute: { label: 'SDCEP — تدبير المشكلات السنية الحادة، الطبعة الثانية 2026', url: 'https://www.acutedentalproblems.sdcep.org.uk/' },
+  sdcepPrescribing: { label: 'SDCEP — مرجع وصف الأدوية في طب الأسنان', url: 'https://www.sdcepdentalprescribing.nhs.scot/' },
+  efp: { label: 'EFP — إرشادات علاج التهاب دواعم السن للمراحل I–III', url: 'https://www.efp.org/education/continuing-education/clinical-guidelines/guideline-on-treatment-of-stage-i-iii-periodontitis/' },
+  iadt: { label: 'IADT — إرشادات إصابات الأسنان الرضحية', url: 'https://iadt-dentaltrauma.org/guidelines-and-resources/guidelines/' },
+  fda: { label: 'FDA — اعتبارات دعم القرار السريري بالبرمجيات', url: 'https://www.fda.gov/medical-devices/digital-health-center-excellence/step-6-software-function-intended-provide-clinical-decision-support' }
+};
+
 const trainingCases = {
   exam: {
     title: 'فحص سريري أولي',
-    description: 'تسلسل تعليمي لتنظيم خطوات الفحص والملاحظات دون تسجيل بيانات تعريفية للمريض.',
+    description: 'جلسة منظمة تبدأ بالفرز والتاريخ المرضي ثم الفحص والتوثيق. استخدم حالة افتراضية فقط ولا تدخل أي بيانات تعريفية.',
+    sources: ['adaEvidence','sdcepAcute','aae'],
     steps: [
-      ['تهيئة بيئة العمل', 'تأكد من جاهزية بيئة التدريب ومعدات الوقاية وفق سياسة منشأتك التعليمية.'],
-      ['جمع التاريخ المرضي', 'راجع التاريخ المرضي والحساسية والأدوية مع استخدام حالة افتراضية خالية من بيانات شخصية.'],
-      ['الفحص خارج الفم وداخله', 'اتبع تسلسل فحص منهجي، وسجل الملاحظات الموضوعية دون افتراض تشخيص.'],
-      ['الفحوص المساندة', 'حدد ما إذا كانت صور الأشعة أو الاختبارات الإضافية مطلوبة وفق إشراف المختص.'],
-      ['ملخص الحالة', 'اعرض النتائج والملاحظات على المشرف قبل صياغة أي خطة علاج.']
+      ['تهيئة بيئة العمل', 'تحقق من جاهزية المكان، وسائل الوقاية الشخصية، سلامة التعقيم، ونظافة الأسطح قبل استقبال الحالة.'],
+      ['الفرز والتاريخ المرضي', 'حدد الشكوى الرئيسية ومدتها والعوامل المحفزة والمخففة، ثم راجع التاريخ الطبي والحساسية والأدوية والعوامل المؤثرة في الخطة.'],
+      ['الفحص خارج الفم وداخله', 'افحص الوجه والأنسجة الرخوة والإطباق والأسنان واللثة بشكل منهجي، وسجل الموجودات دون القفز إلى التشخيص.'],
+      ['الاختبارات المساندة', 'اختر اختبارات اللب والقرع والجس والفحص اللثوي والتصوير عند وجود مبرر سريري؛ قارن النتائج بالأسنان المرجعية.'],
+      ['التشخيص التفريقي', 'اربط الشكوى والفحص والاختبارات والصور، واكتب التشخيصات المحتملة وما ينقصك من معلومات.'],
+      ['خطة وموافقة وتوثيق', 'ناقش البدائل والمنافع والمخاطر والتكلفة والمتابعة مع المريض الافتراضي، ثم وثق القرار ومبرراته.']
     ]
   },
   restoration: {
-    title: 'خطوات ترميم تعليمي',
-    description: 'سيناريو مفاهيمي لمراحل الترميم؛ لا يحدد مقاسات تحضير أو إعدادات أجهزة أو وصفة سريرية.',
+    title: 'ترميم الأسنان وإدارة التسوس',
+    description: 'سيناريو تعليمي لاتخاذ القرار في إدارة التسوس واختيار الترميم. لا يحدد عمق تحضير أو وصفة مادة أو إعدادات جهاز.',
+    sources: ['adaCaries','adaEvidence'],
     steps: [
-      ['تقييم السن', 'راجع الشكوى والفحص السريري ووسائل التشخيص المناسبة مع المشرف.'],
-      ['تحديد الخطة', 'ناقش التشخيص والبدائل والمخاطر والموافقة المستنيرة في حالة افتراضية.'],
-      ['التحضير والعزل', 'تعرف إلى أهداف العزل والتحضير المحافظ تحت إشراف سريري مباشر.'],
-      ['اختيار المادة', 'قارن خصائص مواد الترميم واستخداماتها وفق تعليمات الشركة والمقرر التعليمي.'],
-      ['التقييم النهائي', 'راجع سلامة الترميم والتلامسات والإطباق وخطة المتابعة مع المشرف.']
+      ['تقييم الآفة', 'راجع نشاط الآفة وموقعها وامتدادها وإمكانية تنظيفها وخطر التسوس العام، ولا تعتمد على صورة منفردة وحدها.'],
+      ['تحديد قابلية الترميم', 'افحص بنية السن المتبقية وحالة اللب واللثة والإطباق، وقارن بين التدبير غير الترميمي والترميم المباشر وغير المباشر.'],
+      ['شرح الخيارات والموافقة', 'اعرض البدائل والمنافع والقيود ومخاطر الحساسية أو فشل الترميم والحاجة إلى المتابعة.'],
+      ['العزل وتجهيز المجال', 'تعرف إلى اختيار العزل المناسب وحماية الأنسجة ومنع التلوث وفق بروتوكول الكلية وإشراف الطبيب المسؤول.'],
+      ['اختيار النظام والمواد', 'قارن الكومبوزيت والزجاج الأيوني والمواد الحيوية بحسب موضع الآفة ومتطلبات الالتصاق وتعليمات الشركة.'],
+      ['تقييم الترميم', 'افحص الحواف والتلامس والإطباق والتشطيب والنظافة وسجل أي ملاحظة وخطة المراجعة.']
     ]
   },
   endo: {
-    title: 'مبادئ علاج الجذور',
-    description: 'تسلسل تعليمي عام لمبادئ التشخيص والتوثيق والعزل، وليس بروتوكولًا علاجيًا تنفيذيًا.',
+    title: 'تشخيص وعلاج لب السن والجذور',
+    description: 'تدريب على منطق التشخيص والتخطيط وفهم تشريح القنوات؛ لا يقدم أطوال عمل أو مقاسات ملفات أو بروتوكول ريّ تنفيذي.',
+    sources: ['aae','adaEvidence'],
     steps: [
-      ['التشخيص', 'راجع التاريخ المرضي والاختبارات السريرية والتصوير المناسب مع المشرف.'],
-      ['تقييم قابلية العلاج', 'ناقش حالة السن والإنذار والبدائل العلاجية قبل اتخاذ القرار.'],
-      ['العزل', 'تعرف إلى أهمية العزل ومنع التلوث المتبادل وفق بروتوكول الكلية.'],
-      ['فهم التشريح الداخلي', 'استخدم نموذج التشريح لفهم الحجرة والقنوات مع الانتباه إلى الاختلافات التشريحية.'],
-      ['التوثيق والمتابعة', 'سجل الإجراءات التعليمية وناقش النتيجة وخطة المتابعة مع المشرف.']
+      ['تحديد التشخيص اللبي والذروي', 'اجمع الأعراض والتاريخ والفحص واختبارات الحساسية والقرع والجس والصور، ثم وثق التشخيصين كلًا على حدة.'],
+      ['تقييم صعوبة الحالة والإنذار', 'راجع التشريح المتوقع والترميمية والحالة الداعمة والمخاطر الطبية، وفكر في الإحالة عند تجاوز مستوى الخبرة.'],
+      ['مناقشة الخطة والموافقة', 'اشرح خيارات الحفاظ على اللب أو علاج الجذور أو الإحالة أو البدائل، مع توضيح عدم اليقين والإنذار.'],
+      ['العزل وفهم الحجرة', 'راجع أهداف العزل ومنع التلوث، واستخدم الأطلس ثلاثي الأبعاد لفهم الحجرة ومداخل القنوات والاختلافات.'],
+      ['مبادئ التنظيف والتشكيل والإغلاق', 'تعرف إلى أهداف الإجراءات ومراقبة الطول والسلامة والتطهير والإغلاق وفق البروتوكول المعتمد وتحت إشراف مباشر.'],
+      ['الترميم والمتابعة', 'ناقش أهمية الإغلاق التاجي والترميم النهائي وتقييم الأعراض والشفاء شعاعيًا وفق خطة متابعة موثقة.']
     ]
   },
   hygiene: {
-    title: 'إزالة اللويحة والتوعية',
-    description: 'حالة تعليمية حول تقييم صحة الفم والتواصل الوقائي مع المريض.',
+    title: 'اللثة والوقاية وإزالة اللويحة',
+    description: 'تقييم صحة دواعم السن، التحكم بعوامل الخطورة، والتخطيط للصيانة الدورية.',
+    sources: ['efp','adaEvidence'],
     steps: [
-      ['تقييم صحة اللثة', 'راجع مؤشرات اللثة واللويحة ضمن إطار تدريبي موحد.'],
-      ['تحديد عوامل الخطورة', 'ناقش العادات والعوامل السلوكية المؤثرة في صحة الفم.'],
-      ['شرح الوقاية', 'اشرح للمريض الافتراضي دور العناية اليومية والمتابعة الدورية.'],
-      ['اختيار أداة مناسبة', 'قارن أدوات التنظيف على مستوى الاستخدام التعليمي وموانع الاستعمال العامة.'],
-      ['مراجعة النتائج', 'وثق التغيرات التعليمية وخطة المتابعة مع المشرف.']
+      ['تقييم اللثة', 'راجع النزف عند الجس والجيوب والفقد السريري للارتباط والحركة واللويحة، واطلب السجلات المناسبة للحالة.'],
+      ['تصنيف الحالة', 'ناقش استخدام نظام المرحلة والدرجة ومقدار التعقيد وعوامل الخطورة بدل الاكتفاء بوصف عام للالتهاب.'],
+      ['تحديد عوامل الخطورة', 'راجع التدخين والسكري والعناية المنزلية والعوامل الموضعية والأدوية والتاريخ المرضي.'],
+      ['خطة التحكم غير الجراحي', 'تعرف إلى دور التثقيف والتحكم باللويحة والتنظيف المهني وإزالة الترسبات تحت اللثة وفق الحالة وإشراف المختص.'],
+      ['إعادة التقييم', 'قارن المؤشرات بعد التدخل، وحدد المواقع التي تحتاج إلى تقييم إضافي أو إحالة متخصصة.'],
+      ['الصيانة طويلة المدى', 'صمم خطة دعم دوري فردية بمشاركة المريض، مع توثيق عوامل الخطورة والالتزام والتغيرات.']
+    ]
+  },
+  extraction: {
+    title: 'تقييم وخلع الأسنان',
+    description: 'محاكاة تعليمية لمسار القرار قبل الخلع وأثناءه وبعده؛ لا تستبدل التدريب العملي أو الإشراف الجراحي.',
+    sources: ['sdcepAcute','aae','adaEvidence'],
+    steps: [
+      ['تأكيد سبب الخلع', 'راجع التشخيص وقابلية الحفاظ على السن والبدائل الترميمية واللبية واللثوية، وتأكد أن الخلع مبرر وليس افتراضيًا.'],
+      ['تقييم عوامل الخطورة', 'راجع التاريخ الطبي والأدوية والحساسية ومضادات التخثر ومخاطر النزف والعدوى والعوامل التشريحية.'],
+      ['التصوير وتقدير الصعوبة', 'اختر التصوير بناءً على السؤال السريري، وقيّم شكل الجذور والقرب من البنى التشريحية وحدود خبرتك.'],
+      ['الموافقة والاستعداد', 'ناقش البدائل والمخاطر المتوقعة وخطة الألم والنزف والمتابعة، وجهز الأدوات والوقاية ومكان التصرف في الطوارئ.'],
+      ['مبادئ الإجراء الجراحي', 'راجع مفاهيم التخدير الموضعي والتحكم بالقوى وحماية الأنسجة والتعامل مع التعقيد أو توقف التقدم؛ التنفيذ يكون بيد طبيب مدرب وتحت إشراف.'],
+      ['الرعاية اللاحقة والتوثيق', 'اشرح تعليمات ما بعد الإجراء المعتمدة ومتى يطلب المريض المساعدة، ووثق الإجراء والمضاعفات والمتابعة.']
+    ]
+  },
+  periodontal: {
+    title: 'التعامل مع أمراض دواعم السن',
+    description: 'مسار تعليمي مبني على التقييم المرحلي وعوامل الخطورة وإعادة التقييم والصيانة.',
+    sources: ['efp','adaEvidence'],
+    steps: [
+      ['التاريخ والفحص الشامل', 'اجمع التاريخ الطبي والسني، قياسات اللثة، النزف، الفقد السريري للارتباط، الحركة، التشعبات واللويحة.'],
+      ['المرحلة والدرجة', 'استخدم معايير التصنيف الحديثة لتقدير الشدة والتعقيد ومعدل التقدم وعوامل الخطورة.'],
+      ['التثقيف والتحكم بعوامل الخطورة', 'ضع أهدافًا قابلة للقياس للتحكم باللويحة والتدخين والسكري والعناية المنزلية.'],
+      ['العلاج غير الجراحي', 'راجع مبادئ إزالة الترسبات وتنظيف الجذور واختيار الأدوات اليدوية أو فوق الصوتية بحسب الحالة.'],
+      ['إعادة التقييم', 'أعد قياس المؤشرات وقارنها بخط الأساس، وحدد الحاجة إلى علاج إضافي أو إحالة اختصاصية.'],
+      ['برنامج الرعاية الداعمة', 'حدد تكرار الصيانة وفق خطورة الحالة والتزام المريض، مع إعادة التقييم والتوثيق المستمر.']
+    ]
+  },
+  prostho: {
+    title: 'التركيبات الثابتة والتاج',
+    description: 'سيناريو عن تقييم السن والتخطيط التعويضي والتواصل مع المختبر، وليس دليلًا لتحضير سريري بمقاسات محددة.',
+    sources: ['adaEvidence','aae'],
+    steps: [
+      ['تقييم السن والدعامة', 'راجع قابلية الترميم، البنية المتبقية، صحة اللب واللثة، الإطباق والدعم، واحتمال الحاجة إلى علاج سابق.'],
+      ['تحديد الهدف التعويضي', 'ناقش التوقعات والجماليات والوظيفة والبدائل والتكلفة والمخاطر مع المريض الافتراضي.'],
+      ['اختيار المادة والتصميم', 'قارن الخزف والزركونيا والمواد المعدنية أو المركبة بحسب المؤشرات والخصائص وتعليمات المختبر.'],
+      ['التخطيط الرقمي أو التقليدي', 'تعرف إلى مبادئ التسجيل والمسح والانطباع وتوثيق اللون والعلاقة الإطباقية.'],
+      ['المراجعة والتجربة', 'راجع نقاط التماس والحواف والإطباق واللون والراحة وقابلية التنظيف قبل اعتماد التصميم.'],
+      ['التثبيت والمتابعة', 'تعرف إلى مبادئ اختيار الإسمنت بحسب المادة وتعليمات المصنّع، ثم وثق الإرشادات والمتابعة.']
+    ]
+  },
+  implant: {
+    title: 'تقييم حالة زراعة الأسنان',
+    description: 'مرحلة تخطيط وتقييم متعدد التخصصات؛ لا يصمم هذا السيناريو موضعًا جراحيًا أو يوصي بعلاج مريض حقيقي.',
+    sources: ['aae','adaEvidence'],
+    steps: [
+      ['تحديد الهدف والبدائل', 'راجع سبب فقد السن والبدائل التعويضية والوظيفية وتوقعات المريض.'],
+      ['التقييم الطبي واللثوي', 'راجع عوامل الخطورة والحالة اللثوية والعناية المنزلية والتدخين والأدوية والتاريخ المرضي.'],
+      ['تقييم العظم والأنسجة', 'ادرس العظم والنسج الرخوة والمسافات التشريحية والتصوير الذي يجيب عن سؤال سريري محدد.'],
+      ['التخطيط التعويضي أولًا', 'ناقش موضع التعويض المرغوب والمساحة والإطباق والتصميم مع الفريق المختص قبل أي قرار جراحي.'],
+      ['الموافقة وإدارة المخاطر', 'وضح البدائل والمضاعفات المحتملة والحاجة إلى الإحالة والصيانة طويلة المدى.'],
+      ['خطة المتابعة', 'ضع أهدافًا موثقة لصحة النسج حول الزرعة والصيانة وإدارة عوامل الخطورة بالتعاون مع الفريق.']
+    ]
+  },
+  ortho: {
+    title: 'التقييم التقويمي',
+    description: 'تدريب على جمع السجلات وتحليل المشكلة وتحديد أهداف المعالجة والمخاطر والإحالة.',
+    sources: ['adaEvidence'],
+    steps: [
+      ['تحديد الشكوى والأهداف', 'راجع سبب طلب العلاج والتوقعات والقيود الطبية والسنية والعمر والنمو.'],
+      ['السجلات التشخيصية', 'تعرف إلى الفحص الوجهي والفموي والسجلات والصور والنماذج اللازمة وفق مبررها.'],
+      ['تحليل الإطباق والنمو', 'ناقش العلاقة الهيكلية والسنية والازدحام والمسافات والأنسجة الداعمة.'],
+      ['تقييم صحة الفم والمخاطر', 'راجع التسوس واللثة والنظافة والالتزام واحتمالات الامتصاص الجذري أو التأثيرات غير المرغوبة.'],
+      ['أهداف وخيارات العلاج', 'قارن الأجهزة والخيارات والحدود والمدة المتوقعة ومخاطر الانتكاس مع اختصاصي التقويم.'],
+      ['الاحتفاظ والمتابعة', 'ناقش أهمية المثبتات والمتابعة والنظافة ورصد التغيرات بعد انتهاء العلاج.']
+    ]
+  },
+  trauma: {
+    title: 'إصابات الأسنان والوجه',
+    description: 'سيناريو فرز وتقييم إصابات الأسنان الرضحية، مع التأكيد على التمييز بين الأسنان اللبنية والدائمة.',
+    sources: ['iadt','sdcepAcute'],
+    steps: [
+      ['تقييم الحالة العامة', 'ابدأ بتقييم السلامة العامة والإصابات المصاحبة وعلامات الخطر التي تتطلب رعاية طارئة خارج نطاق عيادة الأسنان.'],
+      ['توثيق زمن وآلية الإصابة', 'سجل زمن الإصابة والآلية وفقدان الوعي والأعراض والأجزاء المفقودة وحالة السن قبل الإصابة.'],
+      ['تحديد نوع الإصابة', 'فرّق بين الكسر والخلع الجزئي والانزياح والانغراز والانقلاع، وحدد إن كان السن لبنيًا أم دائمًا.'],
+      ['الفحص والتصوير', 'افحص الأنسجة الرخوة وحركة السن والإطباق والأنسجة الداعمة واختر التصوير وفق إرشادات الرضوض.'],
+      ['الرجوع إلى مسار IADT', 'استخدم الدليل المناسب لنوع الإصابة والعمر والزمن، ولا تعمم توصية إصابة على نوع آخر.'],
+      ['التواصل والمتابعة', 'اشرح الإنذار والمتابعة الطويلة ومراقبة اللب والجذر والأنسجة الداعمة، ووثق كل شيء.']
+    ]
+  },
+  emergency: {
+    title: 'تقييم الحالات السنية الطارئة',
+    description: 'تدريب على الفرز والتعرف على العلامات الخطرة وتحديد مستوى الرعاية والإحالة؛ ليس بديلًا عن تدريب الإنعاش أو بروتوكول الطوارئ المحلي.',
+    sources: ['sdcepAcute','sdcepPrescribing','adaEvidence'],
+    steps: [
+      ['تقييم السلامة والفرز الأولي', 'قيّم استقرار الحالة العامة واستدعِ فريق الطوارئ عند وجود تهديد للحياة وفق بروتوكول المنشأة.'],
+      ['التعرف على علامات الخطر', 'انتبه لصعوبة التنفس أو البلع أو التورم سريع الانتشار أو النزف غير المسيطر عليه أو التدهور العام.'],
+      ['جمع معلومات موجزة', 'راجع بداية الأعراض والتاريخ الطبي والأدوية والحساسية والعلامات الحيوية وفق التدريب المتاح.'],
+      ['تحديد مسار الرعاية', 'ميّز بين حالة تحتاج تدخلًا إسعافيًا فوريًا وحالة تحتاج تقييمًا سنيًا عاجلًا أو موعدًا قريبًا.'],
+      ['مراجعة الدليل المحلي', 'ارجع إلى إرشادات الطوارئ والوصف الدوائي المعتمدة محليًا، ولا تستخدم جرعات أو أدوية من ذاكرة النموذج.'],
+      ['التوثيق والتسليم', 'وثق التقييم والقرارات ووقت الإحالة والتعليمات، وسلّم الحالة بوضوح إلى مقدم الرعاية التالي.']
     ]
   }
 };
@@ -1537,7 +1711,7 @@ document.getElementById('export-report')?.addEventListener('click', () => {
 
 updateCaseView();
 setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتبة العيادة والتشريح…');
-setTimeout(() => showClinicExperience(), 50);
+setTimeout(() => showTreatmentExperience(), 50);
 
 document.getElementById('mesh-count').textContent=String(scene.meshes.length);
 let lastFrameTime = 0;
