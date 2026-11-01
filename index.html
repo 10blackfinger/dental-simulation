@@ -26,7 +26,8 @@
         <section class="control-section asset-section">
           <h2>المشاهد والمجسمات</h2>
           <div class="asset-switch">
-            <button id="view-clinic" class="asset-switch-button selected" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
+            <button id="view-treatment" class="asset-switch-button selected" type="button"><b>جلسة علاج متكاملة</b><small>مريض مستلقٍ + طبيب ومساعد</small></button>
+            <button id="view-clinic" class="asset-switch-button" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
             <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
             <button id="view-people" class="asset-switch-button" type="button"><b>الشخصيات</b><small>طبيب ومريض ومساعد</small></button>
             <button id="view-dental-atlas" class="asset-switch-button" type="button"><b>الأطلس السني المتقدم</b><small>32 سنًا + أعصاب + مفاصل</small></button>
@@ -153,6 +154,34 @@
           <button id="chair-down" class="action-row"><span class="action-icon">↓</span><span><b>خفض الكرسي</b><small>إرجاع المقعد لأسفل</small></span><span class="chevron">‹</span></button>
           <button id="lamp-toggle" class="action-row"><span class="action-icon">✧</span><span><b>مصباح الفحص</b><small id="lamp-state">الإضاءة تعمل</small></span><span class="chevron">‹</span></button>
         </section>
+        <section class="control-section treatment-interaction-section" id="treatment-interaction-section">
+          <h2>التفاعل داخل جلسة العلاج</h2>
+          <div class="treatment-actions">
+            <button id="patient-mouth-toggle" class="small-action" type="button">فتح الفم</button>
+            <button id="tool-to-mouth" class="small-action primary-action" type="button">تحريك الأداة للفم</button>
+            <button id="tool-to-tray" class="small-action" type="button">إرجاع الأداة للصينية</button>
+          </div>
+          <div id="treatment-interaction-status" class="case-feedback" aria-live="polite">اختر أداة من قائمة الأدوات والمواد، ثم حرّكها عند الحاجة فقط.</div>
+          <p class="asset-license-note">الحركة مرتبطة بأوامرك فقط، بسرعات انتقال هادئة. مواضع المجسمات تقريبية وتحتاج معايرة بصرية على بيئة الجهاز الفعلية.</p>
+        </section>
+        <section class="control-section inventory-section" id="inventory-section">
+          <h2>مكتبة الأدوات والمواد</h2>
+          <input id="inventory-search" class="text-filter" type="search" placeholder="ابحث عن أداة أو مادة…" aria-label="البحث في الأدوات والمواد">
+          <select id="inventory-category" class="scenario-select" aria-label="تصفية الأدوات والمواد">
+            <option value="all">كل الأدوات والمواد</option>
+            <option value="exam">الفحص والتشخيص</option>
+            <option value="restorative">الترميم والحشو</option>
+            <option value="endo">علاج الجذور</option>
+            <option value="surgery">الجراحة والخلع</option>
+            <option value="perio">اللثة والوقاية</option>
+            <option value="prostho">التركيبات والتعويضات</option>
+            <option value="ortho">تقويم الأسنان</option>
+            <option value="materials">مواد ومستهلكات</option>
+            <option value="ppe">الوقاية ومكافحة العدوى</option>
+          </select>
+          <div id="inventory-list" class="inventory-list"></div>
+          <div id="inventory-detail" class="inventory-detail" aria-live="polite">اختر عنصرًا لعرض وظيفته وملاحظات استخدامه التعليمية.</div>
+        </section>
         <section class="control-section training-section">
           <h2>تدريب إجرائي تعليمي</h2>
           <label class="field-label" for="scenario-select">اختر سيناريو التدريب</label>
@@ -161,6 +190,13 @@
             <option value="restoration">خطوات ترميم تعليمي</option>
             <option value="endo">مبادئ علاج الجذور</option>
             <option value="hygiene">إزالة اللويحة والتوعية</option>
+            <option value="extraction">خلع الأسنان</option>
+            <option value="periodontal">علاج أمراض اللثة</option>
+            <option value="prostho">تحضير وتركيب تاج</option>
+            <option value="implant">تقييم حالة زراعة</option>
+            <option value="ortho">تقييم تقويمي</option>
+            <option value="trauma">إصابات الأسنان</option>
+            <option value="emergency">تقييم حالة طارئة</option>
           </select>
           <div id="case-description" class="case-description">تسلسل تعليمي لفحص المريض وتنظيم الملاحظات قبل وضع خطة العلاج.</div>
           <div class="progress-track"><span id="case-progress-bar"></span></div>
@@ -170,7 +206,32 @@
             <button id="next-step" class="small-action" type="button" disabled>الخطوة التالية</button>
           </div>
           <div id="case-feedback" class="case-feedback" aria-live="polite">التدريب محاكاة تعليمية ولا يمثل بروتوكول علاج معتمدًا.</div>
+          <div id="case-source-links" class="case-source-links">مراجع علمية: ADA · AAE · EFP · IADT · SDCEP</div>
           <button id="export-report" class="report-button" type="button">تصدير تقرير التدريب JSON</button>
+        </section>
+        <section class="control-section ai-assistant-section" id="ai-assistant-section">
+          <h2>مساعد طب الأسنان بالذكاء الاصطناعي</h2>
+          <p class="asset-license-note">يتصل بنموذج Qwen3.5 محليًا عبر Ollama. الأسئلة لا تغادر جهازك عند استخدام الخادم المحلي.</p>
+          <label class="field-label" for="ai-model">النموذج المحلي</label>
+          <select id="ai-model" class="scenario-select">
+            <option value="qwen3.5:4b">Qwen3.5 4B — مناسب كبداية</option>
+            <option value="qwen3.5:9b">Qwen3.5 9B — يحتاج ذاكرة أكبر</option>
+            <option value="qwen3.5:27b">Qwen3.5 27B — جهاز قوي</option>
+          </select>
+          <label class="field-label" for="ai-endpoint">عنوان Ollama</label>
+          <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم Ollama">
+          <div class="button-row"><button id="ai-connect" class="small-action primary-action" type="button">اختبار الاتصال</button><span id="ai-status" class="ai-status">غير متصل</span></div>
+          <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">اسأل عن التشريح أو الأدوات أو المبادئ التعليمية. يلزم تشغيل Ollama وتحميل النموذج محليًا أولًا.</div></div>
+          <form id="ai-form" class="ai-form">
+            <textarea id="ai-question" rows="2" placeholder="اكتب سؤالك في طب الأسنان…" aria-label="سؤال لمساعد طب الأسنان"></textarea>
+            <button id="ai-send" class="small-action primary-action" type="submit">إرسال السؤال</button>
+          </form>
+          <details class="ai-setup">
+            <summary>إعداد المساعد المحلي</summary>
+            <code>ollama pull qwen3.5:4b</code>
+            <p>ثم شغّل Ollama على نفس الجهاز. قد تحتاج إلى السماح لأصل الموقع ضمن OLLAMA_ORIGINS في إعدادات الخادم. لا تضع مفاتيح سرية داخل ملفات الواجهة.</p>
+          </details>
+          <p class="asset-license-note">المساعد ليس طبيبًا ولا مصدرًا للتشخيص أو وصف العلاج. راجع الأدلة الأصلية والمشرف المختص، ولا ترسل بيانات مرضى حقيقية.</p>
         </section>
         <section class="control-section">
           <h2>حالة المشهد</h2>
