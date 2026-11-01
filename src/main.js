@@ -9,7 +9,8 @@ import {
 } from '@babylonjs/core';
 
 const canvas = document.getElementById('render-canvas');
-const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+const engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, antialias: false });
+engine.setHardwareScalingLevel(1.15);
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.055, 0.085, 0.13, 1);
 scene.ambientColor = new Color3(0.35, 0.35, 0.35);
@@ -318,10 +319,10 @@ scene.onPointerObservable.add((pointerInfo) => {
 function setCamera(mode) {
   if (activeExperience === 'body-anatomy') {
     const views = {
-      orbit: [-Math.PI/2.2,1.15,7.4,new Vector3(0,0,0)],
-      front: [-Math.PI/2,1.2,7.2,new Vector3(0,0,0)],
-      side: [0,1.2,7.2,new Vector3(0,0,0)],
-      top: [-Math.PI/2,.18,8.5,new Vector3(0,0,0)]
+      orbit: [-Math.PI/2.2,1.15,7.4,new Vector3(0,2.25,0)],
+      front: [-Math.PI/2,1.2,7.2,new Vector3(0,2.25,0)],
+      side: [0,1.2,7.2,new Vector3(0,2.25,0)],
+      top: [-Math.PI/2,.18,8.5,new Vector3(0,2.1,0)]
     };
     const view=views[mode]||views.orbit;
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
@@ -716,7 +717,7 @@ function applyBodyVisibility() {
   for (const record of bodyMeshRecords) {
     const layerVisible = bodyLayerState[record.info.layer] !== false;
     const isolateVisible = !bodyIsolated || record.info.name === selectedBodyRecord?.info.name;
-    record.mesh.setEnabled(layerVisible && isolateVisible);
+    record.mesh.isVisible = layerVisible && isolateVisible;
     record.mesh.visibility = record.info.layer === 'superficial muscles' ? bodySuperficialOpacity : 1;
   }
 }
@@ -811,6 +812,7 @@ async function ensureBodyModel() {
     peopleRoot.setEnabled(false);
     root.setEnabled(false);
     bodyAssetRoot.setEnabled(true);
+    engine.setHardwareScalingLevel(1.4);
     activeExperience='body-anatomy';
     bodyPanel.hidden=false;
     setProceduralControlsEnabled(false,'body');
@@ -851,6 +853,7 @@ async function showBodyExperience() {
     root.setEnabled(false);
     bodyAssetRoot.setEnabled(true);
     activeExperience='body-anatomy';
+    engine.setHardwareScalingLevel(1.4);
     setProceduralControlsEnabled(false,'body');
     applyBodyVisibility();
     setCamera('orbit');
@@ -1009,7 +1012,14 @@ setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتب
 setTimeout(() => showClinicExperience(), 50);
 
 document.getElementById('mesh-count').textContent=String(scene.meshes.length);
-engine.runRenderLoop(()=>{scene.render();});
+let lastFrameTime = 0;
+engine.runRenderLoop(()=>{
+  const now = performance.now();
+  const frameInterval = activeExperience === 'body-anatomy' ? 100 : 1000 / 30;
+  if (now - lastFrameTime < frameInterval) return;
+  lastFrameTime = now;
+  scene.render();
+});
 window.addEventListener('resize',()=>engine.resize());
 document.getElementById('loading').classList.add('hidden');
 setTimeout(()=>document.getElementById('loading')?.remove(),500);
