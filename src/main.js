@@ -291,6 +291,11 @@ scene.onPointerObservable.add((pointerInfo) => {
   if (pointerInfo.type !== PointerEventTypes.POINTERPICK || !pointerInfo.pickInfo?.hit) return;
   const picked = pointerInfo.pickInfo.pickedMesh;
   if (!picked || picked === scene.meshes[0]) return;
+  if (activeExperience === 'body-anatomy') {
+    const record = bodyMeshRecords.find(item => item.mesh === picked);
+    if (record) selectBodyStructure(record);
+    return;
+  }
   if (activeExperience === 'anatomy' && typeof anatomyCatalog !== 'undefined' && anatomyCatalog.some(item => item.id === picked.name)) {
     selectAnatomy(picked.name);
     return;
@@ -311,6 +316,18 @@ scene.onPointerObservable.add((pointerInfo) => {
 });
 
 function setCamera(mode) {
+  if (activeExperience === 'body-anatomy') {
+    const views = {
+      orbit: [-Math.PI/2.2,1.15,7.4,new Vector3(0,0,0)],
+      front: [-Math.PI/2,1.2,7.2,new Vector3(0,0,0)],
+      side: [0,1.2,7.2,new Vector3(0,0,0)],
+      top: [-Math.PI/2,.18,8.5,new Vector3(0,0,0)]
+    };
+    const view=views[mode]||views.orbit;
+    camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
+    return;
+  }
   if (activeExperience === 'people') {
     const peopleViews = {
       orbit: [Math.PI/2,1.12,6.2,new Vector3(0,1.05,0)],
@@ -590,6 +607,8 @@ async function ensureAnatomyModel() {
 async function showClinicExperience() {
   activeExperience = 'clinic-pack';
   peopleRoot.setEnabled(false);
+  bodyPanel.hidden = true;
+  bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
   for (const id of ['view-clinic','view-anatomy','view-people']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
@@ -618,6 +637,11 @@ async function showClinicExperience() {
 
 async function showPeopleExperience() {
   activeExperience = 'people';
+  bodyPanel.hidden = true;
+  bodyAssetRoot?.setEnabled(false);
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+    document.getElementById(id)?.classList.toggle('selected',id==='view-people');
+  }
   root.setEnabled(false);
   clinicAssetRoot?.setEnabled(false);
   anatomyAssetRoot?.setEnabled(false);
@@ -638,6 +662,8 @@ document.getElementById('view-people')?.addEventListener('click',showPeopleExper
 
 async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
+  bodyPanel.hidden = true;
+  bodyAssetRoot?.setEnabled(false);
   for (const id of ['view-clinic','view-anatomy','view-people']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
@@ -664,6 +690,188 @@ document.getElementById('toggle-jaw')?.addEventListener('change', event => {
 });
 
 // Browser-only training records. No patient names, identifiers, or clinical records are collected.
+
+const bodyStatus = document.getElementById('body-mesh-map-status');
+const bodyPanel = document.getElementById('body-section');
+let bodyContainer = null;
+let bodyAssetRoot = null;
+let bodyCatalog = [];
+let bodyMeshRecords = [];
+let selectedBodyRecord = null;
+let bodyIsolated = false;
+const bodyLayerState = { skeleton: true, 'deep muscles': true, 'superficial muscles': true };
+let bodySuperficialOpacity = 1;
+
+function normalizeAnatomyName(value) {
+  return String(value || '').toLocaleLowerCase('en')
+    .replace(/[_-]+/g,' ')
+    .replace(/\s+/g,' ')
+    .replace(/\s*\(\d+\)\s*$/,'')
+    .trim();
+}
+function bodyStatusText(message) {
+  if (bodyStatus) bodyStatus.textContent = message;
+}
+function applyBodyVisibility() {
+  for (const record of bodyMeshRecords) {
+    const layerVisible = bodyLayerState[record.info.layer] !== false;
+    const isolateVisible = !bodyIsolated || record.info.name === selectedBodyRecord?.info.name;
+    record.mesh.setEnabled(layerVisible && isolateVisible);
+    record.mesh.visibility = record.info.layer === 'superficial muscles' ? bodySuperficialOpacity : 1;
+  }
+}
+function selectBodyStructure(record) {
+  selectedBodyRecord = record;
+  highlight.removeAllMeshes();
+  if (record?.mesh) {
+    highlight.addMesh(record.mesh, Color3.FromHexString('#43dbc2'));
+    document.getElementById('selection-name').textContent = record.info.name;
+    const detail = [record.info.layer,record.info.side,record.info.tissue,record.info.fma].filter(Boolean).join(' · ');
+    document.getElementById('selection-description').textContent = detail + ' — Écorché atlas, visual educational reference only.';
+  }
+  document.querySelectorAll('.body-structure-button').forEach(button => {
+    button.classList.toggle('selected',button.dataset.name===record?.info.name);
+  });
+}
+function renderBodyList(filter='') {
+  const list=document.getElementById('body-structure-list');
+  if(!list)return;
+  const query=normalizeAnatomyName(filter);
+  list.replaceChildren();
+  const groups=new Map();
+  for(const record of bodyMeshRecords) {
+    if(query&&!normalizeAnatomyName(record.info.name).includes(query))continue;
+    if(!groups.has(record.info.layer))groups.set(record.info.layer,[]);
+    groups.get(record.info.layer).push(record);
+  }
+  for(const [layer,records] of groups) {
+    const heading=document.createElement('div');
+    heading.className='anatomy-group-title';
+    heading.textContent=layer==='skeleton'?'العظام والغضاريف والأسنان':layer==='deep muscles'?'العضلات العميقة':'العضلات السطحية';
+    list.appendChild(heading);
+    for(const record of records) {
+      const button=document.createElement('button');
+      button.type='button';button.className='structure-button body-structure-button';
+      button.dataset.name=record.info.name;
+      button.textContent=record.info.name;
+      button.addEventListener('click',()=>selectBodyStructure(record));
+      list.appendChild(button);
+    }
+  }
+  if(!list.childElementCount) {
+    const empty=document.createElement('p');empty.className='asset-license-note';empty.textContent='لا توجد تراكيب مطابقة للبحث.';list.appendChild(empty);
+  }
+}
+async function ensureBodyModel() {
+  if(bodyAssetRoot)return;
+  bodyStatusText('جارٍ تحميل نموذج تشريح الجسم الكامل (634 تركيبًا)…');
+  try {
+    const structureResponse=await fetch(new URL('models/ecorche-structures.json',modelBase));
+    if(!structureResponse.ok)throw new Error('Could not load anatomical structure registry.');
+    bodyCatalog=await structureResponse.json();
+    if(!Array.isArray(bodyCatalog)||bodyCatalog.length!==634)throw new Error('The full-body structure registry failed validation.');
+    bodyContainer=await loadContainer(
+      'ecorche-anatomy.glb',
+      'https://raw.githubusercontent.com/Charleeh/ecorche/320805e06aee51e2e6f6b22533eb2a59d43f2d4d/model/',
+      'ecorche.glb'
+    );
+    const mounted=attachCenteredContainer(bodyContainer,'EcorcheFullBody',4.9);
+    bodyAssetRoot=mounted.group;
+    const byMeshName=new Map();
+    for(const mesh of bodyContainer.meshes) {
+      let cursor=mesh;
+      const candidates=[mesh.name];
+      while(cursor) {
+        const extras=cursor.metadata?.gltf?.extras || cursor.metadata?.extras || {};
+        if(extras.name)candidates.push(extras.name);
+        cursor=cursor.parent;
+      }
+      for(const candidate of candidates) {
+        const key=normalizeAnatomyName(candidate);
+        if(!byMeshName.has(key))byMeshName.set(key,[]);
+        byMeshName.get(key).push(mesh);
+      }
+    }
+    bodyMeshRecords=[];
+    for(const info of bodyCatalog) {
+      const matches=byMeshName.get(normalizeAnatomyName(info.name))||[];
+      for(const mesh of matches) {
+        if(!bodyMeshRecords.some(record=>record.mesh===mesh))bodyMeshRecords.push({info,mesh});
+      }
+    }
+    if(bodyMeshRecords.length===0)throw new Error('No named anatomy structures could be mapped to the loaded GLB meshes.');
+    for(const record of bodyMeshRecords) {
+      record.mesh.isPickable=true;
+      record.mesh.metadata=record.mesh.metadata||{};
+      record.mesh.metadata.bodyStructureName=record.info.name;
+      record.mesh.metadata.bodyStructureLayer=record.info.layer;
+    }
+    clinicAssetRoot?.setEnabled(false);
+    anatomyAssetRoot?.setEnabled(false);
+    peopleRoot.setEnabled(false);
+    root.setEnabled(false);
+    bodyAssetRoot.setEnabled(true);
+    activeExperience='body-anatomy';
+    bodyPanel.hidden=false;
+    setProceduralControlsEnabled(false,'body');
+    bodyLayerState.skeleton=true;bodyLayerState['deep muscles']=true;bodyLayerState['superficial muscles']=true;
+    bodySuperficialOpacity=1;bodyIsolated=false;selectedBodyRecord=null;
+    document.getElementById('body-layer-skeleton').checked=true;
+    document.getElementById('body-layer-deep').checked=true;
+    document.getElementById('body-layer-superficial').checked=true;
+    document.getElementById('body-opacity').value='100';
+    applyBodyVisibility();
+    renderBodyList();
+    camera.lowerRadiusLimit=2.8;camera.upperRadiusLimit=14;
+    bodyStatusText(`تم تحميل ${bodyCatalog.length} تركيبًا في الدليل، وربط ${bodyMeshRecords.length} مجسمًا بالاسم.`);
+    document.getElementById('selection-name').textContent='التشريح الكامل للجسم';
+    document.getElementById('selection-description').textContent='أطلس 634 تركيبًا مسمى؛ استخدم البحث والطبقات لتصفية الهيكل والعضلات.';
+  } catch(error) {
+    console.error('Full-body anatomy load failed',error);
+    bodyAssetRoot?.setEnabled(false);
+    bodyPanel.hidden=true;
+    root.setEnabled(true);
+    setProceduralControlsEnabled(true,'clinic');
+    activeExperience='procedural';
+    bodyStatusText('تعذر تحميل نموذج التشريح الكامل. بقيت مشاهد العيادة والفم متاحة.');
+    setAssetStatus('تعذر تحميل التشريح الكامل؛ تم الرجوع إلى مشهد العيادة.', 'warn');
+  }
+}
+async function showBodyExperience() {
+  for(const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+    document.getElementById(id)?.classList.toggle('selected',id==='view-body');
+  }
+  peopleRoot.setEnabled(false);
+  bodyPanel.hidden=false;
+  loadingOverlay?.classList.remove('hidden');
+  await ensureBodyModel();
+  if(bodyAssetRoot) {
+    clinicAssetRoot?.setEnabled(false);
+    anatomyAssetRoot?.setEnabled(false);
+    root.setEnabled(false);
+    bodyAssetRoot.setEnabled(true);
+    activeExperience='body-anatomy';
+    setProceduralControlsEnabled(false,'body');
+    applyBodyVisibility();
+    setCamera('orbit');
+    setAssetStatus('تم تحميل أطلس التشريح الكامل: 634 تركيبًا مسمى من العظام والعضلات والأسنان.', 'ok');
+  }
+  loadingOverlay?.classList.add('hidden');
+}
+document.getElementById('view-body')?.addEventListener('click',showBodyExperience);
+document.getElementById('body-search')?.addEventListener('input',event=>renderBodyList(event.target.value));
+document.getElementById('body-layer-skeleton')?.addEventListener('change',event=>{bodyLayerState.skeleton=event.target.checked;applyBodyVisibility();});
+document.getElementById('body-layer-deep')?.addEventListener('change',event=>{bodyLayerState['deep muscles']=event.target.checked;applyBodyVisibility();});
+document.getElementById('body-layer-superficial')?.addEventListener('change',event=>{bodyLayerState['superficial muscles']=event.target.checked;applyBodyVisibility();});
+document.getElementById('body-opacity')?.addEventListener('input',event=>{bodySuperficialOpacity=Number(event.target.value)/100;applyBodyVisibility();});
+document.getElementById('body-isolate')?.addEventListener('click',()=>{
+  if(!selectedBodyRecord)return;
+  bodyIsolated=true;applyBodyVisibility();
+});
+document.getElementById('body-restore')?.addEventListener('click',()=>{
+  bodyIsolated=false;applyBodyVisibility();
+});
+
 const trainingCases = {
   exam: {
     title: 'فحص سريري أولي',

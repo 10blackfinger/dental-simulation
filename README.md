@@ -18,6 +18,7 @@ See [3D asset credits, source provenance and licences](public/models/ASSET_CREDI
 - Select oral-anatomy structures by clicking the model or using the searchable structure list.
 - Isolate one anatomical structure or restore the full model.
 - A separate character-preview scene with original procedural dentist, patient and assistant stand-ins. These are low-detail visual proxies, not realistic or rigged clinical characters.
+- Full-body anatomy atlas with 634 named bones, cartilages, teeth, eyes and muscle structures from Écorché, including layer toggles, surface-muscle transparency, search and isolation.
 - Four guided educational checklists: primary exam, restoration concepts, endodontic principles and oral hygiene.
 - Training progress is stored locally in the current browser and can be exported as JSON. No login is required and no patient identifiers are collected.
 

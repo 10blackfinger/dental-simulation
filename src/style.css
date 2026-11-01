@@ -7,3 +7,8 @@
 .asset-switch-button:disabled,.small-action:disabled{opacity:.42;cursor:not-allowed}
 .anatomy-group-title{padding:8px 6px 3px;color:#49c7b2;font-size:9px;font-weight:700}
 .switch-row input:disabled+i{opacity:.35}
+
+.body-layer-controls{margin:8px 0;padding:6px 9px;border:1px solid #293d53;border-radius:8px;background:#111e2e}
+.body-structure-list{max-height:310px}
+.range-filter{width:100%;accent-color:#31bba8}
+.body-section[hidden]{display:none}

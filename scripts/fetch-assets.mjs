@@ -23,18 +23,32 @@ const assets = [
     source: 'BodyParts3D / Anatomography 4.3, adapted by OrganUI',
     expectedSha256: '89a1074b0806eb41c318d38c78a269134c5070be7b90cb2f93ab2de7d35ec239',
     expectedMinBytes: 1_000_000
+  },
+  {
+    file: 'ecorche-anatomy.glb',
+    url: 'https://raw.githubusercontent.com/Charleeh/ecorche/320805e06aee51e2e6f6b22533eb2a59d43f2d4d/model/ecorche.glb',
+    license: 'CC BY-SA 4.0',
+    source: 'Écorché — BodyParts3D and Z-Anatomy, pinned commit 320805e06aee51e2e6f6b22533eb2a59d43f2d4d',
+    expectedGitBlobSha1: '4360e0abeed7892e2585f257857b6d2d040af85d',
+    expectedMinBytes: 14_000_000
   }
 ];
 
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
+function gitBlobSha1(bytes) {
+  const header = Buffer.from(`blob ${bytes.length}\\0`, 'utf8');
+  return createHash('sha1').update(header).update(bytes).digest('hex');
+}
 
 async function validExisting(file, spec) {
   try {
     const bytes = await readFile(file);
     if (bytes.length < spec.expectedMinBytes || bytes.subarray(0, 4).toString('ascii') !== 'glTF') return false;
-    return !spec.expectedSha256 || sha256(bytes) === spec.expectedSha256;
+    if (spec.expectedSha256 && sha256(bytes) !== spec.expectedSha256) return false;
+    if (spec.expectedGitBlobSha1 && gitBlobSha1(bytes) !== spec.expectedGitBlobSha1) return false;
+    return true;
   } catch {
     return false;
   }
@@ -55,6 +69,10 @@ for (const asset of assets) {
     if (buffer.subarray(0, 4).toString('ascii') !== 'glTF') throw new Error('file is not a binary glTF (GLB)');
     const digest = sha256(buffer);
     if (asset.expectedSha256 && digest !== asset.expectedSha256) throw new Error(`SHA-256 mismatch: ${digest}`);
+    if (asset.expectedGitBlobSha1) {
+      const gitDigest = gitBlobSha1(buffer);
+      if (gitDigest !== asset.expectedGitBlobSha1) throw new Error(`Git blob SHA-1 mismatch: ${gitDigest}`);
+    }
     await writeFile(destination, buffer);
     console.log(`[assets] saved ${asset.file} (${buffer.length} bytes, sha256 ${digest})`);
   } catch (error) {

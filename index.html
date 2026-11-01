@@ -29,6 +29,7 @@
             <button id="view-clinic" class="asset-switch-button selected" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
             <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
             <button id="view-people" class="asset-switch-button" type="button"><b>الشخصيات</b><small>طبيب ومريض ومساعد</small></button>
+            <button id="view-body" class="asset-switch-button" type="button"><b>التشريح الكامل</b><small>634 تركيبًا — عظام وعضلات</small></button>
           </div>
           <p id="asset-status" class="asset-status" role="status">تحميل مكتبة المجسمات عند بدء التشغيل…</p>
           <small class="asset-license-note">مصادر المجسمات وتراخيصها موثقة داخل المشروع.</small>
@@ -59,6 +60,25 @@
             <button id="restore-structures" class="small-action" type="button">إظهار الكل</button>
           </div>
           <p class="asset-license-note">المصدر الحالي يضم 28 سنًا دائمًا، ولا يشمل ضروس العقل أو الأسنان اللبنية أو الأعصاب والأوعية.</p>
+        </section>
+        <section id="body-section" class="control-section body-section" hidden>
+          <h2>مستكشف الجسم البشري</h2>
+          <p class="asset-license-note">634 تركيبًا: الهيكل العظمي والعضلات العميقة والسطحية. اضغط على أي تركيب لعرضه وعزله.</p>
+          <input id="body-search" class="text-filter" type="search" placeholder="ابحث بالاسم الإنجليزي..." aria-label="ابحث في التراكيب التشريحية الكاملة">
+          <div class="body-layer-controls">
+            <label class="switch-row"><span>العظام والغضاريف والأسنان</span><input id="body-layer-skeleton" type="checkbox" checked><i></i></label>
+            <label class="switch-row"><span>العضلات العميقة</span><input id="body-layer-deep" type="checkbox" checked><i></i></label>
+            <label class="switch-row"><span>العضلات السطحية</span><input id="body-layer-superficial" type="checkbox" checked><i></i></label>
+          </div>
+          <label class="field-label" for="body-opacity">شفافية العضلات السطحية</label>
+          <input id="body-opacity" class="range-filter" type="range" min="10" max="100" value="100">
+          <div id="body-mesh-map-status" class="case-progress">تهيئة دليل التراكيب…</div>
+          <div id="body-structure-list" class="structure-list body-structure-list"></div>
+          <div class="button-row">
+            <button id="body-isolate" class="small-action" type="button">عزل المحدد</button>
+            <button id="body-restore" class="small-action" type="button">إظهار الكل</button>
+          </div>
+          <p class="asset-license-note">النموذج لرجل بالغ واحد؛ لا يشمل الأعضاء الداخلية أو الأوعية أو الأعصاب أو الجلد أو الأربطة، وليس مرجعًا تشخيصيًا.</p>
         </section>
         <section class="control-section">
           <h2>أدوات التدريب</h2>
