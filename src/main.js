@@ -2083,6 +2083,7 @@ document.getElementById('patient-mouth-toggle')?.addEventListener('click', () =>
 
 // Locally hosted open-weight assistant (Qwen 3.5) through Ollama. No provider key is stored.
 const aiEndpointInput = document.getElementById('ai-endpoint');
+const aiProviderSelect = document.getElementById('ai-provider');
 const aiModelSelect = document.getElementById('ai-model');
 const aiStatus = document.getElementById('ai-status');
 const aiMessages = document.getElementById('ai-messages');
@@ -2111,10 +2112,49 @@ function addAiMessage(role, text) {
 function normalizeAiEndpoint() {
   return (aiEndpointInput?.value || 'http://localhost:11434').trim().replace(/\/+$/, '');
 }
+function isPallProvider() {
+  return aiProviderSelect?.value === 'openai-compatible';
+}
+function configureAiProvider() {
+  if (!aiModelSelect || !aiEndpointInput) return;
+  const usePall = isPallProvider();
+  aiModelSelect.replaceChildren();
+  const options = usePall
+    ? [['Harisundar/PALL-Text', 'PALL-Text 8B — تخصص سني، إنجليزي']]
+    : [
+        ['qwen3.5:4b', 'Qwen3.5 4B — مناسب كبداية'],
+        ['qwen3.5:9b', 'Qwen3.5 9B — يحتاج ذاكرة أكبر'],
+        ['qwen3.5:27b', 'Qwen3.5 27B — جهاز قوي']
+      ];
+  for (const [value, label] of options) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    aiModelSelect.appendChild(option);
+  }
+  aiEndpointInput.value = usePall ? 'http://localhost:8000' : 'http://localhost:11434';
+  const endpointLabel = document.querySelector('label[for="ai-endpoint"]');
+  if (endpointLabel) endpointLabel.textContent = usePall ? 'عنوان خادم vLLM' : 'عنوان خادم Ollama';
+  aiStatus.textContent = usePall ? 'يتطلب تشغيل PALL-Text عبر vLLM' : 'غير متصل';
+  aiStatus.classList.remove('good','bad');
+}
+aiProviderSelect?.addEventListener('change', configureAiProvider);
 async function testLocalAiConnection() {
   aiStatus.textContent = 'جارٍ الاتصال…';
   aiStatus.classList.remove('good','bad');
   try {
+    if (isPallProvider()) {
+      const response = await fetch(normalizeAiEndpoint() + '/v1/models');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const payload = await response.json();
+      const models = Array.isArray(payload.data) ? payload.data : [];
+      const requested = aiModelSelect.value;
+      const installed = models.some(model => model.id === requested || String(model.id || '').toLowerCase().includes('pall'));
+      aiStatus.textContent = installed ? 'متصل · PALL-Text ظاهر' : 'الخادم متصل · تحقق من تحميل PALL-Text';
+      aiStatus.classList.add('good');
+      if (!installed) addAiMessage('assistant', 'خادم vLLM متصل، لكن PALL-Text غير ظاهر في /v1/models. راجع أمر تشغيل النموذج في دليل الإعداد.');
+      return installed;
+    }
     const response = await fetch(normalizeAiEndpoint() + '/api/tags');
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const payload = await response.json();
@@ -2124,11 +2164,12 @@ async function testLocalAiConnection() {
     aiStatus.textContent = installed ? 'متصل · النموذج موجود' : 'الخادم متصل · حمّل النموذج';
     aiStatus.classList.add('good');
     if (!installed) addAiMessage('assistant', 'اتصال Ollama يعمل، لكن النموذج ' + requested + ' غير ظاهر في قائمة النماذج. نفّذ أمر التحميل الموضح أسفل لوحة المساعد ثم اختبر الاتصال مجددًا.');
-    return true;
+    return installed;
   } catch (error) {
     aiStatus.textContent = 'تعذر الاتصال';
     aiStatus.classList.add('bad');
-    addAiMessage('assistant', 'لم أستطع الوصول إلى Ollama على ' + normalizeAiEndpoint() + '. تحقق من تشغيل Ollama والسماح بأصل الموقع في OLLAMA_ORIGINS. تفاصيل الاتصال: ' + error.message);
+    const service = isPallProvider() ? 'خادم vLLM' : 'Ollama';
+    addAiMessage('assistant', 'لم أستطع الوصول إلى ' + service + ' على ' + normalizeAiEndpoint() + '. تحقق من تشغيله والسماح بأصل الموقع في إعدادات CORS. التفاصيل: ' + error.message);
     return false;
   }
 }
@@ -2157,26 +2198,30 @@ aiForm?.addEventListener('submit', async event => {
   ].join('\n\n');
   try {
     const messages = [{ role: 'system', content: systemPrompt }, ...aiConversation.slice(-10)];
-    const response = await fetch(normalizeAiEndpoint() + '/api/chat', {
+    const usePall = isPallProvider();
+    const endpoint = usePall
+      ? normalizeAiEndpoint() + '/v1/chat/completions'
+      : normalizeAiEndpoint() + '/api/chat';
+    const requestBody = usePall
+      ? { model, messages, stream: false, temperature: 0.2, max_tokens: 850 }
+      : { model, messages, stream: false, options: { temperature: 0.25, num_ctx: 8192, num_predict: 900 } };
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages,
-        stream: false,
-        options: { temperature: 0.25, num_ctx: 8192, num_predict: 900 }
-      })
+      body: JSON.stringify(requestBody)
     });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || ('HTTP ' + response.status));
-    const answer = payload.message?.content || 'لم يرجع النموذج إجابة نصية.';
+    if (!response.ok) throw new Error(payload.error?.message || payload.error || ('HTTP ' + response.status));
+    const answer = usePall
+      ? (payload.choices?.[0]?.message?.content || 'لم يرجع PALL-Text إجابة نصية.')
+      : (payload.message?.content || 'لم يرجع النموذج إجابة نصية.');
     aiConversation.push({ role: 'assistant', content: answer });
     addAiMessage('assistant', answer);
     aiStatus.textContent = 'تمت الإجابة محليًا';
     aiStatus.classList.add('good');
   } catch (error) {
     aiConversation.pop();
-    addAiMessage('assistant', 'تعذر الحصول على الإجابة. تأكد من تثبيت النموذج والسماح باتصال المتصفح بخادم Ollama المحلي. لا تستخدم الإجابة بديلًا عن الأدلة أو المشرف. التفاصيل: ' + error.message);
+    addAiMessage('assistant', 'تعذر الحصول على الإجابة. تأكد من تشغيل الخادم المحلي وإعداد CORS أو OLLAMA_ORIGINS حسب نوع النموذج. لا تستخدم الإجابة بديلًا عن الأدلة أو المشرف. التفاصيل: ' + error.message);
     aiStatus.textContent = 'فشل الطلب';
     aiStatus.classList.add('bad');
   } finally {
@@ -2184,6 +2229,7 @@ aiForm?.addEventListener('submit', async event => {
   }
 });
 
+configureAiProvider();
 updateCaseView();
 setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتبة العيادة والتشريح…');
 setTimeout(() => showTreatmentExperience(), 50);
