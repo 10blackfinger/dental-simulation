@@ -59,3 +59,11 @@ This index records the professional sources used to frame the educational pathwa
 - The full-body Écorché atlas is one adult male anatomy model and is not a diagnostic anatomical reference.
 - The human patient GLB characters are generic educational assets; fixed horizontal display is not evidence of correct clinical positioning or biomechanics.
 - Instruments and materials are simplified props, not physical digital twins or verified manufacturer models.
+
+### Pediatric dentistry — American Academy of Pediatric Dentistry (AAPD), Reference Manual 2026–2027
+- Official recommendations hub: https://www.aapd.org/research/oral-health-policies--recommendations/
+- Pulp therapy for primary and immature permanent teeth, latest revision 2026: https://www.aapd.org/research/oral-health-policies--recommendations/pulp-therapy-for-primary-and-immature-permanent-teeth/
+- Caries-risk assessment and management for infants, children and adolescents, latest revision 2022: https://www.aapd.org/research/oral-health-policies--recommendations/caries-risk-assessment-and-management-for-infants-children-and-adolescents/
+- Behavior guidance for the pediatric dental patient, latest revision 2024: https://www.aapd.org/research/oral-health-policies--recommendations/behavior-guidance-for-the-pediatric-dental-patient/
+- Application use: pediatric pathway references for age-appropriate communication, caries-risk assessment, primary/immature permanent tooth pulp assessment and behavior guidance. The app does not reproduce the guideline protocols or provide sedation/anesthesia instructions.
+- Jurisdiction: AAPD recommendations are US professional guidance. Verify local Egyptian law, institutional policy and current specialist recommendations before clinical use.
