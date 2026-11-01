@@ -422,6 +422,7 @@ async function validExisting(file, spec) {
 
 for (const asset of assets) {
   const destination = join(assetDir, asset.file);
+  await mkdir(dirname(destination), { recursive: true });
   if (await validExisting(destination, asset)) {
     console.log(`[assets] verified existing ${asset.file}`);
     continue;

@@ -636,7 +636,7 @@ async function showClinicExperience() {
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -669,7 +669,7 @@ async function showPeopleExperience() {
   activeExperience = 'people';
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   root.setEnabled(false);
@@ -677,7 +677,7 @@ async function showPeopleExperience() {
   anatomyAssetRoot?.setEnabled(false);
   peopleRoot.setEnabled(true);
   anatomyPanel.hidden = true;
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   setProceduralControlsEnabled(false,'clinic');
@@ -698,7 +698,7 @@ async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+  for (const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -877,7 +877,7 @@ async function showBodyExperience() {
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
   dentalAtlasPanel.hidden=true;
   engine.setHardwareScalingLevel(1.15);
-  for(const id of ['view-clinic','view-anatomy','view-people','view-body']) {
+  for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-body');
   }
   peopleRoot.setEnabled(false);
@@ -1121,7 +1121,8 @@ async function loadDentalTooth(fdi) {
   dentalAtlasPanel.querySelectorAll('.tooth-chip').forEach(button=>button.classList.toggle('selected',button.textContent===id));
   document.getElementById('dental-selected-tooth-name').textContent=dentalToothLabel(Number(id));
   for(const [otherId,item] of dentalToothDetails)if(otherId!==id)item.root.setEnabled(false);
-  for(const mesh of dentalMeshByKey.get('tooth-'+id)||[])mesh.isVisible=false;
+  for(const record of dentalMeshRecords)record.mesh.isVisible=false;
+  for(const item of dentalToothDetails.values())item.root.setEnabled(false);
   dentalSelectedFdi=id;
   status.textContent='جارٍ تحميل طبقات السن '+id+'…';
   try {
