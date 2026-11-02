@@ -17,6 +17,8 @@ import {
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
+import { PATHOLOGY_CATEGORIES, DENTAL_PATHOLOGIES } from './pathology-catalog.js';
+import { createPathologyRenderer } from './pathology-visuals.js';
 
 const canvas = document.getElementById('render-canvas');
 const loadingOverlay = document.getElementById('loading');
@@ -33,6 +35,25 @@ const jawAngleInput = document.getElementById('jaw-angle');
 const jawAngleValue = document.getElementById('jaw-angle-value');
 const jawAngleStatus = document.getElementById('jaw-angle-status');
 const jawPresetButtons = [...document.querySelectorAll('[data-jaw-angle]')];
+const pathologyCategoryElement = document.getElementById('pathology-category');
+const pathologySearchElement = document.getElementById('pathology-search');
+const pathologyConditionElement = document.getElementById('pathology-condition');
+const pathologyNameElement = document.getElementById('pathology-name');
+const pathologySummaryElement = document.getElementById('pathology-summary');
+const pathologySymptomsElement = document.getElementById('pathology-symptoms');
+const pathologySignsElement = document.getElementById('pathology-signs');
+const pathologyRadiographicElement = document.getElementById('pathology-radiographic');
+const pathologyTissuesElement = document.getElementById('pathology-tissues');
+const pathologyCautionElement = document.getElementById('pathology-caution');
+const pathologyTargetElement = document.getElementById('pathology-target');
+const pathologyStageElement = document.getElementById('pathology-stage');
+const pathologySeverityInput = document.getElementById('pathology-severity');
+const pathologySeverityValue = document.getElementById('pathology-severity-value');
+const pathologyApplyButton = document.getElementById('apply-pathology');
+const pathologyAdvanceButton = document.getElementById('advance-pathology');
+const pathologyClearButton = document.getElementById('clear-pathologies');
+const activePathologiesElement = document.getElementById('active-pathologies');
+const pathologyCountElement = document.getElementById('pathology-count');
 let mandiblePivot = null;
 let targetJawAngleRadians = 0;
 let jawRotationSign = -1;
@@ -45,6 +66,7 @@ const engine = new Engine(canvas, true, {
   antialias: true
 });
 const scene = new Scene(engine);
+const pathologyRenderer = createPathologyRenderer(scene);
 scene.clearColor = new Color4(0.035, 0.065, 0.105, 1);
 scene.ambientColor = new Color3(0.32, 0.36, 0.4);
 scene.environmentIntensity = 0.72;
@@ -110,6 +132,9 @@ const layerVisibility = new Map();
 let selectedStructureId = null;
 let selectedMeshes = [];
 let allMeshesVisible = true;
+let activePathologyCases = [];
+let nextPathologyCaseId = 1;
+let selectedPathologyCaseId = null;
 const fallbackRoot = new TransformNode('OralAnatomyFallback', scene);
 fallbackRoot.setEnabled(false);
 
@@ -193,6 +218,368 @@ function renderLayerControls() {
   }
 }
 
+
+
+const PATHOLOGY_TISSUE_LABELS = {
+  teeth: 'بنية السن والعاج',
+  enamel: 'مينا الأسنان',
+  pulp: 'لب السن وقنوات الجذر',
+  pdl: 'الرباط حول السني',
+  gingiva: 'اللثة',
+  mandible: 'عظم الفك السفلي',
+  maxilla: 'عظم الفك العلوي والحنك',
+  lamina: 'الصفيحة القاسية',
+  nerves: 'الأعصاب',
+  vessels: 'الأوعية الدموية'
+};
+
+function selectedPathology() {
+  return DENTAL_PATHOLOGIES.find(item => item.id === pathologyConditionElement?.value) || null;
+}
+
+function renderPathologyCategories() {
+  if (!pathologyCategoryElement) return;
+  pathologyCategoryElement.replaceChildren();
+  const all = document.createElement('option');
+  all.value = 'all';
+  all.textContent = 'كل مجموعات الأمراض';
+  pathologyCategoryElement.appendChild(all);
+  for (const category of PATHOLOGY_CATEGORIES) {
+    const option = document.createElement('option');
+    option.value = category.id;
+    option.textContent = category.label;
+    pathologyCategoryElement.appendChild(option);
+  }
+}
+
+function renderPathologyConditionOptions() {
+  if (!pathologyConditionElement) return;
+  const categoryId = pathologyCategoryElement?.value || 'all';
+  const query = (pathologySearchElement?.value || '').trim().toLocaleLowerCase('ar');
+  const previousId = pathologyConditionElement.value;
+  const available = DENTAL_PATHOLOGIES.filter(condition => {
+    const matchesCategory = categoryId === 'all' || condition.category === categoryId;
+    const text = [condition.name, condition.summary, condition.id].join(' ').toLocaleLowerCase('ar');
+    return matchesCategory && (!query || text.includes(query));
+  });
+
+  pathologyConditionElement.replaceChildren();
+  for (const condition of available) {
+    const option = document.createElement('option');
+    option.value = condition.id;
+    option.textContent = condition.name;
+    pathologyConditionElement.appendChild(option);
+  }
+  if (!available.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'لا توجد نتائج مطابقة';
+    option.disabled = true;
+    pathologyConditionElement.appendChild(option);
+  } else {
+    pathologyConditionElement.value = available.some(item => item.id === previousId)
+      ? previousId
+      : available[0].id;
+  }
+  updatePathologyDetails();
+}
+
+function renderPathologyTargets(condition) {
+  if (!pathologyTargetElement || !condition) return;
+  const previousValue = pathologyTargetElement.value;
+  pathologyTargetElement.replaceChildren();
+
+  if (condition.target === 'oral-soft') {
+    const targets = [
+      ['gum-upper', 'اللثة العلوية – موضع بديل للمخاطية'],
+      ['gum-lower', 'اللثة السفلية – موضع بديل للمخاطية'],
+      ['palate', 'الحنك العظمي – موضع بديل']
+    ];
+    for (const [value, label] of targets) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      pathologyTargetElement.appendChild(option);
+    }
+    pathologyTargetElement.value = targets.some(item => item[0] === previousValue)
+      ? previousValue
+      : 'gum-upper';
+    return;
+  }
+
+  const teeth = anatomyCatalog.filter(item => item.sourceId && item.arch && item.layer === 'teeth');
+  const allOption = document.createElement('option');
+  allOption.value = 'all-teeth';
+  allOption.textContent = 'كل الأسنان (28 سنًا)';
+  pathologyTargetElement.appendChild(allOption);
+
+  for (const tooth of teeth) {
+    const record = clinicalRecords[tooth.sourceId] || {};
+    const fdi = record.fdi ? 'FDI ' + record.fdi + ' — ' : '';
+    const universal = record.universal ? ' / Universal ' + record.universal : '';
+    const option = document.createElement('option');
+    option.value = tooth.sourceId;
+    option.textContent = fdi + tooth.label + universal;
+    pathologyTargetElement.appendChild(option);
+  }
+
+  const currentTooth = anatomyCatalog.find(item => item.id === selectedStructureId && item.sourceId && item.arch);
+  const validPrevious = previousValue === 'all-teeth' || teeth.some(item => item.sourceId === previousValue);
+  pathologyTargetElement.value = validPrevious
+    ? previousValue
+    : currentTooth?.sourceId || teeth[0]?.sourceId || 'all-teeth';
+  allOption.hidden = !condition.allowAllTeeth;
+  if (!condition.allowAllTeeth && pathologyTargetElement.value === 'all-teeth') {
+    pathologyTargetElement.value = currentTooth?.sourceId || teeth[0]?.sourceId || '';
+  }
+}
+
+function updatePathologyDetails() {
+  const condition = selectedPathology();
+  if (!condition) {
+    if (pathologyNameElement) pathologyNameElement.textContent = 'اختر حالة مرضية';
+    if (pathologySummaryElement) pathologySummaryElement.textContent = 'لا توجد حالة مطابقة للبحث الحالي.';
+    return;
+  }
+
+  if (pathologyNameElement) pathologyNameElement.textContent = condition.name;
+  if (pathologySummaryElement) pathologySummaryElement.textContent = condition.summary;
+  if (pathologySymptomsElement) pathologySymptomsElement.textContent = condition.symptoms;
+  if (pathologySignsElement) pathologySignsElement.textContent = condition.signs;
+  if (pathologyRadiographicElement) pathologyRadiographicElement.textContent = condition.radiographic;
+  if (pathologyTissuesElement) {
+    pathologyTissuesElement.textContent = condition.layers
+      .map(layer => PATHOLOGY_TISSUE_LABELS[layer] || layer)
+      .join('، ');
+  }
+  if (pathologyCautionElement) {
+    pathologyCautionElement.textContent = condition.caution || '';
+    pathologyCautionElement.hidden = !condition.caution;
+  }
+
+  renderPathologyTargets(condition);
+  if (pathologyStageElement) {
+    const previousStage = Number(pathologyStageElement.value || 0);
+    pathologyStageElement.replaceChildren();
+    condition.stages.forEach((stage, index) => {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = stage.name + ' — ' + stage.description;
+      pathologyStageElement.appendChild(option);
+    });
+    pathologyStageElement.value = String(Math.min(previousStage, condition.stages.length - 1));
+  }
+  updatePathologySeverity();
+}
+
+function updatePathologySeverity() {
+  if (!pathologySeverityInput || !pathologySeverityValue) return;
+  const value = Math.max(1, Math.min(4, Number(pathologySeverityInput.value) || 1));
+  pathologySeverityValue.textContent = value + ' / 4';
+}
+
+function setPathologyAvailability(available) {
+  if (pathologyApplyButton) {
+    pathologyApplyButton.disabled = !available;
+    pathologyApplyButton.title = available ? '' : 'يتطلب تشغيل محرك الأمراض تحميل نموذج CBCT الكامل.';
+  }
+  if (pathologyTargetElement && !available) pathologyTargetElement.disabled = true;
+  else if (pathologyTargetElement) pathologyTargetElement.disabled = false;
+  if (!available && pathologyNameElement && clinicalModelActive === false) {
+    pathologySummaryElement.textContent = 'تأثير الأمراض يتطلب تحميل النموذج التشريحي الكامل من بيانات CBCT.';
+  }
+}
+
+function initializePathologyControls() {
+  renderPathologyCategories();
+  renderPathologyConditionOptions();
+  setPathologyAvailability(clinicalModelActive);
+  renderActivePathologies();
+}
+
+function pathologyTargetLabel(state) {
+  if (state.condition.target === 'oral-soft') {
+    return ({
+      'gum-upper': 'اللثة العلوية (موضع بديل)',
+      'gum-lower': 'اللثة السفلية (موضع بديل)',
+      palate: 'الحنك (موضع بديل)'
+    })[state.targetValue] || 'أنسجة رخوة';
+  }
+  if (state.toothSourceIds?.length) return 'كل الأسنان (' + state.toothSourceIds.length + ')';
+  const tooth = anatomyCatalog.find(item => item.sourceId === state.toothSourceId);
+  return tooth?.label || state.toothSourceId || 'سن غير محدد';
+}
+
+function revealPathologyLayers(layers) {
+  for (const layer of layers || []) {
+    if (clinicalStructureData?.layers?.[layer]) layerVisibility.set(layer, true);
+  }
+  if (layerControlsElement) {
+    layerControlsElement.querySelectorAll('input[data-layer]').forEach(input => {
+      input.checked = isLayerVisible(input.dataset.layer);
+    });
+  }
+  applyLayerVisibility();
+}
+
+function renderActivePathologyVisuals() {
+  if (!clinicalModelActive) return;
+  const result = pathologyRenderer.render(activePathologyCases, {
+    meshes: anatomyMeshes,
+    records: clinicalRecords,
+    catalog: anatomyCatalog
+  });
+  if (canvas) canvas.dataset.pathologyEffects = String(result.effects);
+  if (canvas) canvas.dataset.activePathologies = String(activePathologyCases.length);
+  document.body.dataset.activePathologies = String(activePathologyCases.length);
+}
+
+function renderActivePathologies() {
+  if (!activePathologiesElement) return;
+  activePathologiesElement.replaceChildren();
+  if (pathologyCountElement) pathologyCountElement.textContent = activePathologyCases.length + ' حالة نشطة';
+  if (pathologyAdvanceButton) pathologyAdvanceButton.disabled = activePathologyCases.length === 0;
+
+  if (!activePathologyCases.length) {
+    const empty = document.createElement('p');
+    empty.className = 'pathology-empty';
+    empty.textContent = 'لم تتم إضافة حالات مرضية بعد.';
+    activePathologiesElement.appendChild(empty);
+    return;
+  }
+
+  for (const state of activePathologyCases) {
+    const card = document.createElement('article');
+    card.className = 'pathology-case';
+    card.dataset.caseId = state.caseId;
+    card.dataset.pathologyId = state.condition.id;
+
+    const title = document.createElement('strong');
+    title.textContent = state.condition.name;
+
+    const details = document.createElement('small');
+    details.textContent = pathologyTargetLabel(state) + ' • ' +
+      state.stage.name + ' • شدة المظهر ' + state.severity + ' / 4';
+
+    const actions = document.createElement('div');
+    actions.className = 'pathology-case-actions';
+
+    const advance = document.createElement('button');
+    advance.type = 'button';
+    advance.dataset.pathologyAdvance = state.caseId;
+    advance.textContent = state.stageIndex >= state.condition.stages.length - 1 ? 'آخر مرحلة' : 'تطوير المرحلة';
+    advance.disabled = state.stageIndex >= state.condition.stages.length - 1 && state.severity >= 4;
+    advance.addEventListener('click', () => advancePathologyCase(state.caseId));
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.dataset.pathologyRemove = state.caseId;
+    remove.textContent = 'إزالة الحالة';
+    remove.addEventListener('click', () => removePathologyCase(state.caseId));
+
+    actions.append(advance, remove);
+    card.append(title, details, actions);
+    activePathologiesElement.appendChild(card);
+  }
+}
+
+function refreshPathologySimulation() {
+  renderActivePathologyVisuals();
+  renderActivePathologies();
+}
+
+function applySelectedPathology() {
+  if (!clinicalModelActive) {
+    setStatus('تعذر تطبيق الحالة دون تحميل نموذج CBCT الكامل.', 'warn');
+    return;
+  }
+  const condition = selectedPathology();
+  if (!condition) return;
+
+  const targetValue = pathologyTargetElement?.value || '';
+  const stageIndex = Math.max(0, Math.min(condition.stages.length - 1, Number(pathologyStageElement?.value || 0)));
+  const severity = Math.max(1, Math.min(4, Number(pathologySeverityInput?.value || 2)));
+  const state = {
+    caseId: String(nextPathologyCaseId++),
+    condition,
+    targetValue,
+    stageIndex,
+    stage: condition.stages[stageIndex],
+    severity,
+    toothSourceId: condition.target === 'tooth' && targetValue !== 'all-teeth' ? targetValue : null,
+    toothSourceIds: condition.target === 'tooth' && targetValue === 'all-teeth'
+      ? anatomyCatalog.filter(item => item.sourceId && item.arch && item.layer === 'teeth').map(item => item.sourceId)
+      : null
+  };
+
+  if (condition.target === 'tooth' && !state.toothSourceId && !state.toothSourceIds?.length) {
+    setStatus('لا توجد أسنان متاحة لتطبيق هذه الحالة.', 'warn');
+    return;
+  }
+
+  activePathologyCases.push(state);
+  selectedPathologyCaseId = state.caseId;
+  revealPathologyLayers(condition.layers);
+  refreshPathologySimulation();
+
+  if (state.toothSourceId) {
+    const tooth = anatomyCatalog.find(item => item.sourceId === state.toothSourceId);
+    if (tooth) selectStructure(tooth.id);
+  }
+
+  setStatus('تم تطبيق ' + condition.name + ' على المجسم ثلاثي الأبعاد.', 'ok');
+}
+
+function advancePathologyCase(caseId) {
+  const state = activePathologyCases.find(item => item.caseId === caseId);
+  if (!state) return;
+  if (state.stageIndex < state.condition.stages.length - 1) {
+    state.stageIndex++;
+    state.stage = state.condition.stages[state.stageIndex];
+  } else if (state.severity < 4) {
+    state.severity++;
+  } else {
+    setStatus('وصلت الحالة إلى أقصى شدة عرض في هذا النموذج.', 'warn');
+    return;
+  }
+  selectedPathologyCaseId = state.caseId;
+  refreshPathologySimulation();
+}
+
+function removePathologyCase(caseId) {
+  activePathologyCases = activePathologyCases.filter(item => item.caseId !== caseId);
+  if (selectedPathologyCaseId === caseId) selectedPathologyCaseId = activePathologyCases.at(-1)?.caseId || null;
+  refreshPathologySimulation();
+}
+
+function advanceLatestPathology() {
+  const state = activePathologyCases.at(-1);
+  if (state) advancePathologyCase(state.caseId);
+}
+
+function clearAllPathologies() {
+  activePathologyCases = [];
+  selectedPathologyCaseId = null;
+  pathologyRenderer.clear();
+  if (canvas) {
+    canvas.dataset.pathologyEffects = '0';
+    canvas.dataset.activePathologies = '0';
+  }
+  document.body.dataset.activePathologies = '0';
+  renderActivePathologies();
+  setStatus('تمت إزالة جميع الحالات المرضية من المجسم.', 'ok');
+}
+
+function attachPathologyControls() {
+  pathologyCategoryElement?.addEventListener('change', renderPathologyConditionOptions);
+  pathologySearchElement?.addEventListener('input', renderPathologyConditionOptions);
+  pathologyConditionElement?.addEventListener('change', updatePathologyDetails);
+  pathologySeverityInput?.addEventListener('input', updatePathologySeverity);
+  pathologyStageElement?.addEventListener('change', () => {});
+  pathologyApplyButton?.addEventListener('click', applySelectedPathology);
+  pathologyAdvanceButton?.addEventListener('click', advanceLatestPathology);
+  pathologyClearButton?.addEventListener('click', clearAllPathologies);
+}
 
 function setStatus(message, state) {
   if (!statusElement) return;
@@ -448,6 +835,9 @@ function selectStructure(id) {
   if (!item) return;
   selectedStructureId = id;
   selectedMeshes = meshesForStructure(id);
+  if (item.sourceId && item.arch && pathologyTargetElement && selectedPathology()?.target !== 'oral-soft') {
+    pathologyTargetElement.value = item.sourceId;
+  }
   clearHighlights();
   for (const mesh of selectedMeshes) {
     if (mesh.isVisible) highlight.addMesh(mesh, Color3.FromHexString('#47d4bd'));
@@ -616,6 +1006,7 @@ async function loadCatalog() {
 
   renderStructureList('');
   renderLayerControls();
+  initializePathologyControls();
 }
 
 function attachCenteredContainer(container) {
@@ -677,12 +1068,14 @@ async function loadOralAnatomy() {
       } else {
         setStatus('تم تحميل تشريح الأسنان من تصوير CBCT. يمكنك فحص طبقات السن واللثة والعظم.', 'ok');
       }
+      setPathologyAvailability(true);
       frameMeshes();
       loadingOverlay?.classList.add('hidden');
       return;
     } catch (clinicalError) {
       console.warn('The CBCT-derived model could not be loaded; trying the legacy model.', clinicalError);
       clinicalModelActive = false;
+      setPathologyAvailability(false);
       anatomyContainer = null;
       layerControlsElement?.closest('.layers-section')?.setAttribute('hidden', '');
     }
@@ -691,6 +1084,7 @@ async function loadOralAnatomy() {
   try {
     anatomyContainer = await SceneLoader.LoadAssetContainerAsync(localRoot, 'oral-anatomy.glb', scene);
     attachCenteredContainer(anatomyContainer);
+    setPathologyAvailability(false);
     if (!createImportedJawPivot()) {
       setStatus('تم تحميل النموذج الأساسي، لكن تعذر تهيئة حركة الفك السفلي.', 'warn');
     } else {
@@ -713,6 +1107,7 @@ async function loadOralAnatomy() {
     } catch (remoteError) {
       console.error('Oral anatomy model could not be loaded.', remoteError);
       clinicalModelActive = false;
+      setPathologyAvailability(false);
       makeFallbackModel();
       anatomyMeshes = fallbackRoot.getChildMeshes(false);
       setStatus('تعذر تحميل الملفات الخارجية؛ تم إنشاء نموذج تشريحي بديل مبسط داخل المشهد.', 'warn');
@@ -766,6 +1161,8 @@ document.getElementById('reset-camera')?.addEventListener('click', () => setCame
 searchElement?.addEventListener('input', event => renderStructureList(event.target.value));
 isolateButton?.addEventListener('click', isolateSelected);
 restoreButton?.addEventListener('click', restoreAll);
+
+attachPathologyControls();
 
 jawAngleInput?.addEventListener('input', event => updateJawAngle(event.target.value));
 for (const button of jawPresetButtons) {
