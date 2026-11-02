@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { window.__DENTAL_SIM_TEST__ = true; });
+});
+
 async function triggerPathologyApply(page) {
   await Promise.race([
     page.locator('#apply-pathology').evaluate(button => button.click()),
