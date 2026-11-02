@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DENTAL_PATHOLOGIES, PATHOLOGY_CATEGORIES } from '../src/pathology-catalog.js';
+import { SUPPORTED_PATHOLOGY_VISUALS } from '../src/pathology-visuals.js';
 
 test('the catalogue exports 108 complete diagnoses across the eight supported groups', () => {
   assert.equal(PATHOLOGY_CATEGORIES.length, 8);
@@ -40,5 +41,23 @@ test('representative diagnoses from every new clinical area are available', () =
     'odontogenic-myxoma'
   ]) {
     assert.ok(ids.has(id), id + ' is included in the expanded catalogue');
+  }
+});
+
+
+test('every catalogue diagnosis routes to an explicit disease-specific visual handler', () => {
+  const supported = new Set(SUPPORTED_PATHOLOGY_VISUALS);
+  const missing = [...new Set(DENTAL_PATHOLOGIES.map(item => item.visual).filter(visual => !supported.has(visual)))];
+  assert.deepEqual(missing, [], 'every disease visual must have an explicit renderer route');
+});
+
+test('anatomical proxy limitations are disclosed for lesions outside the scanned structures', () => {
+  for (const condition of DENTAL_PATHOLOGIES.filter(item => item.target === 'oral-soft')) {
+    assert.match(condition.caution, /اللسان والخدود وأرضية الفم/);
+    assert.equal(condition.simulationScope, 'soft-tissue-proxy');
+  }
+  for (const condition of DENTAL_PATHOLOGIES.filter(item => item.target === 'bone')) {
+    assert.match(condition.caution, /مقطع CBCT/);
+    assert.equal(condition.simulationScope, 'bone-surface-model');
   }
 });
