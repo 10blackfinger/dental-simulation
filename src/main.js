@@ -47,6 +47,7 @@ window.addEventListener('resize', () => {
   if (window.matchMedia('(min-width: 761px)').matches) closeMobileDrawers();
 });
 
+let clinicalSurfaceReady = false;
 const canvas = document.getElementById('render-canvas');
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, antialias: false });
 engine.setHardwareScalingLevel(1.15);
@@ -1684,6 +1685,7 @@ function updateOralCariesVisual() {
   visual.restoration.setEnabled(['filled', 'restored'].includes(stage));
 }
 function selectOralExamTooth(fdi) {
+  if (clinicalSurfaceReady) resetClinicalContactState('تم تغيير السن المستهدف. تم مسح أثر التلامس السابق.');
   const id = String(fdi);
   if (!dentalManifest?.teeth?.[id]) return;
   currentCariesTarget = id;
@@ -1696,6 +1698,9 @@ function selectOralExamTooth(fdi) {
   document.getElementById('selection-description').textContent = 'تم اختيار السن للتدريب. تظهر عليه الآفة الافتراضية ويمكن تطبيق الأدوات والمواد التعليمية عليه.';
   cariesTrainingStage = 'caries';
   getOralCariesOverlay(id);
+  const toothFocus = getOralExamTargetPoint(id);
+  camera.setTarget(toothFocus);
+  camera.radius = 6.4;
   updateCariesTrainingPanel('تم اختيار ' + label + '. الآفة الافتراضية ظاهرة؛ اختر أداة أو مادة واسحبها إلى مساحة العمل.');
   updateOralCariesVisual();
 }
@@ -2469,6 +2474,7 @@ function updateCaseView() {
 }
 scenarioSelect?.addEventListener('change', event => {
   currentCase = event.target.value;
+  if (clinicalSurfaceReady) resetClinicalProcedureFlow(currentCase);
   currentStep = -1;
   completedSteps = [];
   caseFeedback.textContent = 'تم اختيار السيناريو. اضغط ابدأ التدريب لعرض الخطوات.';
@@ -2476,6 +2482,7 @@ scenarioSelect?.addEventListener('change', event => {
 });
 document.getElementById('start-case')?.addEventListener('click', () => {
   currentCase = scenarioSelect.value;
+  if (clinicalSurfaceReady) resetClinicalProcedureFlow(currentCase);
   if (currentCase === 'restoration') resetCariesTrainingCase();
   currentStep = 0;
   completedSteps = [];
@@ -2595,6 +2602,7 @@ const materialBottleCap = cylinder('ActiveMaterialCap', .09, .12, [0,.22,0], 'te
 activeMaterialRoot.setEnabled(false);
 
 function selectInventoryItem(item) {
+  if (clinicalSurfaceReady) resetClinicalContactState('تم اختيار عنصر جديد. أعد ملامسة سطح السن لتنفيذ الخطوة التالية.');
   selectedInventoryItem = item;
   if (inventoryDetail) {
     inventoryDetail.replaceChildren();
@@ -2936,6 +2944,7 @@ function updateCariesTrainingPanel(message) {
   if (help) help.textContent = message;
 }
 function resetCariesTrainingCase() {
+  if (clinicalSurfaceReady) resetClinicalContactState('أُعيدت حالة التسوس والتلامس إلى البداية.');
   cariesTrainingStage = 'caries';
   clinicalCariesLesion.setEnabled(true);
   clinicalCavity.setEnabled(false);
@@ -2964,6 +2973,25 @@ function performClinicalAction() {
     return;
   }
   const id = selectedInventoryItem.id;
+  if (oralMode) {
+    if (!clinicalSurface.targetMesh || !clinicalSurface.targetKey || clinicalSurface.contactSeconds < .2) {
+      clinicalSimulationFeedback.textContent = 'لا يمكن تسجيل الخطوة دون تلامس فعلي مستمر مع سطح السن أو اللثة. اضغط واسحب الأداة على المجسم أولًا.';
+      return;
+    }
+    if (clinicalSurface.targetKey.startsWith('tooth-') && clinicalSurface.targetKey !== 'tooth-' + currentCariesTarget) {
+      clinicalSimulationFeedback.textContent = 'الأداة تلامس سنًا مختلفًا عن السن المستهدف. اختر السن الصحيح أو حدّث الهدف.';
+      return;
+    }
+    const selectedScenario = document.getElementById('scenario-select')?.value || 'restoration';
+    if (selectedScenario !== 'restoration') {
+      performGuidedClinicalProcedure();
+      return;
+    }
+    if (['high-speed','bur-kit'].includes(id) && clinicalSurface.depthMm < .04) {
+      clinicalSimulationFeedback.textContent = 'لم يتم تسجيل إزالة سطحية بعد. أبقِ القبضة ملامسة للسن مع تحكم هادئ في السرعة والضغط.';
+      return;
+    }
+  }
   if (['high-speed','bur-kit'].includes(id) && cariesTrainingStage === 'caries') {
     if (!oralMode) {
       clinicalCariesLesion.setEnabled(false);
@@ -3464,6 +3492,7 @@ scene.onBeforeRenderObservable.add(() => {
 document.getElementById('clinical-reset-physics')?.addEventListener('click', () => {
   resetClinicalContactState();
 });
+clinicalSurfaceReady = true;
 document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
   if (activeExperience !== 'treatment' && activeExperience !== 'oral-exam') {
     document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج أولًا.';
