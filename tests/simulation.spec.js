@@ -58,7 +58,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 
 test('the oral anatomy model and catalogue are published', async ({ page }) => {
   await page.goto('/');
-  for (const asset of ['models/clinical-dentition.glb', 'models/clinical-teeth.json', 'models/oral-anatomy.glb', 'models/anatomy-structures.json']) {
+  for (const asset of ['models/clinical-dentition.glb', 'models/clinical-teeth.json', 'models/environmentSpecular.env', 'models/oral-anatomy.glb', 'models/anatomy-structures.json']) {
     const response = await page.request.get(new URL(asset, page.url()).toString());
     expect(response.ok(), asset + ' should be published').toBeTruthy();
   }
