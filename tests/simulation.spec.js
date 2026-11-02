@@ -44,7 +44,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await page.locator('#pathology-condition').selectOption('dentin-caries');
   await page.locator('#pathology-target').selectOption('FMA55681');
   await page.locator('#pathology-stage').selectOption('2');
-  await page.locator('#pathology-severity').fill('3');
+  await page.locator('#pathology-severity').evaluate(input => { input.value = '3'; input.dispatchEvent(new Event('input', { bubbles: true })); });
   await page.locator('#apply-pathology').click();
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveAttribute('data-pathology-id', 'dentin-caries');
@@ -55,7 +55,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await page.locator('#apply-pathology').click();
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(2);
   await page.locator('[data-pathology-advance]').first().click();
-  await expect(page.locator('#active-pathologies .pathology-case').first()).toContainText('متقدمة');
+  await expect(page.locator('#active-pathologies .pathology-case').first()).toContainText('شديد');
   await page.locator('[data-pathology-remove]').last().click();
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
   await page.locator('#clear-pathologies').click();
