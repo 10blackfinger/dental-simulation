@@ -43,6 +43,14 @@ const assets = [
     source: 'BodyParts3D / Anatomography 4.3, adapted by OrganUI',
     expectedSha256: '89a1074b0806eb41c318d38c78a269134c5070be7b90cb2f93ab2de7d35ec239',
     expectedMinBytes: 1000000
+  },
+  {
+    file: 'environmentSpecular.env',
+    url: 'https://assets.babylonjs.com/environments/environmentSpecular.env',
+    format: 'env',
+    license: 'Babylon.js sample environment asset',
+    source: 'Babylon.js official environment sample',
+    expectedMinBytes: 20000
   }
 ];
 
