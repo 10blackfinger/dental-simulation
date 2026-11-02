@@ -1949,23 +1949,6 @@ async function ensureOralSceneProps() {
   })();
   return oralScenePropsPromise;
 }
-function selectOralExamTooth(fdi) {
-  const id = String(fdi);
-  if (!dentalManifest?.teeth?.[id]) return;
-  currentCariesTarget = id;
-  dentalSelectedFdi = id;
-  renderDentalToothGrid(document.getElementById('dental-tooth-search')?.value || '');
-  const label = dentalToothLabel(Number(id));
-  const target = document.getElementById('oral-exam-target-label');
-  if (target) target.textContent = 'السن المستهدف: ' + label;
-  document.getElementById('selection-name').textContent = label;
-  document.getElementById('selection-description').textContent = 'تم اختيار السن للتدريب. تظهر عليه الآفة الافتراضية ويمكن تطبيق الأدوات والمواد التعليمية عليه.';
-  cariesTrainingStage = 'caries';
-  getOralCariesOverlay(id);
-  updateCariesTrainingPanel('تم اختيار ' + label + '. الآفة الافتراضية ظاهرة؛ اختر أداة أو مادة واسحبها إلى مساحة العمل.');
-  updateOralCariesVisual();
-}
-
 async function ensureDentalScope() {
   if(dentalScopeRoot)return;
   setDentalStatus('جارٍ تحميل الفك واللثة والجمجمة والأعصاب والأوعية…');
