@@ -154,7 +154,7 @@
 
       <section class="viewport" aria-label="المشهد ثلاثي الأبعاد">
         <canvas id="render-canvas"></canvas>
-        <div class="viewport-top"><span class="scene-tag"><i></i> DENTAL CLINIC / 3D</span><span class="hint">اسحب للدوران · عجلة الفأرة للتقريب</span></div>
+        <div class="viewport-top"><span class="scene-tag"><i></i> DENTAL CLINIC / 3D</span><span class="hint" id="viewport-interaction-hint">اسحب للدوران · عجلة الفأرة للتقريب</span></div>
         <div id="selection-card" class="selection-card"><span class="selection-kicker">العنصر المحدد</span><b id="selection-name">عيادة الأسنان</b><small id="selection-description">اختر أي مجسم داخل المشهد لعرض اسمه.</small></div>
         <div class="viewport-bottom"><span>وضع العرض: تعليمي</span><span id="fps-counter">3D Engine</span></div>
         <div id="loading" class="loading-overlay"><div class="loader"></div><b>جارٍ تجهيز العيادة ثلاثية الأبعاد</b><small>إنشاء المجسمات والإضاءة</small></div>
@@ -183,7 +183,25 @@
             <button id="reset-caries-case" class="small-action" type="button">إعادة الحالة من البداية</button>
             <p class="asset-license-note">محاكاة تعليمية مبسطة لتتابع إزالة الآفة والترميم؛ لا تمثل استجابة حيوية أو عمق حفر أو بروتوكولًا سريريًا معتمدًا.</p>
           </div>
-          <p class="asset-license-note">الحركة مرتبطة بأوامرك فقط، بسرعات انتقال هادئة. مواضع المجسمات تقريبية وتحتاج معايرة بصرية على بيئة الجهاز الفعلية.</p>
+          <section id="clinical-simulation-panel" class="clinical-simulation-panel">
+            <div class="clinical-simulation-heading"><b>محرك التلامس والمحاكاة</b><span id="clinical-contact-state">لا يوجد تلامس</span></div>
+            <p class="asset-license-note">انقل الأداة إلى الفم، ثم اضغط واسحب طرفها فوق السن أو اللثة داخل نافذة العرض. لن تُسجل الخطوة بمجرد تحريك الأداة قرب الفم.</p>
+            <label class="clinical-control-label" for="clinical-force">قوة التطبيق الافتراضية <output id="clinical-force-value">0.8 N</output></label>
+            <input id="clinical-force" class="clinical-range" type="range" min="0.1" max="2.0" step="0.1" value="0.8">
+            <label class="clinical-control-label" for="clinical-speed">سرعة الأداة الدوارة <output id="clinical-speed-value">180,000 RPM</output></label>
+            <input id="clinical-speed" class="clinical-range" type="range" min="0" max="400000" step="5000" value="180000">
+            <label class="switch-row clinical-irrigation-row"><span>تشغيل تدفق الري عند استخدام سرنجة الهواء/الماء أو الري اللبي</span><input id="clinical-irrigation" type="checkbox" checked><i></i></label>
+            <div class="clinical-metrics">
+              <div><small>زمن التلامس</small><b id="clinical-contact-time">0.00 s</b></div>
+              <div><small>عمق التحضير التعليمي</small><b id="clinical-depth">0.00 mm</b></div>
+              <div><small>جزيئات السوائل</small><b id="clinical-fluid-count">0</b></div>
+              <div><small>استجابة الأنسجة</small><b id="clinical-tissue-state">مستقرة</b></div>
+            </div>
+            <div class="clinical-force-track"><span id="clinical-force-bar"></span></div>
+            <p id="clinical-simulation-feedback" class="case-feedback" aria-live="polite">جاهز للتلامس السطحي. المؤشرات قيم محاكاة تعليمية وليست قياسات سريرية فعلية.</p>
+            <button id="clinical-reset-physics" class="small-action" type="button">إعادة ضبط التلامس والتحضير</button>
+          </section>
+          <p class="asset-license-note">الضغط والسرعة والارتداد والسوائل مؤثرات رقمية تقريبية للتعلم. لا تمثل معايرة جهاز حقيقي أو قوة يد مقاسة.</p>
         </section>
         <section class="control-section inventory-section" id="inventory-section">
           <h2>مكتبة الأدوات والمواد</h2>
