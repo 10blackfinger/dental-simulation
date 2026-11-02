@@ -109,11 +109,28 @@ const rows=[
 ['gingival-enlargement','تضخم/فرط نمو اللثة','mucosal','gingival-enlargement','زيادة حجم اللثة قد ترتبط باللويحة أو بعض الأدوية أو تغيرات جهازية.','صعوبة التنظيف ونزف أو إعاقة بزوغ الأسنان.','زيادة سماكة الحليمات والحافة اللثوية وتغطية جزء من التاج.','لا توجد علامة شعاعية نوعية ما لم يوجد سبب عظمي مرافق.',['gingiva'],'oral-soft','قد يكون التضخم موضعيًا أو دوائيًا أو جهازيًا؛ تحديد السبب يتطلب تاريخًا طبيًا وفحصًا.']
 ];
 
+const MULTI_TOOTH_PATHOLOGIES = new Set([
+  'early-childhood-caries',
+  'dental-biofilm',
+  'dental-calculus',
+  'plaque-induced-gingivitis',
+  'necrotizing-gingivitis',
+  'periodontitis-stage-i',
+  'periodontitis-stage-ii',
+  'periodontitis-stage-iii',
+  'periodontitis-stage-iv',
+  'dental-erosion',
+  'attrition',
+  'dental-fluorosis',
+  'amelogenesis-imperfecta',
+  'dentinogenesis-imperfecta'
+]);
+
 export const DENTAL_PATHOLOGIES=rows.map(([id,name,category,visual,summary,symptoms,signs,radiographic,layers,target='tooth',caution=''])=>{
  const names=stageNames[category];
  return {
   id,name,category,visual,summary,symptoms,signs,radiographic,layers,
-  target,allowAllTeeth:target==='tooth',
+  target,allowAllTeeth:target==='tooth' && MULTI_TOOTH_PATHOLOGIES.has(id),
   caution,
   stages:names.map((stage,index)=>({
    id:'stage-'+(index+1),name:stage,progression:[0.25,0.6,1][index],
