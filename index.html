@@ -41,6 +41,25 @@
           </div>
         </section>
 
+        <section class="control-section jaw-control-section" aria-labelledby="jaw-control-title">
+          <div class="section-heading">
+            <h2 id="jaw-control-title">فتح الفم</h2>
+            <output id="jaw-angle-value" class="jaw-angle-value" for="jaw-angle">0°</output>
+          </div>
+          <label class="jaw-angle-label" for="jaw-angle">زاوية فتح الفك السفلي</label>
+          <input id="jaw-angle" class="jaw-angle-range" type="range" min="0" max="40" step="1" value="0" disabled>
+          <div class="jaw-angle-scale"><span>مغلق</span><span>فتح تدريجي</span><span>40°</span></div>
+          <div class="jaw-angle-presets" role="group" aria-label="درجات فتح جاهزة">
+            <button class="jaw-preset selected" data-jaw-angle="0" type="button" aria-pressed="true" disabled>إغلاق</button>
+            <button class="jaw-preset" data-jaw-angle="10" type="button" aria-pressed="false" disabled>بسيط</button>
+            <button class="jaw-preset" data-jaw-angle="20" type="button" aria-pressed="false" disabled>متوسط</button>
+            <button class="jaw-preset" data-jaw-angle="30" type="button" aria-pressed="false" disabled>واسع</button>
+            <button class="jaw-preset" data-jaw-angle="40" type="button" aria-pressed="false" disabled>أقصى</button>
+          </div>
+          <p id="jaw-angle-status" class="jaw-angle-status" role="status">جارٍ تهيئة مفصل الفك…</p>
+          <p class="asset-note">الحركة توضيحية تعليمية حول محور مفصل تقريبي، وليست قياسًا لحركة مفصل مريض حقيقي.</p>
+        </section>
+
         <section class="control-section anatomy-section">
           <div class="section-heading">
             <h2>مستكشف التراكيب</h2>
