@@ -1,134 +1,295 @@
 [
   {
     "id": "upper-right-central-incisor",
-    "label": "القاطع المركزي — الفك العلوي الأيمن"
+    "sourceId": "FMA55681",
+    "label": "القاطع المركزي — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-right-lateral-incisor",
-    "label": "القاطع الجانبي — الفك العلوي الأيمن"
+    "sourceId": "FMA55680",
+    "label": "القاطع الجانبي — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-right-canine",
-    "label": "الناب — الفك العلوي الأيمن"
+    "sourceId": "FMA55798",
+    "label": "الناب — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-right-first-premolar",
-    "label": "الضاحك الأول — الفك العلوي الأيمن"
+    "sourceId": "FMA55689",
+    "label": "الضاحك الأول — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-right-second-premolar",
-    "label": "الضاحك الثاني — الفك العلوي الأيمن"
+    "sourceId": "FMA55688",
+    "label": "الضاحك الثاني — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-right-first-molar",
-    "label": "الضرس الأول — الفك العلوي الأيمن"
+    "sourceId": "FMA55698",
+    "label": "الضرس الأول — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-right-second-molar",
-    "label": "الضرس الثاني — الفك العلوي الأيمن"
+    "sourceId": "FMA55697",
+    "label": "الضرس الثاني — الفك العلوي الأيمن",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-central-incisor",
-    "label": "القاطع المركزي — الفك العلوي الأيسر"
+    "sourceId": "FMA55682",
+    "label": "القاطع المركزي — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-lateral-incisor",
-    "label": "القاطع الجانبي — الفك العلوي الأيسر"
+    "sourceId": "FMA55683",
+    "label": "القاطع الجانبي — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-canine",
-    "label": "الناب — الفك العلوي الأيسر"
+    "sourceId": "FMA55799",
+    "label": "الناب — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-first-premolar",
-    "label": "الضاحك الأول — الفك العلوي الأيسر"
+    "sourceId": "FMA55690",
+    "label": "الضاحك الأول — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-second-premolar",
-    "label": "الضاحك الثاني — الفك العلوي الأيسر"
+    "sourceId": "FMA55691",
+    "label": "الضاحك الثاني — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-first-molar",
-    "label": "الضرس الأول — الفك العلوي الأيسر"
+    "sourceId": "FMA55699",
+    "label": "الضرس الأول — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "upper-left-second-molar",
-    "label": "الضرس الثاني — الفك العلوي الأيسر"
+    "sourceId": "FMA55700",
+    "label": "الضرس الثاني — الفك العلوي الأيسر",
+    "group": "الفك العلوي",
+    "arch": "maxillary",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-central-incisor",
-    "label": "القاطع المركزي — الفك السفلي الأيسر"
+    "sourceId": "FMA57143",
+    "label": "القاطع المركزي — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-lateral-incisor",
-    "label": "القاطع الجانبي — الفك السفلي الأيسر"
+    "sourceId": "FMA57141",
+    "label": "القاطع الجانبي — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-canine",
-    "label": "الناب — الفك السفلي الأيسر"
+    "sourceId": "FMA55687",
+    "label": "الناب — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-first-premolar",
-    "label": "الضاحك الأول — الفك السفلي الأيسر"
+    "sourceId": "FMA55693",
+    "label": "الضاحك الأول — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-second-premolar",
-    "label": "الضاحك الثاني — الفك السفلي الأيسر"
+    "sourceId": "FMA55692",
+    "label": "الضاحك الثاني — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-first-molar",
-    "label": "الضرس الأول — الفك السفلي الأيسر"
+    "sourceId": "FMA55704",
+    "label": "الضرس الأول — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-left-second-molar",
-    "label": "الضرس الثاني — الفك السفلي الأيسر"
+    "sourceId": "FMA55703",
+    "label": "الضرس الثاني — الفك السفلي الأيسر",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "left",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-central-incisor",
-    "label": "القاطع المركزي — الفك السفلي الأيمن"
+    "sourceId": "FMA57142",
+    "label": "القاطع المركزي — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-lateral-incisor",
-    "label": "القاطع الجانبي — الفك السفلي الأيمن"
+    "sourceId": "FMA57140",
+    "label": "القاطع الجانبي — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-canine",
-    "label": "الناب — الفك السفلي الأيمن"
+    "sourceId": "FMA55686",
+    "label": "الناب — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-first-premolar",
-    "label": "الضاحك الأول — الفك السفلي الأيمن"
+    "sourceId": "FMA55694",
+    "label": "الضاحك الأول — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-second-premolar",
-    "label": "الضاحك الثاني — الفك السفلي الأيمن"
+    "sourceId": "FMA55695",
+    "label": "الضاحك الثاني — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-first-molar",
-    "label": "الضرس الأول — الفك السفلي الأيمن"
+    "sourceId": "FMA55705",
+    "label": "الضرس الأول — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "lower-right-second-molar",
-    "label": "الضرس الثاني — الفك السفلي الأيمن"
+    "sourceId": "FMA55706",
+    "label": "الضرس الثاني — الفك السفلي الأيمن",
+    "group": "الفك السفلي",
+    "arch": "mandibular",
+    "side": "right",
+    "layer": "teeth"
   },
   {
     "id": "upper-gum",
-    "label": "اللثة العلوية"
+    "sourceId": "FMA59763",
+    "label": "اللثة العلوية",
+    "group": "اللثة",
+    "layer": "gingiva",
+    "legacyIds": [
+      "upper-gum"
+    ]
   },
   {
     "id": "lower-gum",
-    "label": "اللثة السفلية"
+    "sourceId": "FMA59764",
+    "label": "اللثة السفلية",
+    "group": "اللثة",
+    "layer": "gingiva",
+    "legacyIds": [
+      "lower-gum"
+    ]
   },
   {
-    "id": "right-maxilla",
-    "label": "عظم الفك العلوي الأيمن"
-  },
-  {
-    "id": "left-maxilla",
-    "label": "عظم الفك العلوي الأيسر"
+    "id": "maxilla-and-palate",
+    "sourceId": "FMA53649",
+    "label": "عظم الفك العلوي والحنك",
+    "group": "عظام الفك",
+    "layer": "maxilla",
+    "legacyIds": [
+      "right-maxilla",
+      "left-maxilla"
+    ]
   },
   {
     "id": "mandible",
-    "label": "عظم الفك السفلي"
+    "sourceId": "FMA52748",
+    "label": "عظم الفك السفلي",
+    "group": "عظام الفك",
+    "layer": "mandible",
+    "legacyIds": [
+      "mandible"
+    ]
   }
 ]
