@@ -57,13 +57,24 @@
             <button class="jaw-preset" data-jaw-angle="40" type="button" aria-pressed="false" disabled>أقصى</button>
           </div>
           <p id="jaw-angle-status" class="jaw-angle-status" role="status">جارٍ تهيئة مفصل الفك…</p>
-          <p class="asset-note">الحركة توضيحية تعليمية حول محور مفصل تقريبي، وليست قياسًا لحركة مفصل مريض حقيقي.</p>
+          <p class="asset-note">الحركة توضيحية تعليمية حول محور مفصل تقريبي، ولا تتضمن مجسمًا مستقلًا للقرص المفصلي.</p>
+        </section>
+
+        <section class="control-section layers-section" aria-labelledby="layers-title">
+          <div class="section-heading">
+            <h2 id="layers-title">طبقات التشريح</h2>
+            <span class="count-label">عرض تفصيلي</span>
+          </div>
+          <p class="layer-intro">فعّل الطبقات لرؤية الأجزاء الداخلية والأنسجة المحيطة.</p>
+          <div id="layer-controls" class="layer-controls" aria-label="إظهار وإخفاء طبقات التشريح">
+            <p class="layer-loading">جارٍ تحميل طبقات النموذج…</p>
+          </div>
         </section>
 
         <section class="control-section anatomy-section">
           <div class="section-heading">
             <h2>مستكشف التراكيب</h2>
-            <span class="count-label">33 تركيبًا</span>
+            <span id="structure-count" class="count-label">32 تركيبًا</span>
           </div>
           <input id="anatomy-search" class="text-filter" type="search" placeholder="ابحث عن سن أو تركيب…" aria-label="ابحث في التراكيب التشريحية">
           <div id="structure-list" class="structure-list"></div>
@@ -71,7 +82,7 @@
             <button id="isolate-structure" class="small-action" type="button" disabled>عزل المحدد</button>
             <button id="restore-structures" class="small-action" type="button">إظهار الكل</button>
           </div>
-          <p class="asset-note">النموذج تعليمي بصري، ولا يُستخدم كمرجع تشخيصي أو لاتخاذ قرار علاجي.</p>
+          <p class="asset-note">نموذج تشريحي مشتق من تصوير CBCT لشخص واحد؛ لا يحتوي على اللسان أو الشفتين أو القرص المفصلي، ولا يُستخدم للتشخيص أو لاتخاذ قرار علاجي.</p>
           <p id="asset-status" class="asset-status" role="status">جارٍ تجهيز نموذج تشريح الفم…</p>
         </section>
       </aside>
