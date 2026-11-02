@@ -20,12 +20,12 @@ function createFixture() {
     diameter: 1, segments: 32
   }, scene);
   upperGum.scaling.set(1.25, 0.25, 0.12);
-  upperGum.position.set(0, 0.3, 0.1);
+  upperGum.position.set(0, 0.3, 0.19);
   const lowerGum = MeshBuilder.CreateSphere('FMA59764', {
     diameter: 1, segments: 32
   }, scene);
   lowerGum.scaling.set(1.25, 0.25, 0.12);
-  lowerGum.position.set(0, -0.3, 0.1);
+  lowerGum.position.set(0, -0.3, 0.19);
 
   const records = {
     FMA55681: {
