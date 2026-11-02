@@ -3561,16 +3561,21 @@ function updateClinicalTelemetry(force, dt) {
   if (contact) {
     clinicalSurface.contactSeconds += dt;
     const rotary = ['high-speed','low-speed','bur-kit'].includes(id);
+    const boneDrill = id === 'surgical-drill' && isClinicalBoneKey(key);
     const debriding = ['ultrasonic-scaler','gracey-curette','curette','periotome'].includes(id);
     const endodontic = ['endo-files','endo-spreader'].includes(id);
     const pressureScale = force / 2;
-    if (rotary && currentClinicalSpeed() > 0 && key.startsWith('tooth-')) {
+    if (((rotary && key.startsWith('tooth-')) || boneDrill) && currentClinicalSpeed() > 0) {
       const speedScale = currentClinicalSpeed() / 400000;
-      clinicalSurface.depthMm = Math.min(2.4, clinicalSurface.depthMm + dt * .74 * speedScale * pressureScale);
+      const maxDepth = boneDrill ? 4.5 : 2.4;
+      const depthRate = boneDrill ? .92 : .74;
+      clinicalSurface.depthMm = Math.min(maxDepth, clinicalSurface.depthMm + dt * depthRate * speedScale * pressureScale);
       const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'cut');
-      const radius = .04 + clinicalSurface.depthMm * .12;
+      const radius = boneDrill ? .08 + clinicalSurface.depthMm * .045 : .04 + clinicalSurface.depthMm * .12;
       mark.scaling.set(radius, .012 + clinicalSurface.depthMm * .006, radius);
-      clinicalTissueState.textContent = clinicalSurface.depthMm > 1.6 ? 'تحذير: عمق مرتفع' : 'إزالة سطحية';
+      clinicalTissueState.textContent = boneDrill
+        ? (clinicalSurface.depthMm > 2.8 ? 'تحذير: عمق عظمي مرتفع' : 'تحضير عظمي تعليمي')
+        : (clinicalSurface.depthMm > 1.6 ? 'تحذير: عمق مرتفع' : 'إزالة سطحية');
     } else if (debriding && (key.startsWith('tooth-') || key.startsWith('gingiva-'))) {
       clinicalSurface.depthMm = Math.min(1.1, clinicalSurface.depthMm + dt * .25 * pressureScale);
       const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'debridement');
