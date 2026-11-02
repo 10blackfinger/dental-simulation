@@ -6,11 +6,11 @@ Arabic-first 3D dental education prototype built with Vite and Babylon.js.
 
 ### Focused oral examination workspace
 - The first workspace is "فحص الأسنان", opening the detailed Dental Scope oral anatomy with the lower jaw articulated open, 32 permanent teeth and FDI tooth selection.
-- The 3D tool/material library supports drag-and-drop into the oral workspace. Tool shapes are distinct procedural study props; selected CC0 chairside tray, scaler, curing light and plaster arch models are also included.
-- A staged caries teaching overlay can be applied to a selected tooth. It illustrates a sequence of lesion removal, etch, bonding, restorative placement and curing; it is not a validated drilling/tissue simulation.
+- The searchable inventory contains 49 tools and material entries. Each entry has a distinct procedural 3D study model and can be selected or dragged into the oral workspace. Four additional CC0 GLB props are bundled: instrument tray, ultrasonic scaler, curing light and plaster arch.
+- The articulated lower jaw opens and closes at a hinge; FDI tooth selection places the training target on an actual Dental Scope tooth mesh. A staged caries overlay illustrates lesion removal, etching, bonding, restorative placement and curing. The overlay is a teaching visualization, not volumetric drilling or validated tissue response.
 
 ### Integrated chairside encounter
-- Default experience combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
+- A separate treatment-room mode combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
 - Male and female CC0 MakeHuman-derived GLB patient figures can be selected. The source has a reduced 57-bone rig, but this application currently uses a fixed horizontal pose, not clinically reviewed skeletal animations.
 - The mouth can be opened or closed by the user. A selected instrument or material prop can be moved slowly between tray and mouth by explicit user action.
 - Camera orbit/front/side/top views and a separate clinic-only scene remain available.
@@ -72,6 +72,8 @@ The address is live only when the latest workflow build, browser tests and Pages
 ## Known limitations
 - The imported patient is displayed in a fixed horizontal pose. There is no validated animation library, breathing, facial animation, lip/tongue rig or patient response system.
 - Dentist and assistant are procedural geometric stand-ins, not photorealistic or fully rigged characters.
+- The 49 procedural inventory models are simplified study props. The four imported CC0 GLBs are static meshes. The caries overlay changes visibly in stages, but it does not perform calibrated bur removal, force/contact simulation, fluid dynamics, tissue deformation, realistic instrument collision or validated treatment scoring.
+- The current tooth-level interactive treatment pathway is a caries/restoration teaching example. The other 11 pathways remain guided checklists; the repository does not yet contain complete, interactive 3D pathology/procedure simulations for every disease or instrument.
 - Instrument/material props are simplified. There is no force feedback, haptics, collision/contact simulation, bur cutting, tissue deformation, irrigation physics, fluid suction simulation or validated instrument calibration.
 - The imported clinic pack is static. Some chair controls are available only in the procedural fallback and do not actuate the static imported equipment.
 - The 12 pathways are explanatory checklists, not exhaustive coverage of every disease or rare case, full procedure walkthroughs or validated scoring.
