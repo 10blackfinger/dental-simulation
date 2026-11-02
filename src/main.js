@@ -336,11 +336,36 @@ sphere('TreatmentPatientMouth', .17, [0, .277, -.84], 'rubber', treatmentPatient
 const patientJawPivot = new TransformNode('TreatmentPatientLowerJawPivot', scene);
 patientJawPivot.parent = treatmentPatient;
 patientJawPivot.position.set(0, .08, -.81);
+patientJawPivot.rotation.x = .24;
 box('TreatmentPatientLowerJaw', [.31, .085, .2], [0, -.015, -.045], 'skin', patientJawPivot);
 for (let i = 0; i < 4; i++) {
   sphere('TreatmentPatientUpperTooth_' + i, .055, [-.09 + i * .06, .315, -.865], 'tooth', treatmentPatient, [1, .35, .7]);
   sphere('TreatmentPatientLowerTooth_' + i, .05, [-.09 + i * .06, .085, -.85], 'tooth', patientJawPivot, [1, .35, .7]);
 }
+// Hands-on restorative training tooth: distinct crown, roots, caries lesion and treatment states.
+const clinicalToothRoot = new TransformNode('ClinicalRestorationTooth', scene);
+clinicalToothRoot.parent = treatmentPatient;
+clinicalToothRoot.position.set(.12, .245, -.91);
+const clinicalToothCrown = sphere('ClinicalToothCrown', .245, [0, 0, 0], 'tooth', clinicalToothRoot, [1.05, .82, .92]);
+const clinicalToothNeck = cylinder('ClinicalToothNeck', .18, .105, [0, -.115, -.005], 'tooth', clinicalToothRoot, 24);
+clinicalToothNeck.rotation.x = Math.PI / 2;
+for (const dx of [-.055, .055]) {
+  const root = cylinder('ClinicalToothRoot_' + dx, .25, .065, [dx, -.27, -.005], 'tooth', clinicalToothRoot, 20);
+  root.rotation.z = dx < 0 ? -.12 : .12;
+}
+for (const dx of [-.065, .065]) {
+  sphere('ClinicalToothCusp_' + dx, .09, [dx, .065, -.015], 'tooth', clinicalToothRoot, [.8, .48, .8]);
+}
+const clinicalCariesLesion = sphere('ClinicalCariesLesion', .092, [.055, .012, -.092], 'dark', clinicalToothRoot, [1, .78, .34]);
+const clinicalCariesTint = new StandardMaterial('ClinicalCariesTint', scene);
+clinicalCariesTint.diffuseColor = new Color3(.20, .075, .035);
+clinicalCariesTint.specularColor = new Color3(.04, .03, .02);
+clinicalCariesLesion.material = clinicalCariesTint;
+const clinicalCavity = sphere('ClinicalPreparedCavity', .068, [.055, .012, -.086], 'dark', clinicalToothRoot, [1, .68, .26]);
+clinicalCavity.setEnabled(false);
+const clinicalRestoration = sphere('ClinicalCompositeRestoration', .067, [.055, .012, -.091], 'accent', clinicalToothRoot, [1, .72, .3]);
+clinicalRestoration.setEnabled(false);
+clinicalToothRoot.metadata = { title: 'ضرس تدريبي مصاب بالتسوس', detail: 'نموذج تعليمي لحالة تسوس إطباقي؛ تغيرات العلاج هنا مرئية ومبسطة وليست محاكاة نسيجية أو توصية علاجية.' };
 box('TreatmentPatientBib', [.62, .045, .72], [0, .39, -.12], 'white', treatmentPatient);
 for (const side of [-1, 1]) {
   tube('TreatmentPatientUpperArm_' + side, [[side*.32,.02,-.5],[side*.52,-.02,-.18],[side*.56,-.08,.2]], .105, 'gown', treatmentPatient);
