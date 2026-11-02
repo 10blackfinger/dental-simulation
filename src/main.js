@@ -26,6 +26,13 @@ const isolateButton = document.getElementById('isolate-structure');
 const restoreButton = document.getElementById('restore-structures');
 const selectionName = document.getElementById('selection-name');
 const selectionDescription = document.getElementById('selection-description');
+const jawAngleInput = document.getElementById('jaw-angle');
+const jawAngleValue = document.getElementById('jaw-angle-value');
+const jawAngleStatus = document.getElementById('jaw-angle-status');
+const jawPresetButtons = [...document.querySelectorAll('[data-jaw-angle]')];
+let mandiblePivot = null;
+let targetJawAngleRadians = 0;
+let jawRotationSign = -1;
 
 if (!canvas) throw new Error('3D canvas is missing.');
 
@@ -100,6 +107,105 @@ function setStatus(message, state) {
 function setSelection(title, detail) {
   selectionName.textContent = title;
   selectionDescription.textContent = detail;
+}
+
+function updateJawAngle(degrees) {
+  const angle = Math.max(0, Math.min(40, Math.round(Number(degrees) || 0)));
+  if (jawAngleInput) jawAngleInput.value = String(angle);
+  if (jawAngleValue) jawAngleValue.textContent = angle + '°';
+  targetJawAngleRadians = jawRotationSign * angle * Math.PI / 180;
+
+  for (const button of jawPresetButtons) {
+    const selected = Number(button.dataset.jawAngle) === angle;
+    button.classList.toggle('selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  }
+  if (jawAngleStatus) {
+    jawAngleStatus.textContent = angle === 0
+      ? 'الفك في وضع الإغلاق.'
+      : 'زاوية الفتح الحالية: ' + angle + ' درجة.';
+  }
+}
+
+function registerJawPivot(pivot, movingNodes, rotationSign) {
+  const nodes = [...new Set(movingNodes)].filter(Boolean);
+  if (!pivot || !nodes.length) {
+    if (jawAngleStatus) jawAngleStatus.textContent = 'تعذر تحديد أجزاء الفك السفلي القابلة للحركة.';
+    return false;
+  }
+
+  pivot.computeWorldMatrix(true);
+  for (const node of nodes) {
+    if (node === pivot) continue;
+    node.computeWorldMatrix(true);
+    node.setParent(pivot);
+  }
+
+  mandiblePivot = pivot;
+  jawRotationSign = rotationSign;
+  updateJawAngle(Number(jawAngleInput?.value || 0));
+  if (jawAngleInput) jawAngleInput.disabled = false;
+  for (const button of jawPresetButtons) button.disabled = false;
+  if (jawAngleStatus) jawAngleStatus.textContent = 'حرّك المؤشر لتغيير زاوية فتح الفك السفلي.';
+  return true;
+}
+
+function worldBoundsForMeshes(meshes) {
+  const min = new Vector3(Infinity, Infinity, Infinity);
+  const max = new Vector3(-Infinity, -Infinity, -Infinity);
+  let count = 0;
+  for (const mesh of meshes) {
+    if (!mesh?.getBoundingInfo || !mesh.getTotalVertices?.()) continue;
+    mesh.computeWorldMatrix(true);
+    const bounds = mesh.getBoundingInfo().boundingBox;
+    min.minimizeInPlace(bounds.minimumWorld);
+    max.maximizeInPlace(bounds.maximumWorld);
+    count++;
+  }
+  return count ? { min, max } : null;
+}
+
+function createImportedJawPivot() {
+  if (!anatomyRoot) return false;
+
+  const lowerIds = anatomyCatalog
+    .filter(item => item.id.startsWith('lower-') || item.id === 'mandible')
+    .map(item => item.id);
+  const movingNodes = lowerIds.flatMap(id => meshesForStructure(id));
+  const uniqueNodes = [...new Set(movingNodes)];
+  if (!uniqueNodes.length) return false;
+
+  const mandibleMeshes = meshesForStructure('mandible');
+  const jawBounds = worldBoundsForMeshes(mandibleMeshes.length ? mandibleMeshes : uniqueNodes);
+  if (!jawBounds) return false;
+
+  const incisors = [
+    ...meshesForStructure('lower-left-central-incisor'),
+    ...meshesForStructure('lower-right-central-incisor')
+  ];
+  const incisorBounds = worldBoundsForMeshes(incisors);
+  const jawCenterZ = (jawBounds.min.z + jawBounds.max.z) / 2;
+  const frontZ = incisorBounds
+    ? (incisorBounds.min.z + incisorBounds.max.z) / 2
+    : jawCenterZ - 0.01;
+  const frontIsMinZ = frontZ < jawCenterZ;
+  const hingeZ = frontIsMinZ ? jawBounds.max.z : jawBounds.min.z;
+  const hingeWorld = new Vector3(
+    (jawBounds.min.x + jawBounds.max.x) / 2,
+    jawBounds.max.y,
+    hingeZ
+  );
+
+  const inverseRoot = anatomyRoot.getWorldMatrix().clone();
+  inverseRoot.invert();
+  const hingeLocal = Vector3.TransformCoordinates(hingeWorld, inverseRoot);
+  const pivot = new TransformNode('MandibleOpeningPivot', scene);
+  pivot.parent = anatomyRoot;
+  pivot.position.copyFrom(hingeLocal);
+  pivot.rotation.setAll(0);
+  pivot.computeWorldMatrix(true);
+
+  return registerJawPivot(pivot, uniqueNodes, frontIsMinZ ? -1 : 1);
 }
 
 function setCamera(mode) {
@@ -238,6 +344,7 @@ function makeFallbackModel() {
     'first-premolar', 'second-premolar', 'first-molar', 'second-molar'
   ];
   const xPositions = [0.12, 0.31, 0.57, 0.84, 1.1, 1.34, 1.52];
+  const fallbackLowerNodes = [];
 
   function addArch(arch, y) {
     const gumPath = [];
@@ -248,6 +355,7 @@ function makeFallbackModel() {
     const gum = MeshBuilder.CreateTube(arch + '-gum', { path: gumPath, radius: 0.2, tessellation: 18 }, scene);
     gum.material = materials.fallbackGum;
     gum.parent = fallbackRoot;
+    if (arch === 'lower') fallbackLowerNodes.push(gum);
     anatomyMeshes.push(gum);
     const gumId = arch + '-gum';
     gum.metadata = { structureId: gumId };
@@ -259,6 +367,7 @@ function makeFallbackModel() {
         const z = 0.24 + (0.62 * Math.sin(Math.acos(Math.min(0.99, xPositions[index] / 1.55))));
         const toothGroup = new TransformNode(id, scene);
         toothGroup.parent = fallbackRoot;
+        if (arch === 'lower') fallbackLowerNodes.push(toothGroup);
         const root = MeshBuilder.CreateCylinder(id + '_root', {
           height: 0.42,
           diameterTop: 0.14,
@@ -301,6 +410,13 @@ function makeFallbackModel() {
   mandible.parent = fallbackRoot;
   mandible.metadata = { structureId: 'mandible' };
   anatomyMeshes.push(maxillaRight, maxillaLeft, mandible);
+  fallbackLowerNodes.push(mandible);
+
+  const pivot = new TransformNode('FallbackMandibleOpeningPivot', scene);
+  pivot.parent = fallbackRoot;
+  pivot.position.set(0, -0.43, 0.24);
+  pivot.computeWorldMatrix(true);
+  registerJawPivot(pivot, fallbackLowerNodes, -1);
 }
 
 async function loadCatalog() {
@@ -387,7 +503,11 @@ async function loadOralAnatomy() {
   try {
     anatomyContainer = await SceneLoader.LoadAssetContainerAsync(localRoot, 'oral-anatomy.glb', scene);
     attachCenteredContainer(anatomyContainer);
-    setStatus('تم تحميل نموذج تشريح الفم. اختر أي تركيب لاستكشافه.', 'ok');
+    if (!createImportedJawPivot()) {
+      setStatus('تم تحميل نموذج تشريح الفم، لكن تعذر تهيئة حركة الفك السفلي.', 'warn');
+    } else {
+      setStatus('تم تحميل نموذج تشريح الفم. يمكنك تغيير زاوية فتح الفك السفلي.', 'ok');
+    }
   } catch (localError) {
     console.warn('Local oral anatomy model unavailable; trying the original source.', localError);
     try {
@@ -397,7 +517,11 @@ async function loadOralAnatomy() {
         scene
       );
       attachCenteredContainer(anatomyContainer);
-      setStatus('تم تحميل نموذج تشريح الفم من المصدر الخارجي.', 'ok');
+      if (!createImportedJawPivot()) {
+        setStatus('تم تحميل نموذج تشريح الفم، لكن تعذر تهيئة حركة الفك السفلي.', 'warn');
+      } else {
+        setStatus('تم تحميل نموذج تشريح الفم من المصدر الخارجي.', 'ok');
+      }
     } catch (remoteError) {
       console.error('Oral anatomy model could not be loaded.', remoteError);
       makeFallbackModel();
@@ -436,6 +560,11 @@ searchElement?.addEventListener('input', event => renderStructureList(event.targ
 isolateButton?.addEventListener('click', isolateSelected);
 restoreButton?.addEventListener('click', restoreAll);
 
+jawAngleInput?.addEventListener('input', event => updateJawAngle(event.target.value));
+for (const button of jawPresetButtons) {
+  button.addEventListener('click', () => updateJawAngle(button.dataset.jawAngle));
+}
+
 const compactDevice = window.matchMedia('(max-width: 760px)').matches ||
   (navigator.hardwareConcurrency || 4) <= 4;
 engine.setHardwareScalingLevel(compactDevice ? 1.25 : 1);
@@ -444,7 +573,13 @@ const frameInterval = compactDevice ? 1000 / 30 : 1000 / 45;
 engine.runRenderLoop(() => {
   const now = performance.now();
   if (now - lastFrameTime < frameInterval) return;
+  const deltaMs = lastFrameTime ? Math.min(100, now - lastFrameTime) : frameInterval;
   lastFrameTime = now;
+  if (mandiblePivot) {
+    const difference = targetJawAngleRadians - mandiblePivot.rotation.x;
+    mandiblePivot.rotation.x += difference * (1 - Math.exp(-deltaMs / 115));
+    if (Math.abs(difference) < 0.0005) mandiblePivot.rotation.x = targetJawAngleRadians;
+  }
   scene.render();
 });
 window.addEventListener('resize', () => {
