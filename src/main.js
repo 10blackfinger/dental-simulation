@@ -2750,7 +2750,7 @@ const clinicalProcedureFlows = {
   ],
   implant: [
     { tool:'intraoral-scanner', label:'تسجيل موضع التعويض الرقمي', effect:'scan', contact:'tooth' },
-    { tool:'surgical-drill', label:'تمثيل موضع تحضير عظمي افتراضي', effect:'implant-site', contact:'gingiva' },
+    { tool:'surgical-drill', label:'تحضير حفرة عظمية تعليمية', effect:'implant-site', contact:'bone', depth:.07 },
     { tool:'implant-fixture-kit', label:'إظهار جسم زرعة تعليمي', effect:'implant-fixture', contact:'gingiva' },
     { tool:'suture-material', label:'إظهار خيط إغلاق موضعي', effect:'suture', contact:'gingiva' }
   ],
@@ -2848,10 +2848,10 @@ function alignCSG2VertexAttributes(sourceMesh, cutter) {
     cutter.setVerticesData(kind, data, true, stride);
   }
 }
-async function applyDentalBooleanWear() {
+async function applyDentalBooleanWear(cutterDiameter = .28) {
   const sourceMesh = clinicalSurface.targetMesh;
   const key = clinicalSurface.targetKey;
-  if (!sourceMesh || !key?.startsWith('tooth-') || !clinicalSurface.contactPoint) return false;
+  if (!sourceMesh || !(key?.startsWith('tooth-') || isClinicalBoneKey(key)) || !clinicalSurface.contactPoint) return false;
   await ensureDentalBooleanEngine();
   const path = clinicalSurface.contactTrace.length
     ? clinicalSurface.contactTrace.filter(sample => sample.key === key)
@@ -2869,10 +2869,10 @@ async function applyDentalBooleanWear() {
       const localPoint = localPointForMesh(sourceMesh, sample.point);
       const inverse = Matrix.Invert(sourceMesh.computeWorldMatrix(true));
       const localNormal = Vector3.TransformNormal(sample.normal || Vector3.Up(), inverse).normalize();
-      const cutter = MeshBuilder.CreateSphere('DentalBurBooleanCutter_' + i, { diameter:.28, segments:16 }, scene);
+      const cutter = MeshBuilder.CreateSphere('DentalBurBooleanCutter_' + i, { diameter:cutterDiameter, segments:18 }, scene);
       let cutterCSG = null;
       try {
-        cutter.position.copyFrom(localPoint).subtractInPlace(localNormal.scale(.065));
+        cutter.position.copyFrom(localPoint).subtractInPlace(localNormal.scale(cutterDiameter * .23));
         cutter.scaling.set(1, .74, 1);
         cutter.bakeCurrentTransformIntoVertices();
         alignCSG2VertexAttributes(sourceMesh, cutter);
@@ -3090,6 +3090,10 @@ function performGuidedClinicalProcedure() {
     clinicalSimulationFeedback.textContent = 'الموضع المستهدف لهذه الخطوة هو سطح اللثة.';
     return false;
   }
+  if (step.contact === 'bone' && !isClinicalBoneKey(clinicalSurface.targetKey)) {
+    clinicalSimulationFeedback.textContent = 'اختر سطح عظم الفك أو الناتئ السنخي قبل تحضير موضع الزراعة التعليمي.';
+    return false;
+  }
   if (step.depth && clinicalSurface.depthMm < step.depth) {
     clinicalSimulationFeedback.textContent = 'استمر في التلامس السطحي المنضبط حتى يظهر تقدم التحضير التعليمي المطلوب.';
     return false;
@@ -3102,11 +3106,21 @@ function performGuidedClinicalProcedure() {
     clinicalSimulationFeedback.textContent = 'فعّل تدفق الري في لوحة محرك التلامس أولًا.';
     return false;
   }
+  let booleanPreparation = false;
+  if (['access','prep'].includes(step.effect) && clinicalSurface.targetKey.startsWith('tooth-')) {
+    try { booleanPreparation = await applyDentalBooleanWear(.24); }
+    catch (error) { console.warn('Tooth preparation Boolean failed; keeping the surface preparation fallback.', error); }
+  } else if (step.effect === 'implant-site' && isClinicalBoneKey(clinicalSurface.targetKey)) {
+    try { booleanPreparation = await applyDentalBooleanWear(.48); }
+    catch (error) { console.warn('Bone site Boolean failed; keeping the implant site marker fallback.', error); }
+  }
   addProcedureVisual(step.effect);
   activeClinicalProcedureIndex += 1;
   const next = flow[activeClinicalProcedureIndex];
   document.getElementById('caries-stage-label').textContent = 'خطوة ' + activeClinicalProcedureIndex + ' / ' + flow.length;
-  document.getElementById('caries-procedure-help').textContent = step.label + ' — سُجلت نتيجة بصرية على المجسم المحدد.';
+  document.getElementById('caries-procedure-help').textContent = step.label + (booleanPreparation
+    ? ' — تم تعديل هندسة السطح فعليًا بعملية طرح Boolean ثلاثية الأبعاد.'
+    : ' — أضيفت نتيجة تفاعلية إلى المجسم المحدد.');
   clinicalSimulationFeedback.textContent = next
     ? 'اكتملت: ' + step.label + '. الخطوة التالية: ' + (dentalInventory.find(item => item.id === next.tool)?.name || next.tool) + '.'
     : 'اكتمل المسار التفاعلي لهذه الحالة. التقييم النهائي تعليمي وليس شهادة كفاءة سريرية.';
@@ -3368,9 +3382,12 @@ function clinicalMeshKey(mesh) {
   }
   return null;
 }
+function isClinicalBoneKey(key) {
+  return ['mandible-body','mandibular-alveolar-process','maxilla-right','maxilla-left'].includes(key);
+}
 function isClinicalSurfaceMesh(mesh) {
   const key = clinicalMeshKey(mesh);
-  return !!key && (/^tooth-\d{2}$/.test(key) || key.startsWith('gingiva-'));
+  return !!key && (/^tooth-\d{2}$/.test(key) || key.startsWith('gingiva-') || isClinicalBoneKey(key));
 }
 function pickClinicalSurface(event) {
   const rect = canvas.getBoundingClientRect();
@@ -3506,7 +3523,7 @@ function updateClinicalSurfaceFromPick(pick) {
   }
   isPropAtMouth = true;
   canvas.classList.add('clinical-contact-armed');
-  clinicalContactState.textContent = 'ملامسة ' + (key.startsWith('tooth-') ? 'السن FDI ' + key.slice(-2) : 'اللثة');
+  clinicalContactState.textContent = 'ملامسة ' + (key.startsWith('tooth-') ? 'السن FDI ' + key.slice(-2) : key.startsWith('gingiva-') ? 'اللثة' : 'عظم الفك');
   clinicalSimulationFeedback.textContent = 'تم اكتشاف تقاطع شعاع المؤشر مع سطح تشريحي فعلي. استمر بالسحب لرسم مسار تلامس الأداة.';
   return true;
 }
