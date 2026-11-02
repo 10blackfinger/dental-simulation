@@ -16,6 +16,9 @@ const SOURCE = {
 
 const PALETTE = {
   chalk: '#e9e6d5',
+  white: '#f4eee0',
+  candidiasisWhite: '#f4eee0',
+  leukoplakiaWhite: '#ece7d9',
   white: '#f6f1dc',
   cariesRim: '#916044',
   cariesCore: '#241915',
@@ -50,6 +53,7 @@ export function createPathologyRenderer(scene) {
   const effectRoots = [];
   const originalMaterials = new Map();
   const originalTransforms = new Map();
+  const tintMaterials = new Set();
 
   function material(key, alpha = 1, emissive = 0) {
     const cacheKey = key + ':' + alpha + ':' + emissive;
@@ -77,6 +81,7 @@ export function createPathologyRenderer(scene) {
     if ('albedoColor' in clone && clone.albedoColor) clone.albedoColor = Color3.Lerp(clone.albedoColor, color, intensity);
     if ('emissiveColor' in clone && intensity > 0.3) clone.emissiveColor = color.scale(0.08 * intensity);
     mesh.material = clone;
+    tintMaterials.add(clone);
   }
 
   function resetVisuals() {
@@ -87,6 +92,8 @@ export function createPathologyRenderer(scene) {
       if (current && current !== original) current.dispose(false, false);
     }
     originalMaterials.clear();
+    for (const tint of tintMaterials) tint.dispose(false, false);
+    tintMaterials.clear();
     for (const [mesh, transform] of originalTransforms) {
       mesh.position.copyFrom(transform.position);
       mesh.rotation.copyFrom(transform.rotation);
