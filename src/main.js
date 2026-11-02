@@ -3118,7 +3118,7 @@ function updateClinicalTelemetry(force, dt) {
 }
 function updateClinicalParticles(dt) {
   const suction = ['saliva-ejector','high-volume-suction'].includes(selectedInventoryItem?.id) &&
-    clinicalSurface.dragging && clinicalSurface.targetPoint;
+    clinicalSurface.dragging && clinicalSurface.contactPoint;
   for (let i = clinicalSurface.particles.length - 1; i >= 0; i--) {
     const particle = clinicalSurface.particles[i];
     particle.age += dt;
