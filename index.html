@@ -71,6 +71,50 @@
           </div>
         </section>
 
+        <section class="control-section pathology-section" aria-labelledby="pathology-title">
+          <div class="section-heading">
+            <h2 id="pathology-title">محاكي أمراض الأسنان</h2>
+            <span id="pathology-count" class="count-label">0 حالة نشطة</span>
+          </div>
+          <p class="pathology-intro">اختر المرض والسن والمرحلة، وشاهد أثر الإصابة على المجسم والأنسجة المرتبطة به.</p>
+          <label class="pathology-label" for="pathology-category">مجموعة الأمراض</label>
+          <select id="pathology-category" class="pathology-select"></select>
+          <label class="pathology-label" for="pathology-search">ابحث عن حالة</label>
+          <input id="pathology-search" class="text-filter" type="search" placeholder="اكتب اسم المرض أو التشخيص…">
+          <label class="pathology-label" for="pathology-condition">الحالة المرضية</label>
+          <select id="pathology-condition" class="pathology-select"></select>
+          <div id="pathology-info" class="pathology-info" aria-live="polite">
+            <b id="pathology-name">اختر حالة مرضية</b>
+            <p id="pathology-summary">سيظهر هنا وصف الحالة والأعراض والعلامات والفحص الشعاعي المتوقع.</p>
+            <dl class="pathology-facts">
+              <div><dt>الأعراض</dt><dd id="pathology-symptoms">—</dd></div>
+              <div><dt>العلامات</dt><dd id="pathology-signs">—</dd></div>
+              <div><dt>الأشعة</dt><dd id="pathology-radiographic">—</dd></div>
+              <div><dt>الأنسجة المتأثرة</dt><dd id="pathology-tissues">—</dd></div>
+            </dl>
+            <p id="pathology-caution" class="pathology-caution" hidden></p>
+          </div>
+          <label class="pathology-label" for="pathology-target">موضع الإصابة</label>
+          <select id="pathology-target" class="pathology-select"></select>
+          <div class="section-heading pathology-stage-heading">
+            <label class="pathology-label" for="pathology-stage">مرحلة العرض</label>
+            <output id="pathology-severity-value" class="jaw-angle-value">2 / 4</output>
+          </div>
+          <select id="pathology-stage" class="pathology-select"></select>
+          <label class="pathology-label" for="pathology-severity">شدة المظهر</label>
+          <input id="pathology-severity" class="jaw-angle-range" type="range" min="1" max="4" step="1" value="2">
+          <div class="jaw-angle-scale"><span>خفيفة</span><span>متوسطة</span><span>شديدة</span></div>
+          <div class="pathology-actions">
+            <button id="apply-pathology" class="pathology-primary" type="button">تطبيق الحالة على المجسم</button>
+            <button id="advance-pathology" class="small-action" type="button" disabled>تطور الحالة النشطة</button>
+            <button id="clear-pathologies" class="small-action" type="button">إزالة جميع الحالات</button>
+          </div>
+          <div id="active-pathologies" class="active-pathologies">
+            <p class="pathology-empty">لم تتم إضافة حالات مرضية بعد.</p>
+          </div>
+          <p class="pathology-disclaimer">محاكاة تعليمية بصرية وليست تشخيصًا أو تخطيطًا علاجيًا. بعض الأنسجة غير موجودة في النموذج الأصلي؛ تُستخدم علامات بديلة موضحة، ولا تمثل تطور المرض الحقيقي زمنيًا.</p>
+        </section>
+
         <section class="control-section anatomy-section">
           <div class="section-heading">
             <h2>مستكشف التراكيب</h2>
