@@ -126,6 +126,8 @@ test('online tutor, square responsive workspace, dental models and training work
     'models/dental-tools/ultrasonic-scaler.glb',
     'models/dental-tools/curing-light.glb',
     'models/dental-tools/plaster-study-arch.glb',
+    'models/dental-tools/surgical-forceps.glb',
+    'models/dental-tools/scalpel-set.glb',
     'models/pediatric-dentition/primary-tooth-74.glb'
   ]) {
     const response = await page.request.head(new URL(asset, page.url()).toString());
