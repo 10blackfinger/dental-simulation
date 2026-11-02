@@ -34,10 +34,22 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 
   await expect(page.locator('#jaw-angle')).toBeEnabled();
   await expect(page.locator('#jaw-angle-status')).toHaveAttribute('data-joint-ready', 'true');
+  await expect(page.locator('#jaw-angle-status')).toHaveAttribute('data-lower-tooth-meshes', '14');
+  await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-attached-tooth-meshes'))).toBeGreaterThan(0);
+  await expect.poll(async () => Boolean(await page.locator('#jaw-angle-status').getAttribute('data-jaw-probe-position'))).toBeTruthy();
+  const closedToothPosition = (await page.locator('#jaw-angle-status').getAttribute('data-jaw-probe-position')).split(',').map(Number);
+
   await page.locator('[data-jaw-angle="30"]').click();
   await expect(page.locator('#jaw-angle')).toHaveValue('30');
   await expect(page.locator('#jaw-angle-value')).toHaveText('30°');
   await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle'))).toBeGreaterThan(29);
+  const openToothPosition = await page.waitForFunction(() => {
+    const raw = document.querySelector('#jaw-angle-status')?.dataset.jawProbePosition;
+    if (!raw) return null;
+    const current = raw.split(',').map(Number);
+    return current;
+  }).then(handle => handle.jsonValue());
+  expect(Math.hypot(...openToothPosition.map((value, index) => value - closedToothPosition[index]))).toBeGreaterThan(0.05);
   await page.locator('#jaw-angle').evaluate(input => {
     input.value = '17';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -47,6 +59,8 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#jaw-angle')).toHaveValue('0');
   await expect(page.locator('#jaw-angle-value')).toHaveText('0°');
   await expect.poll(async () => Math.abs(Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle')))).toBeLessThan(1);
+  const returnedToothPosition = (await page.locator('#jaw-angle-status').getAttribute('data-jaw-probe-position')).split(',').map(Number);
+  expect(Math.hypot(...returnedToothPosition.map((value, index) => value - closedToothPosition[index]))).toBeLessThan(0.015);
 
   await page.locator('#anatomy-search').fill('القاطع المركزي');
   await expect(page.locator('#structure-list .structure-button')).toHaveCount(4);

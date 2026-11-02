@@ -9,9 +9,9 @@
     "prebuild": "node scripts/fetch-assets.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check src/main.js && node --check src/pathology-catalog.js && node --check src/pathology-visuals.js && node --check scripts/fetch-assets.mjs && node --check playwright.config.js && node --check tests/simulation.spec.js && node --check tests/pathology-visuals.test.js",
+    "check": "node --check src/main.js && node --check src/jaw-motion.js && node --check src/pathology-catalog.js && node --check src/pathology-visuals.js && node --check scripts/fetch-assets.mjs && node --check playwright.config.js && node --check tests/simulation.spec.js && node --check tests/pathology-visuals.test.js",
     "test:e2e": "playwright test",
-    "test:unit": "node --test tests/pathology-catalog.test.js tests/pathology-visuals.test.js"
+    "test:unit": "node --test tests/pathology-catalog.test.js tests/pathology-visuals.test.js tests/jaw-motion.test.js"
   },
   "dependencies": {
     "@babylonjs/core": "^8.29.0",
