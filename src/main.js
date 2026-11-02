@@ -3,7 +3,7 @@ import '@babylonjs/loaders/glTF';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import {
-  Engine, Scene, Vector3, Color3, Color4, HemisphericLight, DirectionalLight, PointLight,
+  Engine, Scene, Vector3, Color3, Color4, Matrix, Quaternion, HemisphericLight, DirectionalLight, PointLight,
   ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager,
   ExecuteCodeAction, PointerEventTypes, Animation, CubicEase, EasingFunction
 } from '@babylonjs/core';
@@ -1266,6 +1266,15 @@ let dentalSelectedKey = null;
 let dentalIsolatedKey = null;
 let dentalSelectedFdi = null;
 let dentalSelectedToothDetails = null;
+let dentalLowerJawPivot = null;
+let dentalLowerJawMeshes = [];
+let dentalJawOpenAngle = 0.42;
+let currentCariesTarget = '36';
+const oralCariesOverlays = new Map();
+const oralInventoryModels = new Map();
+const oralSceneProps = new Map();
+let selectedOralInventoryRoot = null;
+const oralInventoryTrayPosition = new Vector3(7.2, -1.4, 2.6);
 const dentalToothDetails = new Map();
 const dentalLayerState = {
   enamel: true,
@@ -1343,6 +1352,69 @@ function registerDentalMeshes(container, validKeys) {
     records.push({key,mesh});
   }
   return records;
+}
+function isLowerJawStructureKey(key) {
+  return /^tooth-[34]\d$/.test(key) ||
+    key === 'gingiva-lower' ||
+    key === 'mandible-body' ||
+    key === 'mandibular-alveolar-process' ||
+    key === 'mandibular-condyle-right' ||
+    key === 'mandibular-condyle-left' ||
+    /^mandibular-(ramus|body|condyle|coronoid)/.test(key);
+}
+function preserveWorldParent(mesh, parent) {
+  mesh.computeWorldMatrix(true);
+  const world = mesh.getWorldMatrix().clone();
+  parent.computeWorldMatrix(true);
+  const parentInverse = Matrix.Invert(parent.getWorldMatrix());
+  const local = world.multiply(parentInverse);
+  const scaling = Vector3.One();
+  const rotation = Quaternion.Identity();
+  const position = Vector3.Zero();
+  if (!local.decompose(scaling, rotation, position)) {
+    throw new Error('Could not preserve dental mesh transform while attaching lower jaw.');
+  }
+  mesh.parent = parent;
+  mesh.position.copyFrom(position);
+  mesh.scaling.copyFrom(scaling);
+  mesh.rotationQuaternion = rotation;
+  mesh.computeWorldMatrix(true);
+}
+function configureDentalLowerJawPivot() {
+  if (dentalLowerJawPivot || !dentalScopeRoot) return;
+  // Dental Scope coordinates are centimetres, +Y up and +Z anterior.
+  // This hinge sits near the condyles; lower teeth, gingiva and mandible rotate together.
+  dentalLowerJawPivot = new TransformNode('DentalLowerJawHinge', scene);
+  dentalLowerJawPivot.parent = dentalScopeRoot;
+  dentalLowerJawPivot.position.set(0, 4.1, -5.63);
+  dentalLowerJawPivot.rotation.setAll(0);
+  dentalLowerJawPivot.computeWorldMatrix(true);
+  dentalLowerJawMeshes = [];
+  for (const record of dentalMeshRecords) {
+    if (!isLowerJawStructureKey(record.key)) continue;
+    preserveWorldParent(record.mesh, dentalLowerJawPivot);
+    record.mesh.metadata = record.mesh.metadata || {};
+    record.mesh.metadata.dentalJawGroup = 'lower';
+    dentalLowerJawMeshes.push(record.mesh);
+  }
+  if (dentalLowerJawMeshes.length < 25) {
+    throw new Error('Lower jaw pivot did not attach the expected tooth and mandible structures.');
+  }
+  dentalLowerJawPivot.rotation.x = dentalJawOpenAngle;
+}
+function setDentalJawOpen(open) {
+  if (!dentalLowerJawPivot) return;
+  dentalLowerJawPivot.getScene().stopAnimation(dentalLowerJawPivot);
+  const target = open ? dentalJawOpenAngle : 0;
+  const animation = new Animation('DentalScopeMandibleOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+  animation.setKeys([
+    { frame: 0, value: dentalLowerJawPivot.rotation.x },
+    { frame: 54, value: target }
+  ]);
+  const ease = new CubicEase();
+  ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+  animation.setEasingFunction(ease);
+  scene.beginDirectAnimation(dentalLowerJawPivot, [animation], 0, 54, false);
 }
 function dentalArabicLabel(key) {
   if(/^tooth-\d{2}$/.test(key))return dentalToothLabel(key.slice(-2));
@@ -1535,6 +1607,7 @@ async function ensureDentalScope() {
     }
     if(dentalMeshRecords.length<120)throw new Error('Dental atlas did not expose enough of the expected named mesh records.');
     dentalStructureRecords=[...new Map(dentalMeshRecords.map(record=>[record.key,record])).values()].sort((a,b)=>a.key.localeCompare(b.key));
+    configureDentalLowerJawPivot();
     dentalScopeRoot.setEnabled(true);
     root.setEnabled(false);
     clinicAssetRoot?.setEnabled(false);
