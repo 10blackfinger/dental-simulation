@@ -1936,7 +1936,7 @@ async function ensureOralSceneProps() {
       const container = await loadContainer(def.file, def.url, 'model.glb');
       const mounted = attachCenteredContainer(container, 'OralSceneProp_' + def.id, def.size);
       mounted.group.parent = dentalScopeRoot;
-      mounted.group.position.set(...def.position);
+      mounted.group.position.addInPlace(new Vector3(...def.position));
       mounted.group.rotation.set(...def.rotation);
       mounted.group.metadata = { title:def.id, detail:'نموذج ثلاثي الأبعاد ثابت من حزمة CC0 تعليمية؛ لا يحاكي الحركة أو المعايرة السريرية.' };
       mounted.group.setEnabled(true);
