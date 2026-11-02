@@ -833,6 +833,7 @@ export function createPathologyRenderer(scene) {
       case 'mucogingival-defect':
       case 'traumatic-occlusal-injury':
       case 'hypodontia':
+      case 'missing-tooth':
       case 'supernumerary-tooth':
       case 'macrodontia':
       case 'fusion':
@@ -859,7 +860,7 @@ export function createPathologyRenderer(scene) {
             addCrack(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'fracture', 0.006);
           }
           if (visual === 'dilaceration') bendToothRoot(parts, tooth, 0.02 + progression * 0.03);
-          if (visual === 'hypodontia') hideTooth(parts);
+          if (visual === 'hypodontia' || visual === 'missing-tooth') hideTooth(parts);
           if (visual === 'supernumerary-tooth') cloneTooth(parts, tooth, progression);
           if (visual === 'impacted-tooth' || visual === 'ectopic-eruption') {
             const extent = getBounds(base || enamel)?.extent || new Vector3(0.1, 0.2, 0.1);
