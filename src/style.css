@@ -184,3 +184,13 @@ body{overscroll-behavior:none}
 .clinical-force-track span{display:block;width:0;height:100%;background:linear-gradient(90deg,#41cba9,#e6bb67,#dc725f);transition:width .08s linear}
 #render-canvas.clinical-contact-armed{cursor:crosshair}
 #render-canvas.clinical-contact-dragging{cursor:grabbing;outline:2px solid rgba(62,216,188,.8);outline-offset:-5px}
+
+
+.clinic-animation-section[hidden]{display:none}
+.clinic-animation-list{display:grid;gap:6px;max-height:240px;overflow:auto;margin:9px 0}
+.clinic-animation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;padding:8px;background:#142438;border:1px solid #2a4056;border-radius:8px}
+.clinic-animation-meta{display:grid;min-width:0;gap:3px}
+.clinic-animation-meta b{font-size:9px;color:#d5e4f0;overflow-wrap:anywhere}
+.clinic-animation-meta small{font-size:8px;color:#849bb1;overflow-wrap:anywhere}
+.clinic-animation-play{min-width:68px;flex:none}
+.clinic-animation-play.active{background:#14594f;border-color:#2ba68f;color:#b4fff0}
