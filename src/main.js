@@ -402,9 +402,6 @@ function setPathologyAvailability(available) {
   }
   if (pathologyTargetElement && !available) pathologyTargetElement.disabled = true;
   else if (pathologyTargetElement) pathologyTargetElement.disabled = false;
-  if (!available && pathologyNameElement && clinicalModelActive === false) {
-    pathologySummaryElement.textContent = 'تأثير الأمراض يتطلب تحميل النموذج التشريحي الكامل من بيانات CBCT.';
-  }
 }
 
 function initializePathologyControls() {
