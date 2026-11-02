@@ -114,6 +114,7 @@ function updateJawAngle(degrees) {
   if (jawAngleInput) jawAngleInput.value = String(angle);
   if (jawAngleValue) jawAngleValue.textContent = angle + '°';
   targetJawAngleRadians = jawRotationSign * angle * Math.PI / 180;
+  if (jawAngleValue) jawAngleValue.dataset.targetAngle = String(angle);
 
   for (const button of jawPresetButtons) {
     const selected = Number(button.dataset.jawAngle) === angle;
@@ -143,6 +144,7 @@ function registerJawPivot(pivot, movingNodes, rotationSign) {
 
   mandiblePivot = pivot;
   jawRotationSign = rotationSign;
+  if (jawAngleStatus) jawAngleStatus.dataset.jointReady = 'true';
   updateJawAngle(Number(jawAngleInput?.value || 0));
   if (jawAngleInput) jawAngleInput.disabled = false;
   for (const button of jawPresetButtons) button.disabled = false;
@@ -364,7 +366,7 @@ function makeFallbackModel() {
       for (let index = 0; index < kinds.length; index++) {
         const id = arch + '-' + side + '-' + kinds[index];
         const x = (side === 'right' ? -1 : 1) * xPositions[index];
-        const z = 0.24 + (0.62 * Math.sin(Math.acos(Math.min(0.99, xPositions[index] / 1.55))));
+        const z = 0.24 - (0.62 * Math.sin(Math.acos(Math.min(0.99, xPositions[index] / 1.55))));
         const toothGroup = new TransformNode(id, scene);
         toothGroup.parent = fallbackRoot;
         if (arch === 'lower') fallbackLowerNodes.push(toothGroup);
@@ -579,6 +581,10 @@ engine.runRenderLoop(() => {
     const difference = targetJawAngleRadians - mandiblePivot.rotation.x;
     mandiblePivot.rotation.x += difference * (1 - Math.exp(-deltaMs / 115));
     if (Math.abs(difference) < 0.0005) mandiblePivot.rotation.x = targetJawAngleRadians;
+    if (jawAngleStatus) {
+      const currentAngle = mandiblePivot.rotation.x * jawRotationSign * 180 / Math.PI;
+      jawAngleStatus.dataset.currentAngle = currentAngle.toFixed(2);
+    }
   }
   scene.render();
 });
