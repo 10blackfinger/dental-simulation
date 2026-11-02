@@ -866,7 +866,7 @@ async function showClinicExperience() {
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
-  for (const id of ['view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -905,7 +905,7 @@ async function showTreatmentExperience() {
   isPatientMouthOpen = true;
   patientJawPivot.rotation.x = .24;
   document.getElementById('patient-mouth-toggle').textContent = 'إغلاق الفم';
-  for (const id of ['view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected', id === 'view-treatment');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -1012,7 +1012,7 @@ async function showPeopleExperience() {
   activeExperience = 'people';
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   root.setEnabled(false);
@@ -1021,7 +1021,7 @@ async function showPeopleExperience() {
   peopleRoot.setEnabled(true);
   patientVariantControls.hidden = false;
   anatomyPanel.hidden = true;
-  for (const id of ['view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   setProceduralControlsEnabled(false,'clinic');
@@ -1049,7 +1049,7 @@ async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -2019,7 +2019,7 @@ async function showDentalAtlasExperience() {
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
-  for(const id of ['view-oral-exam','view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for(const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
   }
   dentalAtlasPanel.hidden=false;
@@ -2060,7 +2060,7 @@ async function showOralExamExperience() {
   anatomyPanel.hidden = true;
   bodyPanel.hidden = true;
   dentalAtlasPanel.hidden = false;
-  for (const id of ['view-oral-exam','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-dental-atlas','view-pediatric','view-body']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-dental-atlas','view-pediatric','view-body']) {
     document.getElementById(id)?.classList.toggle('selected', id === 'view-oral-exam');
   }
   await ensureDentalScope();
@@ -2255,7 +2255,7 @@ async function showPediatricDentitionExperience() {
   bodyAssetRoot?.setEnabled(false);
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item => item.root.setEnabled(false));
-  for (const id of ['view-oral-exam','view-treatment','view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected', id === 'view-pediatric');
   }
   activeExperience = 'pediatric';
