@@ -4,6 +4,11 @@ Arabic-first 3D dental education prototype built with Vite and Babylon.js.
 
 ## Current modules
 
+### Focused oral examination workspace
+- The first workspace is "فحص الأسنان", opening the detailed Dental Scope oral anatomy with the lower jaw articulated open, 32 permanent teeth and FDI tooth selection.
+- The 3D tool/material library supports drag-and-drop into the oral workspace. Tool shapes are distinct procedural study props; selected CC0 chairside tray, scaler, curing light and plaster arch models are also included.
+- A staged caries teaching overlay can be applied to a selected tooth. It illustrates a sequence of lesion removal, etch, bonding, restorative placement and curing; it is not a validated drilling/tissue simulation.
+
 ### Integrated chairside encounter
 - Default experience combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
 - Male and female CC0 MakeHuman-derived GLB patient figures can be selected. The source has a reduced 57-bone rig, but this application currently uses a fixed horizontal pose, not clinically reviewed skeletal animations.
