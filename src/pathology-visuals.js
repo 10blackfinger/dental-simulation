@@ -606,8 +606,18 @@ export function createPathologyRenderer(scene) {
         }
         break;
       case 'internal-resorption':
-        spherePatch(root, surfaceFrame(pulp || base, tooth, 'apical'), 'rootCaries', 0.12 + progression * 0.08, 0.12, 0.9);
-        if (pulp) setTint(pulp, 'abscess', 0.65);
+        {
+          const internalFrame = surfaceFrame(pulp || base, tooth, 'apical');
+          spherePatch(root, internalFrame, 'rootCaries', 0.12 + progression * 0.08, 0.12, 0.9);
+          if (pulp) {
+            deformSurface(pulp, [pulp], internalFrame, {
+              factor: 0.14 + progression * 0.08,
+              depthRatio: 0.12 + severity * 0.035,
+              surfaceBandRatio: 0.42
+            });
+            setTint(pulp, 'abscess', 0.65);
+          }
+        }
         break;
       case 'hypercementosis':
         spherePatch(root, surfaceFrame(base || enamel, tooth, 'apical'), 'boneDensity', 0.14 + progression * 0.04, 0.17, 1, 0.008);
@@ -620,11 +630,13 @@ export function createPathologyRenderer(scene) {
         break;
       case 'root-resorption':
       case 'external-cervical-resorption':
+      case 'cervical-resorption':
       case 'external-inflammatory-resorption':
+      case 'inflammatory-root-resorption':
       case 'vertical-root-fracture':
         {
           const rootFrame = surfaceFrame(base || enamel, tooth,
-            visual === 'external-cervical-resorption' ? 'cervical' : 'apical');
+            visual === 'external-cervical-resorption' || visual === 'cervical-resorption' ? 'cervical' : 'apical');
           if (visual === 'vertical-root-fracture') {
             addCrack(root, rootFrame, 'crack', 0.012);
             deformToothSurface(parts, records, sourceId, base || enamel, rootFrame, {
@@ -694,6 +706,7 @@ export function createPathologyRenderer(scene) {
       case 'gingival-enlargement':
       case 'mucogingival-defect':
       case 'traumatic-occlusal-injury':
+      case 'occlusal-trauma':
         {
           const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
           const gingivalKey = visual === 'necrotizing-gingivitis' || visual === 'necrotizing-periodontitis'
@@ -713,7 +726,7 @@ export function createPathologyRenderer(scene) {
               factor: 0.1 + progression * 0.06, depthRatio: 0.045
             });
           }
-          if (visual === 'traumatic-occlusal-injury') {
+          if (visual === 'traumatic-occlusal-injury' || visual === 'occlusal-trauma') {
             tintLayer(parts, records, sourceId, 'pdl', 'abscess', 0.48);
             addCrack(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'wear', 0.004);
           }
@@ -977,9 +990,9 @@ export function createPathologyRenderer(scene) {
       spherePatch(root, frame, 'alveolarBone', 0.18 + severity * 0.025, 0.035, 1, 0.006);
       spherePatch(root, frame, 'fracture', 0.09 + progression * 0.035, 0.02, 0.94, 0.012);
       clusteredDots(root, frame, 'boneCyst', 8 + severity, 0.12);
-    } else if (visual === 'peri-implant-mucositis' || visual === 'peri-implantitis') {
+    } else if (visual === 'peri-implant-mucositis' || visual === 'peri-implantitis' || visual === 'implant-mucositis' || visual === 'implantitis') {
       spherePatch(root, frame, 'gingiva', 0.27 + progression * 0.08, 0.22, 0.94, 0.008);
-      if (visual === 'peri-implantitis') {
+      if (visual === 'peri-implantitis' || visual === 'implantitis') {
         spherePatch(root, frame, 'boneLoss', 0.2 + progression * 0.08, 0.05, 0.88, -0.012);
         spherePatch(root, frame, 'abscess', 0.09 + severity * 0.015, 0.08, 0.8, 0.012);
       }
