@@ -168,7 +168,9 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#tool-to-mouth').click();
   await page.locator('#tool-to-tray').click();
 
-  // Hands-on caries workflow: drag/drop support is supplemented by explicit tool placement.
+  // Hands-on caries workflow: select and start the matching interactive pathway first.
+  await page.locator('#scenario-select').selectOption('restoration');
+  await page.locator('#start-case').click();
   await page.locator('#reset-caries-case').click();
   await page.locator('#inventory-category').selectOption('restorative');
   await page.locator('.inventory-item').filter({ hasText: 'قبضة عالية السرعة' }).click();
