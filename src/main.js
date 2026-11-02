@@ -290,6 +290,7 @@ function makeFallbackModel() {
   maxillaRight.parent = fallbackRoot;
   maxillaRight.metadata = { structureId: 'right-maxilla' };
   const maxillaLeft = maxillaRight.clone('left-maxilla');
+  maxillaLeft.parent = fallbackRoot;
   maxillaLeft.position.x = 0.72;
   maxillaLeft.metadata = { structureId: 'left-maxilla' };
   const mandible = MeshBuilder.CreateTorus('mandible', { diameter: 2.75, thickness: 0.14, tessellation: 48 }, scene);
