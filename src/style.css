@@ -158,6 +158,7 @@ button { cursor: pointer; }
 .jaw-preset:disabled { opacity: .4; cursor: wait; }
 .jaw-angle-status { margin: 0; color: #8fa6bb; font-size: 9px; line-height: 1.7; }
 .layers-section { display: grid; gap: 8px; }
+.layers-section[hidden] { display: none !important; }
 .layer-intro { margin: -3px 0 2px; color: #8196ab; font-size: 9px; line-height: 1.7; }
 .layer-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .layer-toggle {
