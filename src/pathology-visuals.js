@@ -172,7 +172,16 @@ export function createPathologyRenderer(scene) {
 
   function deformSurface(anchor, targets, frame, options = {}) {
     if (!anchor || !frame || !targets?.length) return 0;
-    const { factor = 0.2, depthRatio = 0.18, surfaceBandRatio = 0.3, mode = 'loss' } = options;
+    const {
+      factor = 0.2,
+      depthRatio = 0.18,
+      surfaceBandRatio = 0.3,
+      mode = 'loss',
+      profile = 'smooth',
+      irregularity = 0,
+      directionVector = null,
+      normalCheck = true
+    } = options;
     anchor.computeWorldMatrix(true);
     const anchorWorld = anchor.getWorldMatrix();
     const worldCenter = Vector3.TransformCoordinates(frame.point, anchorWorld);
@@ -223,7 +232,7 @@ export function createPathologyRenderer(scene) {
         const axial = Vector3.Dot(delta, worldNormal);
         if (Math.abs(axial) > surfaceBand) continue;
 
-        if (normals) {
+        if (normalCheck && normals) {
           const localNormal = new Vector3(normals[i], normals[i + 1], normals[i + 2]);
           const worldVertexNormal = Vector3.TransformNormal(localNormal, targetWorld).normalize();
           if (Vector3.Dot(worldVertexNormal, worldNormal) < 0.12) continue;
@@ -235,13 +244,40 @@ export function createPathologyRenderer(scene) {
         const radialSquared = a * a + b * b;
         if (radialSquared >= 1) continue;
 
-        const radialFalloff = 1 - radialSquared;
+        const radialDistance = Math.sqrt(radialSquared);
+        const angle = Math.atan2(b, a);
+        const edgeNoise = irregularity
+          ? 1 + irregularity * (
+            Math.sin(angle * 5 + 0.7) * 0.45 +
+            Math.sin(angle * 9 - 1.1) * 0.3 +
+            Math.sin(angle * 13 + 2.2) * 0.25
+          )
+          : 1;
+        const adjustedRadius = radialDistance / Math.max(edgeNoise, 0.55);
+        if (adjustedRadius >= 1) continue;
+
+        let radialFalloff;
+        if (profile === 'groove') {
+          radialFalloff = Math.exp(-Math.pow((adjustedRadius - 0.38) / 0.3, 2));
+        } else if (profile === 'ridge') {
+          radialFalloff = Math.max(0, 1 - Math.abs(adjustedRadius - 0.82) / 0.2);
+        } else if (profile === 'wedge') {
+          radialFalloff = Math.pow(1 - adjustedRadius, 0.65) * (0.4 + 0.6 * Math.abs(Math.cos(angle)));
+        } else if (profile === 'lobulated') {
+          radialFalloff = Math.pow(1 - adjustedRadius * adjustedRadius, 1.15) *
+            (0.78 + 0.22 * Math.sin(angle * 4 + 0.4));
+        } else {
+          radialFalloff = Math.pow(1 - adjustedRadius * adjustedRadius, profile === 'crater' ? 1.35 : 1.8);
+        }
         const axialFalloff = Math.max(0, 1 - Math.abs(axial) / surfaceBand);
-        const falloff = radialFalloff * radialFalloff * axialFalloff;
+        const falloff = radialFalloff * axialFalloff;
         if (falloff <= 0.025) continue;
 
         const direction = mode === 'raise' ? 1 : -1;
-        const worldDelta = worldNormal.scale(direction * depth * falloff);
+        const displacementAxis = directionVector
+          ? directionVector.clone().normalize()
+          : worldNormal;
+        const worldDelta = displacementAxis.scale(direction * depth * falloff);
         const localDelta = Vector3.TransformNormal(worldDelta, inverseTarget);
         positions[i] += localDelta.x;
         positions[i + 1] += localDelta.y;
@@ -261,12 +297,108 @@ export function createPathologyRenderer(scene) {
     return changedVertices;
   }
 
-  function deformToothSurface(parts, records, sourceId, anchor, frame, options) {
-    const targets = parts.filter(mesh => {
-      const layer = records[mesh.name]?.layer;
-      return layer === 'teeth' || layer === 'enamel';
+  function deformToothSurface(parts, records, sourceId, anchor, frame, options = {}) {
+    const layers = options.layers || ['teeth', 'enamel'];
+    const targets = parts.filter(mesh => layers.includes(records[mesh.name]?.layer));
+    const { layers: _layers, ...deformation } = options;
+    return deformSurface(anchor, targets, frame, deformation);
+  }
+
+  function updateMeshGeometry(mesh, nextPositions) {
+    const indices = mesh.getIndices();
+    if (!indices?.length) return false;
+    const current = workingPositions.get(mesh) || mesh.getVerticesData('position');
+    if (!current) return false;
+    if (!originalVertexData.has(mesh)) {
+      const sourceNormals = mesh.getVerticesData('normal');
+      originalVertexData.set(mesh, {
+        positions: Float32Array.from(current),
+        normals: sourceNormals ? Float32Array.from(sourceNormals) : null
+      });
+    }
+    mesh.setVerticesData('position', nextPositions, true);
+    const nextNormals = new Float32Array(nextPositions.length);
+    VertexData.ComputeNormals(nextPositions, indices, nextNormals);
+    mesh.setVerticesData('normal', nextNormals, true);
+    mesh.refreshBoundingInfo();
+    workingPositions.set(mesh, nextPositions);
+    return true;
+  }
+
+  // Imported structures use the patient coordinate frame while most GLB node
+  // origins sit at the model origin. Scale every part around one shared tooth
+  // centroid so developmental size changes do not make the tooth drift out of
+  // its socket or separate the enamel, dentin and pulp.
+  function scaleToothAroundAnchor(parts, anchor, factor) {
+    if (!anchor || !Number.isFinite(factor) || factor <= 0) return;
+    const bounds = getBounds(anchor);
+    if (!bounds) return;
+    anchor.computeWorldMatrix(true);
+    const centerWorld = Vector3.TransformCoordinates(bounds.center, anchor.getWorldMatrix());
+    for (const mesh of parts) {
+      const source = workingPositions.get(mesh) || mesh.getVerticesData('position');
+      if (!source) continue;
+      mesh.computeWorldMatrix(true);
+      const world = mesh.getWorldMatrix();
+      const inverse = world.clone();
+      inverse.invert();
+      const updated = Float32Array.from(source);
+      for (let i = 0; i < updated.length; i += 3) {
+        const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+        const point = Vector3.TransformCoordinates(local, world);
+        const scaled = centerWorld.add(point.subtract(centerWorld).scale(factor));
+        const nextLocal = Vector3.TransformCoordinates(scaled, inverse);
+        updated[i] = nextLocal.x;
+        updated[i + 1] = nextLocal.y;
+        updated[i + 2] = nextLocal.z;
+      }
+      updateMeshGeometry(mesh, updated);
+    }
+  }
+
+  function getGingivaMesh(context, tooth) {
+    const sourceId = tooth.arch === 'mandibular' ? SOURCE.lowerGum : SOURCE.upperGum;
+    return sourceMesh(context.meshes, context.records, sourceId, 'gingiva');
+  }
+
+  function getJawBoneMesh(context, tooth) {
+    const sourceId = tooth.arch === 'mandibular' ? SOURCE.mandible : SOURCE.maxilla;
+    const layer = tooth.arch === 'mandibular' ? 'mandible' : 'maxilla';
+    return sourceMesh(context.meshes, context.records, sourceId, layer);
+  }
+
+  function modifyGingivaAtTooth(context, tooth, anchor, frame, options = {}) {
+    const gum = getGingivaMesh(context, tooth);
+    if (!gum || !anchor || !frame) return 0;
+    if (options.tint) setTint(gum, options.tint, options.tintStrength ?? 0.5);
+    const { tint, tintStrength, ...shape } = options;
+    return deformSurface(anchor, [gum], frame, {
+      factor: 0.2,
+      depthRatio: 0.08,
+      surfaceBandRatio: 0.5,
+      normalCheck: false,
+      ...shape
     });
-    return deformSurface(anchor, targets, frame, options);
+  }
+
+  function modifyAlveolarBoneAtTooth(context, tooth, anchor, frame, options = {}) {
+    const bone = getJawBoneMesh(context, tooth);
+    if (!bone || !anchor || !frame) return 0;
+    const boneFrame = {
+      ...frame,
+      point: frame.point.add(frame.normal.scale(0.045)),
+      extent: frame.extent.clone()
+    };
+    if (options.tint) setTint(bone, options.tint, options.tintStrength ?? 0.28);
+    const { tint, tintStrength, ...shape } = options;
+    return deformSurface(anchor, [bone], boneFrame, {
+      factor: 0.2,
+      depthRatio: 0.1,
+      surfaceBandRatio: 0.58,
+      normalCheck: false,
+      profile: 'crater',
+      ...shape
+    });
   }
 
   function makeCanalFill(root, pulp, tooth) {
@@ -292,11 +424,8 @@ export function createPathologyRenderer(scene) {
     fill.isPickable = false;
   }
 
-  function changeToothScale(parts, factor) {
-    for (const mesh of parts) {
-      rememberTransform(mesh);
-      mesh.scaling.scaleInPlace(factor);
-    }
+  function changeToothScale(parts, factor, anchor) {
+    scaleToothAroundAnchor(parts, anchor || parts[0], factor);
   }
 
   function bendToothRoot(parts, tooth, amount) {
@@ -849,14 +978,14 @@ export function createPathologyRenderer(scene) {
           if (visual === 'dens-invaginatus') spherePatch(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'crack', 0.07, 0.04);
           if (visual === 'dens-evaginatus') spherePatch(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'enamelDefect', 0.1, 0.18);
           if (visual === 'dentinogenesis-imperfecta' && base) setTint(base, 'dentin', 0.72);
-          if (visual === 'microdontia') changeToothScale(parts, 0.84 - progression * 0.08);
-          if (visual === 'macrodontia') changeToothScale(parts, 1.08 + progression * 0.1);
+          if (visual === 'microdontia') changeToothScale(parts, 0.84 - progression * 0.08, base || enamel);
+          if (visual === 'macrodontia') changeToothScale(parts, 1.08 + progression * 0.1, base || enamel);
           if (visual === 'fusion') {
-            changeToothScale(parts, 1.14 + progression * 0.05);
+            changeToothScale(parts, 1.14 + progression * 0.05, base || enamel);
             addCrack(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'dentin', 0.004);
           }
           if (visual === 'gemination') {
-            changeToothScale(parts, 1.12 + progression * 0.06);
+            changeToothScale(parts, 1.12 + progression * 0.06, base || enamel);
             addCrack(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'fracture', 0.006);
           }
           if (visual === 'dilaceration') bendToothRoot(parts, tooth, 0.02 + progression * 0.03);
