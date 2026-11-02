@@ -289,6 +289,23 @@ function renderPathologyTargets(condition) {
   const previousValue = pathologyTargetElement.value;
   pathologyTargetElement.replaceChildren();
 
+  if (condition.target === 'bone') {
+    const targets = [
+      ['mandible', 'عظم الفك السفلي'],
+      ['maxilla', 'عظم الفك العلوي والحنك']
+    ];
+    for (const [value, label] of targets) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      pathologyTargetElement.appendChild(option);
+    }
+    pathologyTargetElement.value = targets.some(item => item[0] === previousValue)
+      ? previousValue
+      : 'mandible';
+    return;
+  }
+
   if (condition.target === 'oral-soft') {
     const targets = [
       ['gum-upper', 'اللثة العلوية – موضع بديل للمخاطية'],
@@ -398,6 +415,9 @@ function initializePathologyControls() {
 }
 
 function pathologyTargetLabel(state) {
+  if (state.condition.target === 'bone') {
+    return state.targetValue === 'maxilla' ? 'عظم الفك العلوي والحنك' : 'عظم الفك السفلي';
+  }
   if (state.condition.target === 'oral-soft') {
     return ({
       'gum-upper': 'اللثة العلوية (موضع بديل)',
@@ -835,7 +855,7 @@ function selectStructure(id) {
   if (!item) return;
   selectedStructureId = id;
   selectedMeshes = meshesForStructure(id);
-  if (item.sourceId && item.arch && pathologyTargetElement && selectedPathology()?.target !== 'oral-soft') {
+  if (item.sourceId && item.arch && pathologyTargetElement && selectedPathology()?.target === 'tooth') {
     pathologyTargetElement.value = item.sourceId;
   }
   clearHighlights();
