@@ -8,7 +8,7 @@ The control panel exposes two educational inputs:
 - Applied force (N): a user-set scenario parameter, not a force sensor or calibrated instrument value.
 - Rotary speed (RPM): a user-set speed parameter. The drill wear accumulator scales with this input and the nominal force value.
 
-The rotary model creates a local surface-preparation indicator and advances a teaching depth value. It does not subtract triangles or perform a volumetric Boolean cut. The displayed depth is a normalized teaching variable, not a clinically meaningful measured depth.
+The rotary model advances a teaching depth value and attempts a swept-path Boolean subtraction on the selected tooth mesh using Babylon.js CSG2 / Manifold. The implant-site flow can also attempt a Boolean subtraction on selected mandibular/maxillary bone surfaces. The stroke is sampled into overlapping cutter volumes and the original mesh is retained so the case can be reset. This is a genuine geometry edit when the source mesh is closed and valid for Manifold; unsupported/open meshes fall back to a visible preparation marker. The displayed depth remains a normalized teaching variable, not a clinically meaningful measurement. Repeated cutter subtraction is not a validated bur-cutting model.
 
 ## Soft-tissue and fluid approximations
 
@@ -29,11 +29,11 @@ The interactive procedure flows use different tools and add visible scene outcom
 - dental trauma splint visualization;
 - paediatric preventive/restorative concepts.
 
-The visual effects are teaching markers attached to the selected anatomy. They do not constitute full surgical simulation, calibrated instrument kinematics, validated tooth extraction mechanics, implant drilling planning, orthodontic force systems, or an automated competency assessment.
+These flows now combine selected 3D instruments, surface-contact checks, scenario-specific actions and attached 3D outcomes. Tooth and bone preparation can change the source geometry through CSG2 where supported. Extraction still hides the tooth mesh and presents a socket marker rather than modelling periodontal ligament mechanics or traction forces. Implant preparation is an approximate Boolean site on the jaw mesh, not a clinically planned osteotomy. Orthodontic bracket/wire objects do not model calibrated force systems. None of these flows is a full clinically validated surgical simulation or automated competency assessment.
 
 ## Assets and provenance
 
-The oral anatomy meshes and tooth bounds are sourced from the documented Dental Scope / BodyParts3D assets. The six additional static GLB props (tray, scaler, curing light, plaster arch, forceps and scalpel set) are CC0 assets listed in public/models/ASSET_CREDITS.md. The procedural inventory models are built from Babylon.js primitives and are original simplified study props. The patient meshes and room pack retain their upstream asset credits.
+The oral anatomy meshes and tooth bounds are sourced from the documented Dental Scope / BodyParts3D assets. The six additional GLB props (tray, scaler, curing light, plaster arch, forceps and scalpel set) are CC0 assets listed in public/models/ASSET_CREDITS.md. The clinical practice pack exposes any native GLB AnimationGroups through the clinic animation panel; a model without embedded animation channels remains static. The procedural inventory models are built from Babylon.js primitives and are original simplified study props. The patient meshes and room pack retain their upstream asset credits.
 
 ## Validation
 
