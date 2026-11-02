@@ -986,12 +986,12 @@ async function showTreatmentExperience() {
   }
   loadingOverlay?.classList.remove('hidden');
   await ensureClinicModel();
+  treatmentRoot.setEnabled(true);
   await selectPatientVariant(selectedPatientVariant);
   if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
   if (bodyAssetRoot) bodyAssetRoot.setEnabled(false);
   if (dentalScopeRoot) dentalScopeRoot.setEnabled(false);
   for (const item of dentalToothDetails.values()) item.root.setEnabled(false);
-  for (const item of patientVariants.values()) item.root.setEnabled(false);
   if (clinicAssetRoot) {
     clinicAssetRoot.setEnabled(true);
     root.setEnabled(false);
@@ -1059,6 +1059,7 @@ async function selectPatientVariant(variant) {
     patientVariantControls?.querySelectorAll('.patient-variant-button').forEach(button=>{
       button.classList.toggle('selected',button.id===(variant==='female'?'patient-female':'patient-male'));
     });
+    patientStatus.dataset.modelVisible = String(selected.root.isEnabled());
     patientStatus.textContent='تم تحميل '+selected.label+' ثلاثي الأبعاد (CC0 / MakeHuman-derived).';
     document.getElementById('selection-name').textContent=selected.label;
     document.getElementById('selection-description').textContent='مجسم ثلاثي الأبعاد بملابس طبية وخامات مدمجة. يحتوي ملف المصدر على هيكل عظمي مختزل؛ لم تُضف بعد حركات أو وضعيات علاجية معتمدة.';
@@ -1068,6 +1069,7 @@ async function selectPatientVariant(variant) {
     for(const item of patientVariants.values())item.root.setEnabled(false);
     proceduralPatient.setEnabled(activeExperience === 'people');
     treatmentPatient.setEnabled(activeExperience === 'treatment');
+    patientStatus.dataset.modelVisible = String(activeExperience === 'treatment' ? treatmentPatient.isEnabled() : proceduralPatient.isEnabled());
     patientStatus.textContent='تعذر تحميل المجسم الخارجي؛ تم إظهار النموذج البديل داخل المشروع.';
     return false;
   }
