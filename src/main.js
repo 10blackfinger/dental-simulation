@@ -2120,6 +2120,8 @@ async function showOralExamExperience() {
   setDentalStatus('وضع فحص الأسنان جاهز: فك سفلي متحرك، 32 سنًا، أدوات ومواد قابلة للسحب.', 'ok');
   setAssetStatus('فحص الأسنان جاهز. الفم مفتوح؛ اختر السن ثم اسحب الأداة أو المادة إلى منطقة العمل.', 'ok');
   setCamera('orbit');
+  camera.setTarget(getOralExamTargetPoint(currentCariesTarget));
+  camera.radius = 6.4;
   loadingOverlay?.classList.add('hidden');
 }
 document.getElementById('view-oral-exam')?.addEventListener('click', showOralExamExperience);
@@ -3262,6 +3264,8 @@ function deformGingivaMesh(mesh, worldPoint, force) {
     if (!record) {
       const original = mesh.getVerticesData(VertexBuffer.PositionKind);
       if (!original || original.length > 240000) return;
+      mesh.makeGeometryUnique();
+      mesh.setVerticesData(VertexBuffer.PositionKind, original, true, false);
       record = { original: new Float32Array(original), strength: 0, point: Vector3.Zero(), normal: Vector3.Up(), lastUpdate: 0 };
       clinicalSurface.deformations.set(mesh, record);
     }
