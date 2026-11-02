@@ -55,7 +55,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await page.locator('#apply-pathology').click();
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(2);
   await page.locator('[data-pathology-advance]').first().click();
-  await expect(page.locator('#active-pathologies .pathology-case').first()).toContainText('شديد');
+  await expect(page.locator('#active-pathologies .pathology-case').first()).toContainText('4 / 4');
   await page.locator('[data-pathology-remove]').last().click();
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
   await page.locator('#clear-pathologies').click();
