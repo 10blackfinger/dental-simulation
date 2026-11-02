@@ -2684,16 +2684,23 @@ function resetCariesTrainingCase() {
   clinicalCariesLesion.setEnabled(true);
   clinicalCavity.setEnabled(false);
   clinicalRestoration.setEnabled(false);
+  if (activeExperience === 'oral-exam') {
+    getOralCariesOverlay(currentCariesTarget);
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('ظهرت آفة تسوس افتراضية على السن FDI ' + currentCariesTarget + '. اختر القبضة عالية السرعة ثم اسحبها إلى السن لتنفيذ خطوة العرض.');
+    return;
+  }
   updateCariesTrainingPanel('ظهرت آفة تسوس إطباقية على الضرس التدريبي. اختر القبضة عالية السرعة لإزالة الآفة في النموذج.');
 }
 function performClinicalAction() {
   const status = document.getElementById('treatment-interaction-status');
-  if (activeExperience !== 'treatment') {
-    status.textContent = 'انتقل أولًا إلى وضع جلسة العلاج المتكاملة.';
+  const oralMode = activeExperience === 'oral-exam';
+  if (activeExperience !== 'treatment' && !oralMode) {
+    status.textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج أولًا.';
     return;
   }
   if (!isPatientMouthOpen) {
-    status.textContent = 'افتح فم المريض أولًا قبل تنفيذ الإجراء.';
+    status.textContent = 'افتح الفم أولًا قبل تنفيذ الإجراء.';
     return;
   }
   if (!isPropAtMouth) {
@@ -2702,43 +2709,51 @@ function performClinicalAction() {
   }
   const id = selectedInventoryItem.id;
   if (['high-speed','bur-kit'].includes(id) && cariesTrainingStage === 'caries') {
-    clinicalCariesLesion.setEnabled(false);
-    clinicalCavity.setEnabled(true);
+    if (!oralMode) {
+      clinicalCariesLesion.setEnabled(false);
+      clinicalCavity.setEnabled(true);
+    }
     cariesTrainingStage = 'cavity';
-    updateCariesTrainingPanel('أزيلت كتلة الآفة بصريًا وظهرت منطقة التحضير. هذا تمثيل مبسط لا يحاكي عمق الحفر أو سلامة اللب.');
-    status.textContent = 'تم تنفيذ خطوة إزالة الآفة في النموذج التعليمي.';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('أزيلت كتلة الآفة بصريًا وظهرت منطقة التحضير. هذا تمثيل بصري مبسط لا يحاكي عمق الحفر أو سلامة اللب.');
+    status.textContent = 'تم تنفيذ خطوة إزالة الآفة على السن المستهدف.';
     return;
   }
   if (id === 'etchant' && cariesTrainingStage === 'cavity') {
     cariesTrainingStage = 'etched';
+    updateOralCariesVisual();
     updateCariesTrainingPanel('تم تسجيل خطوة التخريش التعليمية. راجع تعليمات المادة الفعلية وإرشادات المشرف قبل أي استخدام سريري.');
     status.textContent = 'تم تطبيق خطوة التخريش على الحالة الافتراضية.';
     return;
   }
   if (id === 'adhesive' && cariesTrainingStage === 'etched') {
     cariesTrainingStage = 'bonded';
+    updateOralCariesVisual();
     updateCariesTrainingPanel('تم تسجيل خطوة تطبيق النظام اللاصق. لم تتم محاكاة التفاعل الكيميائي أو التصلب الحقيقي.');
     status.textContent = 'تم تطبيق خطوة اللاصق في النموذج التعليمي.';
     return;
   }
   if (id === 'composite-instrument' && cariesTrainingStage === 'bonded') {
     cariesTrainingStage = 'ready-to-fill';
+    updateOralCariesVisual();
     updateCariesTrainingPanel('الأداة جاهزة لوضع مادة الترميم. اختر راتنج الكومبوزيت أو الزجاج الأيوني من المكتبة.');
     status.textContent = 'تم تجهيز أداة وضع مادة الترميم.';
     return;
   }
   if (['composite-resin','glass-ionomer'].includes(id) && ['bonded','ready-to-fill'].includes(cariesTrainingStage)) {
-    clinicalRestoration.setEnabled(true);
+    if (!oralMode) clinicalRestoration.setEnabled(true);
     cariesTrainingStage = id === 'glass-ionomer' ? 'restored' : 'filled';
+    updateOralCariesVisual();
     updateCariesTrainingPanel(id === 'glass-ionomer'
       ? 'اكتمل الترميم الافتراضي بمادة الزجاج الأيوني.'
       : 'وضعت كتلة كومبوزيت افتراضية. اختر مصباح التصلب لإكمال تسلسل العرض.');
-    status.textContent = 'تم وضع مادة الترميم على السن الافتراضي.';
+    status.textContent = 'تم وضع مادة الترميم على السن المستهدف.';
     return;
   }
   if (id === 'curing-light' && cariesTrainingStage === 'filled') {
-    clinicalCavity.setEnabled(false);
+    if (!oralMode) clinicalCavity.setEnabled(false);
     cariesTrainingStage = 'restored';
+    updateOralCariesVisual();
     updateCariesTrainingPanel('اكتمل تسلسل الترميم الافتراضي. الشكل النهائي تعليمي ولا يقيس الحواف أو الإطباق أو جودة الالتصاق.');
     status.textContent = 'اكتمل الترميم المرئي في الحالة الافتراضية.';
     return;
