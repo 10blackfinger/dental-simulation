@@ -38,8 +38,8 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#selection-name')).toContainText('القاطع المركزي');
   await expect(page.locator('#selection-description')).toContainText('CBCT');
 
-  await expect(page.locator('#pathology-category option')).toHaveCount(8);
-  await expect(page.locator('#pathology-condition option')).toHaveCount(69);
+  await expect(page.locator('#pathology-category option')).toHaveCount(9);
+  await expect(page.locator('#pathology-condition option')).toHaveCount(78);
   await expect(page.locator('#apply-pathology')).toBeEnabled();
   await page.locator('#pathology-condition').selectOption('dentin-caries');
   await page.locator('#pathology-target').selectOption('FMA55681');
@@ -60,6 +60,13 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
   await page.locator('#clear-pathologies').click();
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(0);
+  await page.locator('#pathology-category').selectOption('jaw-lesions');
+  await page.locator('#pathology-condition').selectOption('dentigerous-cyst');
+  await page.locator('#pathology-target').selectOption('mandible');
+  await page.locator('#apply-pathology').click();
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
+  await expect(page.locator('#active-pathologies .pathology-case')).toContainText('عظم الفك السفلي');
+  await page.locator('#clear-pathologies').click();
   await expect(page.locator('#render-canvas')).toHaveAttribute('data-active-pathologies', '0');
 
   await expect(page.locator('#view-treatment')).toHaveCount(0);
