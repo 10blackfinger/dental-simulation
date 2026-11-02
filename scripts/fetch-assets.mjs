@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const execFileAsync = promisify(execFile);
+const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const assetDir = join(root, 'public', 'models');
 await mkdir(assetDir, { recursive: true });
@@ -149,8 +150,11 @@ async function prepareClinicalModel() {
 
     if (!await exists(join(checkout, 'node_modules'))) {
       console.log('[assets] installing the pinned anatomy builder dependencies');
-      await execFileAsync('npm', ['ci', '--no-audit', '--no-fund'], {
-        cwd: checkout, timeout: 600000, maxBuffer: 10 * 1024 * 1024
+      await execFileAsync(npmExecutable, ['ci', '--no-audit', '--no-fund'], {
+        cwd: checkout,
+        timeout: 600000,
+        maxBuffer: 10 * 1024 * 1024,
+        shell: process.platform === 'win32'
       });
     }
 
@@ -175,7 +179,7 @@ async function prepareClinicalModel() {
     if (builderPatched || !await isValid(sourceModel, { format: 'glb', expectedMinBytes: 1000000 }) ||
         !await exists(sourceMetadata)) {
       console.log('[assets] building the CBCT-derived tooth, gingiva and internal anatomy meshes');
-      await execFileAsync('node', ['tools/build-assets.mjs'], {
+      await execFileAsync(process.execPath, ['tools/build-assets.mjs'], {
         cwd: checkout, timeout: 600000, maxBuffer: 10 * 1024 * 1024
       });
     }
