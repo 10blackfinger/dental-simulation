@@ -38,6 +38,30 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#selection-name')).toContainText('القاطع المركزي');
   await expect(page.locator('#selection-description')).toContainText('CBCT');
 
+  await expect(page.locator('#pathology-category option')).toHaveCount(8);
+  await expect(page.locator('#pathology-condition option')).toHaveCount(69);
+  await expect(page.locator('#apply-pathology')).toBeEnabled();
+  await page.locator('#pathology-condition').selectOption('dentin-caries');
+  await page.locator('#pathology-target').selectOption('FMA55681');
+  await page.locator('#pathology-stage').selectOption('2');
+  await page.locator('#pathology-severity').fill('3');
+  await page.locator('#apply-pathology').click();
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveAttribute('data-pathology-id', 'dentin-caries');
+  await expect.poll(async () => Number(await page.locator('#render-canvas').getAttribute('data-pathology-effects'))).toBeGreaterThan(0);
+  await page.locator('#pathology-category').selectOption('wear');
+  await page.locator('#pathology-condition').selectOption('cracked-tooth');
+  await page.locator('#pathology-target').selectOption('FMA55681');
+  await page.locator('#apply-pathology').click();
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(2);
+  await page.locator('[data-pathology-advance]').first().click();
+  await expect(page.locator('#active-pathologies .pathology-case').first()).toContainText('متقدمة');
+  await page.locator('[data-pathology-remove]').last().click();
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
+  await page.locator('#clear-pathologies').click();
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(0);
+  await expect(page.locator('#render-canvas')).toHaveAttribute('data-active-pathologies', '0');
+
   await expect(page.locator('#view-treatment')).toHaveCount(0);
   await expect(page.locator('#view-clinic')).toHaveCount(0);
   await expect(page.locator('#view-people')).toHaveCount(0);
