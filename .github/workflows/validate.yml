@@ -1,9 +1,9 @@
 name: Validate Dental Simulation
 on:
   pull_request:
-  push:
     branches:
-      - feature/clinical-treatment-simulator
+      - main
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
