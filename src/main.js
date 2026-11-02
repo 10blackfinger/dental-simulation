@@ -2150,7 +2150,7 @@ selectInventoryItem(selectedInventoryItem);
 let cariesTrainingStage = 'caries';
 function updateCariesTrainingPanel(message) {
   const labels = {
-    caries: 'الآفة موجودة', cavity: 'تمت إزالة الآفة', etched: 'تم التخريش', bonded: 'تم تطبيق اللاصق',
+    caries: 'الآفة موجودة', cavity: 'تمت إزالة الآفة', etched: 'تم التخريش', bonded: 'تم تطبيق اللاصق', 'ready-to-fill': 'جاهز لوضع الترميم',
     filled: 'تم وضع مادة الترميم', restored: 'اكتمل الترميم التعليمي'
   };
   const stage = document.getElementById('caries-stage-label');
@@ -2291,6 +2291,10 @@ let isPropAtMouth = false;
 document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
   if (activeExperience !== 'treatment') {
     document.getElementById('treatment-interaction-status').textContent = 'افتح وضع جلسة العلاج أولًا.';
+    return;
+  }
+  if (!isPatientMouthOpen) {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح فم المريض أولًا قبل إدخال الأداة.';
     return;
   }
   const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
