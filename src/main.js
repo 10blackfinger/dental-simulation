@@ -1965,6 +1965,7 @@ scenarioSelect?.addEventListener('change', event => {
 });
 document.getElementById('start-case')?.addEventListener('click', () => {
   currentCase = scenarioSelect.value;
+  if (currentCase === 'restoration') resetCariesTrainingCase();
   currentStep = 0;
   completedSteps = [];
   caseFeedback.textContent = trainingCases[currentCase].steps[0][1];
@@ -2121,6 +2122,11 @@ function renderInventory() {
     button.type = 'button';
     button.className = 'inventory-item' + (item.id === selectedInventoryItem.id ? ' selected' : '');
     button.dataset.inventoryId = item.id;
+    button.draggable = true;
+    button.addEventListener('dragstart', event => {
+      event.dataTransfer?.setData('application/x-dental-inventory', item.id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    });
     const name = document.createElement('b');
     name.textContent = item.name;
     const tag = document.createElement('small');
@@ -2140,6 +2146,116 @@ inventorySearch?.addEventListener('input', renderInventory);
 inventoryCategory?.addEventListener('change', renderInventory);
 renderInventory();
 selectInventoryItem(selectedInventoryItem);
+
+let cariesTrainingStage = 'caries';
+function updateCariesTrainingPanel(message) {
+  const labels = {
+    caries: 'الآفة موجودة', cavity: 'تمت إزالة الآفة', etched: 'تم التخريش', bonded: 'تم تطبيق اللاصق',
+    filled: 'تم وضع مادة الترميم', restored: 'اكتمل الترميم التعليمي'
+  };
+  const stage = document.getElementById('caries-stage-label');
+  const help = document.getElementById('caries-procedure-help');
+  if (stage) stage.textContent = labels[cariesTrainingStage] || 'حالة غير معروفة';
+  if (help) help.textContent = message;
+}
+function resetCariesTrainingCase() {
+  cariesTrainingStage = 'caries';
+  clinicalCariesLesion.setEnabled(true);
+  clinicalCavity.setEnabled(false);
+  clinicalRestoration.setEnabled(false);
+  updateCariesTrainingPanel('ظهرت آفة تسوس إطباقية على الضرس التدريبي. اختر القبضة عالية السرعة لإزالة الآفة في النموذج.');
+}
+function performClinicalAction() {
+  const status = document.getElementById('treatment-interaction-status');
+  if (activeExperience !== 'treatment') {
+    status.textContent = 'انتقل أولًا إلى وضع جلسة العلاج المتكاملة.';
+    return;
+  }
+  if (!isPatientMouthOpen) {
+    status.textContent = 'افتح فم المريض أولًا قبل تنفيذ الإجراء.';
+    return;
+  }
+  if (!isPropAtMouth) {
+    status.textContent = 'اسحب الأداة أو المادة إلى مربع العمل أولًا.';
+    return;
+  }
+  const id = selectedInventoryItem.id;
+  if (['high-speed','bur-kit'].includes(id) && cariesTrainingStage === 'caries') {
+    clinicalCariesLesion.setEnabled(false);
+    clinicalCavity.setEnabled(true);
+    cariesTrainingStage = 'cavity';
+    updateCariesTrainingPanel('أزيلت كتلة الآفة بصريًا وظهرت منطقة التحضير. هذا تمثيل مبسط لا يحاكي عمق الحفر أو سلامة اللب.');
+    status.textContent = 'تم تنفيذ خطوة إزالة الآفة في النموذج التعليمي.';
+    return;
+  }
+  if (id === 'etchant' && cariesTrainingStage === 'cavity') {
+    cariesTrainingStage = 'etched';
+    updateCariesTrainingPanel('تم تسجيل خطوة التخريش التعليمية. راجع تعليمات المادة الفعلية وإرشادات المشرف قبل أي استخدام سريري.');
+    status.textContent = 'تم تطبيق خطوة التخريش على الحالة الافتراضية.';
+    return;
+  }
+  if (id === 'adhesive' && cariesTrainingStage === 'etched') {
+    cariesTrainingStage = 'bonded';
+    updateCariesTrainingPanel('تم تسجيل خطوة تطبيق النظام اللاصق. لم تتم محاكاة التفاعل الكيميائي أو التصلب الحقيقي.');
+    status.textContent = 'تم تطبيق خطوة اللاصق في النموذج التعليمي.';
+    return;
+  }
+  if (id === 'composite-instrument' && cariesTrainingStage === 'bonded') {
+    cariesTrainingStage = 'ready-to-fill';
+    updateCariesTrainingPanel('الأداة جاهزة لوضع مادة الترميم. اختر راتنج الكومبوزيت أو الزجاج الأيوني من المكتبة.');
+    status.textContent = 'تم تجهيز أداة وضع مادة الترميم.';
+    return;
+  }
+  if (['composite-resin','glass-ionomer'].includes(id) && ['bonded','ready-to-fill'].includes(cariesTrainingStage)) {
+    clinicalRestoration.setEnabled(true);
+    cariesTrainingStage = id === 'glass-ionomer' ? 'restored' : 'filled';
+    updateCariesTrainingPanel(id === 'glass-ionomer'
+      ? 'اكتمل الترميم الافتراضي بمادة الزجاج الأيوني.'
+      : 'وضعت كتلة كومبوزيت افتراضية. اختر مصباح التصلب لإكمال تسلسل العرض.');
+    status.textContent = 'تم وضع مادة الترميم على السن الافتراضي.';
+    return;
+  }
+  if (id === 'curing-light' && cariesTrainingStage === 'filled') {
+    clinicalCavity.setEnabled(false);
+    cariesTrainingStage = 'restored';
+    updateCariesTrainingPanel('اكتمل تسلسل الترميم الافتراضي. الشكل النهائي تعليمي ولا يقيس الحواف أو الإطباق أو جودة الالتصاق.');
+    status.textContent = 'اكتمل الترميم المرئي في الحالة الافتراضية.';
+    return;
+  }
+  status.textContent = 'هذه الأداة لا تطابق الخطوة الحالية في سيناريو التسوس. راجع وصف الخطوة واختر العنصر المناسب.';
+}
+document.getElementById('apply-clinical-action')?.addEventListener('click', performClinicalAction);
+document.getElementById('reset-caries-case')?.addEventListener('click', resetCariesTrainingCase);
+resetCariesTrainingCase();
+
+canvas.addEventListener('dragover', event => {
+  if (!event.dataTransfer?.types.includes('application/x-dental-inventory')) return;
+  event.preventDefault();
+  canvas.classList.add('clinical-drop-active');
+});
+canvas.addEventListener('dragleave', () => canvas.classList.remove('clinical-drop-active'));
+canvas.addEventListener('drop', event => {
+  const id = event.dataTransfer?.getData('application/x-dental-inventory');
+  if (!id) return;
+  event.preventDefault();
+  canvas.classList.remove('clinical-drop-active');
+  const item = dentalInventory.find(entry => entry.id === id);
+  if (!item) return;
+  selectInventoryItem(item);
+  if (activeExperience !== 'treatment') {
+    document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر. انتقل إلى جلسة العلاج لإدخاله إلى الفم.';
+    return;
+  }
+  if (!isPatientMouthOpen) {
+    document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر؛ افتح الفم أولًا ثم اسحبه مرة أخرى إلى مساحة العمل.';
+    return;
+  }
+  const prop = item.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
+  prop.setEnabled(true);
+  animateTreatmentNode(prop, new Vector3(-.05, 1.55, -.72), new Vector3(0, 0, -.22));
+  isPropAtMouth = true;
+  document.getElementById('treatment-interaction-status').textContent = 'تم سحب ' + item.name + ' إلى منطقة العمل. اضغط تنفيذ الإجراء بالأداة / المادة المختارة.';
+});
 
 function animateTreatmentNode(node, destination, rotation) {
   const positionAnimation = new Animation(
@@ -2179,7 +2295,7 @@ document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
   }
   const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
   prop.setEnabled(true);
-  animateTreatmentNode(prop, new Vector3(-.25, 1.72, -.47), new Vector3(0, 0, -.22));
+  animateTreatmentNode(prop, new Vector3(-.05, 1.55, -.72), new Vector3(0, 0, -.22));
   isPropAtMouth = true;
   document.getElementById('treatment-interaction-status').textContent =
     'تتحرك ' + selectedInventoryItem.name + ' إلى موضع العمل بسرعة هادئة. الحركة تعليمية ولا تحاكي القوة أو مسارًا سريريًا حقيقيًا.';
@@ -2191,6 +2307,10 @@ document.getElementById('tool-to-tray')?.addEventListener('click', () => {
   document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى صينية العمل.';
 });
 document.getElementById('patient-mouth-toggle')?.addEventListener('click', () => {
+  if (isPatientMouthOpen && isPropAtMouth) {
+    document.getElementById('treatment-interaction-status').textContent = 'أعد الأداة إلى الصينية قبل إغلاق الفم.';
+    return;
+  }
   isPatientMouthOpen = !isPatientMouthOpen;
   const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
   animation.setKeys([
@@ -2202,6 +2322,7 @@ document.getElementById('patient-mouth-toggle')?.addEventListener('click', () =>
   animation.setEasingFunction(ease);
   scene.beginDirectAnimation(patientJawPivot, [animation], 0, 54, false);
   document.getElementById('patient-mouth-toggle').textContent = isPatientMouthOpen ? 'إغلاق الفم' : 'فتح الفم';
+  document.getElementById('apply-clinical-action').disabled = !isPatientMouthOpen;
   document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم في النموذج التوضيحي.' : 'تم إغلاق الفم في النموذج التوضيحي.';
 });
 
