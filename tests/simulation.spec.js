@@ -71,7 +71,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 test('pathology catalogue and disease details load in the browser', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#pathology-category option')).toHaveCount(9);
-  await expect(page.locator('#pathology-condition option')).toHaveCount(78);
+  await expect(page.locator('#pathology-condition option')).toHaveCount(108);
   await expect(page.locator('#apply-pathology')).toBeEnabled();
 
   await page.locator('#pathology-condition').selectOption('dentin-caries');
@@ -87,6 +87,13 @@ test('pathology catalogue and disease details load in the browser', async ({ pag
   await expect(page.locator('#pathology-name')).toContainText('كيس تاجي');
   await expect(page.locator('#pathology-target option')).toHaveCount(2);
   await expect(page.locator('#pathology-target')).toHaveValue('mandible');
+
+  await page.locator('#pathology-category').selectOption('developmental');
+  await page.locator('#pathology-condition').selectOption('impacted-tooth');
+  await expect(page.locator('#pathology-name')).toContainText('سن مطمور');
+  await page.locator('#pathology-category').selectOption('endodontic');
+  await page.locator('#pathology-condition').selectOption('external-cervical-resorption');
+  await expect(page.locator('#pathology-name')).toContainText('امتصاص جذري خارجي عنقي');
 });
 
 test('the oral anatomy model and catalogue are published', async ({ page }) => {
