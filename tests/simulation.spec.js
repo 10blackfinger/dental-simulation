@@ -322,6 +322,27 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#apply-clinical-action').click();
   await expect(page.locator('#caries-stage-label')).toContainText('خطوة 2 / 3');
 
+  // Implant pathway: scan a tooth, then make a CSG preparation on the mandibular bone surface.
+  await page.locator('#scenario-select').selectOption('implant');
+  await page.locator('#start-case').click();
+  await page.locator('.tooth-chip').filter({ hasText: '36' }).click();
+  await page.locator('#inventory-category').selectOption('prostho');
+  await page.locator('.inventory-item').filter({ hasText: 'ماسح داخل الفم' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('خطوة 1 / 4');
+  await page.locator('#inventory-category').selectOption('surgery');
+  await page.locator('.inventory-item').filter({ hasText: 'قبضة جراحية تعليمية للزرعات' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#dental-structure-search').fill('mandible-body');
+  await page.locator('#dental-structure-list .dental-structure-button[data-key="mandible-body"]').click();
+  await page.waitForTimeout(180);
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('خطوة 2 / 4');
+  await expect(page.locator('#caries-procedure-help')).toContainText('تم تعديل هندسة السطح فعليًا بعملية طرح Boolean', { timeout: 45000 });
+
   // Mobile workspace: fixed viewport, square stage, and independent off-canvas drawers.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(150);
