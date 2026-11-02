@@ -2862,7 +2862,7 @@ document.getElementById('tool-to-tray')?.addEventListener('click', () => {
   document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى صينية العمل.';
 });
 document.getElementById('patient-mouth-toggle')?.addEventListener('click', () => {
-  if (activeExperience !== 'oral-exam' && activeExperience !== 'treatment') {
+  if (activeExperience !== 'oral-exam' && activeExperience !== 'dental-scope' && activeExperience !== 'treatment') {
     document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج للتحكم في الفك.';
     return;
   }
@@ -2871,7 +2871,7 @@ document.getElementById('patient-mouth-toggle')?.addEventListener('click', () =>
     return;
   }
   isPatientMouthOpen = !isPatientMouthOpen;
-  if (activeExperience === 'oral-exam') {
+  if (activeExperience === 'oral-exam' || activeExperience === 'dental-scope') {
     setDentalJawOpen(isPatientMouthOpen);
   } else {
     const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
