@@ -9,7 +9,7 @@
     "prebuild": "node scripts/fetch-assets.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check src/main.js && node --check scripts/fetch-assets.mjs && node --check playwright.config.js && node --check tests/simulation.spec.js",
+    "check": "node --check src/main.js && node --check src/pathology-catalog.js && node --check src/pathology-visuals.js && node --check scripts/fetch-assets.mjs && node --check playwright.config.js && node --check tests/simulation.spec.js",
     "test:e2e": "playwright test"
   },
   "dependencies": {
