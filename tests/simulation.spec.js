@@ -12,7 +12,9 @@ async function triggerPathologyApply(page) {
 
 test('the clean workspace exposes only the core oral anatomy experience', async ({ page }) => {
   const pageErrors = [];
-  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('pageerror', error => { pageErrors.push(error.stack || error.message); console.log('[browser pageerror]', error.stack || error.message); });
+  page.on('console', message => { if (message.type() === 'error') console.log('[browser console error]', message.text()); });
+  page.on('requestfailed', request => console.log('[browser request failed]', request.url(), request.failure()?.errorText || 'unknown'));
 
   await page.goto('/');
   await expect(page.locator('#render-canvas')).toBeVisible();
@@ -69,6 +71,9 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 });
 
 test('pathology catalogue and disease details load in the browser', async ({ page }) => {
+  page.on('pageerror', error => console.log('[pathology pageerror]', error.stack || error.message));
+  page.on('console', message => { if (message.type() === 'error') console.log('[pathology console error]', message.text()); });
+  page.on('requestfailed', request => console.log('[pathology request failed]', request.url(), request.failure()?.errorText || 'unknown'));
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#asset-status')).toContainText(/تم تحميل|تم إنشاء|تعذر تحميل/, { timeout: 90000 });
   await expect(page.locator('#pathology-category option')).toHaveCount(9);
