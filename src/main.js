@@ -1292,6 +1292,8 @@ let currentCariesTarget = '36';
 const oralCariesOverlays = new Map();
 const oralInventoryModels = new Map();
 const oralSceneProps = new Map();
+const oralScenePropPositions = new Map();
+let oralScenePropsPromise = null;
 let selectedOralInventoryRoot = null;
 const oralInventoryTrayPosition = new Vector3(7.2, -1.4, 2.6);
 const dentalToothDetails = new Map();
@@ -1604,6 +1606,324 @@ function restoreDentalWholeMouth() {
   document.getElementById('selection-name').textContent='الأطلس السني الكامل';
   document.getElementById('selection-description').textContent='الفك واللثة والأسنان والأعصاب والأوعية والتراكيب حول المفصل.';
 }
+
+function oralOverlayMaterial(name, hex, alpha = 1) {
+  const mat = new StandardMaterial(name, scene);
+  mat.diffuseColor = Color3.FromHexString(hex);
+  mat.emissiveColor = Color3.FromHexString(hex).scale(0.12);
+  mat.specularColor = new Color3(0.18, 0.18, 0.18);
+  mat.alpha = alpha;
+  mat.backFaceCulling = false;
+  return mat;
+}
+let oralOverlayMaterials = null;
+function ensureOralOverlayMaterials() {
+  if (oralOverlayMaterials) return oralOverlayMaterials;
+  oralOverlayMaterials = {
+    caries: oralOverlayMaterial('OralCariesBrown', '#4b2117'),
+    cavity: oralOverlayMaterial('OralCavityDark', '#241512'),
+    etch: oralOverlayMaterial('OralEtchBlue', '#66bde1', 0.48),
+    bond: oralOverlayMaterial('OralBondAmber', '#e2a84f', 0.58),
+    restoration: oralOverlayMaterial('OralComposite', '#e9dfc9')
+  };
+  return oralOverlayMaterials;
+}
+function getOralCariesOverlay(fdi = currentCariesTarget) {
+  const id = String(fdi);
+  if (oralCariesOverlays.has(id)) return oralCariesOverlays.get(id);
+  const info = dentalManifest?.meshes?.['tooth-' + id];
+  if (!info?.bounds) return null;
+  const [min, max] = info.bounds;
+  const center = new Vector3((min[0] + max[0]) / 2, max[1] + 0.035, (min[2] + max[2]) / 2);
+  const lower = /^[34]/.test(id);
+  const parent = lower && dentalLowerJawPivot ? dentalLowerJawPivot : dentalScopeRoot;
+  const localPosition = lower && dentalLowerJawPivot
+    ? center.subtract(dentalLowerJawPivot.position)
+    : center;
+  const root = new TransformNode('CariesOverlay_' + id, scene);
+  root.parent = parent;
+  root.position.copyFrom(localPosition);
+  const materials = ensureOralOverlayMaterials();
+  function overlay(name, diameter, material, scale) {
+    const mesh = MeshBuilder.CreateSphere(name + '_' + id, { diameter, segments: 20 }, scene);
+    mesh.parent = root;
+    mesh.position.set(0, 0, 0);
+    mesh.scaling.copyFrom(scale);
+    mesh.material = material;
+    mesh.isPickable = false;
+    return mesh;
+  }
+  const visual = {
+    root,
+    lesion: overlay('CariesLesion', 0.38, materials.caries, new Vector3(1, 0.22, 0.86)),
+    cavity: overlay('PreparedCavity', 0.31, materials.cavity, new Vector3(1, 0.2, 0.84)),
+    etch: overlay('EtchFilm', 0.47, materials.etch, new Vector3(1, 0.12, 0.9)),
+    bond: overlay('AdhesiveFilm', 0.40, materials.bond, new Vector3(1, 0.1, 0.86)),
+    restoration: overlay('CompositeFill', 0.34, materials.restoration, new Vector3(1, 0.2, 0.86))
+  };
+  visual.root.setEnabled(true);
+  oralCariesOverlays.set(id, visual);
+  return visual;
+}
+function updateOralCariesVisual() {
+  if (activeExperience !== 'oral-exam') return;
+  const visual = getOralCariesOverlay(currentCariesTarget);
+  if (!visual) return;
+  const stage = cariesTrainingStage;
+  visual.lesion.setEnabled(stage === 'caries');
+  visual.cavity.setEnabled(['cavity', 'etched', 'bonded', 'ready-to-fill'].includes(stage));
+  visual.etch.setEnabled(stage === 'etched');
+  visual.bond.setEnabled(['bonded', 'ready-to-fill'].includes(stage));
+  visual.restoration.setEnabled(['filled', 'restored'].includes(stage));
+}
+function selectOralExamTooth(fdi) {
+  const id = String(fdi);
+  if (!dentalManifest?.teeth?.[id]) return;
+  currentCariesTarget = id;
+  dentalSelectedFdi = id;
+  renderDentalToothGrid(document.getElementById('dental-tooth-search')?.value || '');
+  const label = dentalToothLabel(Number(id));
+  const target = document.getElementById('oral-exam-target-label');
+  if (target) target.textContent = 'السن المستهدف: ' + label;
+  document.getElementById('selection-name').textContent = label;
+  document.getElementById('selection-description').textContent = 'تم اختيار السن للتدريب. تظهر عليه الآفة الافتراضية ويمكن تطبيق الأدوات والمواد التعليمية عليه.';
+  cariesTrainingStage = 'caries';
+  getOralCariesOverlay(id);
+  updateCariesTrainingPanel('تم اختيار ' + label + '. الآفة الافتراضية ظاهرة؛ اختر أداة أو مادة واسحبها إلى مساحة العمل.');
+  updateOralCariesVisual();
+}
+function buildOralInventoryModel(item) {
+  const root = new TransformNode('OralInventory_' + item.id, scene);
+  root.parent = dentalScopeRoot;
+  root.position.copyFrom(oralInventoryTrayPosition);
+  root.metadata = { title: item.name, detail: item.detail, inventoryId: item.id };
+  const rod = (name, length, diameter, z, mat = 'metal') => {
+    const mesh = cylinder(name + '_' + item.id, length, diameter, [0, 0, z], mat, root, 20);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.isPickable = false;
+    return mesh;
+  };
+  const ball = (name, diameter, x, y, z, mat = 'metal', scale = [1, 1, 1]) => {
+    const mesh = sphere(name + '_' + item.id, diameter, [x, y, z], mat, root, scale);
+    mesh.isPickable = false;
+    return mesh;
+  };
+  const panel = (name, dimensions, position, mat = 'white') => {
+    const mesh = box(name + '_' + item.id, dimensions, position, mat, root);
+    mesh.isPickable = false;
+    return mesh;
+  };
+  const taper = (name, length, wide, z, mat = 'metal') => {
+    const mesh = MeshBuilder.CreateCylinder(name + '_' + item.id, {
+      height: length, diameterTop: 0.012, diameterBottom: wide, tessellation: 16
+    }, scene);
+    mesh.parent = root;
+    mesh.position.z = z;
+    mesh.rotation.x = Math.PI / 2;
+    mesh.material = mats[mat];
+    mesh.isPickable = false;
+    return mesh;
+  };
+  if (item.type === 'material') {
+    if (['gutta-percha', 'paper-points', 'suture-material'].includes(item.id)) {
+      if (item.id === 'suture-material') {
+        const spool = cylinder('SutureSpool_' + item.id, 0.22, 0.34, [0, 0, 0], 'white', root, 24);
+        spool.rotation.x = Math.PI / 2;
+        tube('SutureThread_' + item.id, [[0.05,0,0.08],[0.3,0.02,-0.1],[0.48,0.08,-0.28]], 0.012, 'accent', root);
+      } else {
+        for (let i = -1; i <= 1; i++) taper('Point_' + i, 0.78, 0.09, i * 0.12, item.id === 'gutta-percha' ? 'accent' : 'white');
+      }
+    } else if (['ppe-gloves', 'ppe-mask', 'eye-protection', 'sterile-drape'].includes(item.id)) {
+      panel('BarrierPack', [0.68, 0.18, 0.42], [0, 0, 0], 'glass');
+      panel('BarrierLabel', [0.35, 0.025, 0.16], [0, 0.11, 0.02], 'white');
+    } else {
+      const bodyColor = item.id === 'composite-resin' ? 'tooth'
+        : item.id === 'glass-ionomer' ? 'white'
+        : item.id === 'etchant' ? 'glass'
+        : item.id === 'adhesive' ? 'accent'
+        : item.id === 'calcium-silicate' ? 'white'
+        : item.id === 'endodontic-sealer' ? 'glass'
+        : item.id === 'impression-silicone' ? 'gum'
+        : 'white';
+      if (['etchant', 'adhesive'].includes(item.id)) {
+        const barrel = cylinder('MaterialSyringe_' + item.id, 0.72, 0.2, [0,0,0], bodyColor, root, 20);
+        barrel.rotation.x = Math.PI / 2;
+        rod('SyringePlunger', 0.18, 0.12, 0.42, 'metal');
+        taper('SyringeTip', 0.32, 0.08, -0.48, 'metal');
+      } else {
+        const cartridge = cylinder('MaterialCartridge_' + item.id, 0.55, 0.28, [0,0,0], bodyColor, root, 24);
+        cartridge.rotation.x = Math.PI / 2;
+        rod('CartridgeCap', 0.12, 0.31, 0.31, 'tealDark');
+        rod('CartridgeNozzle', 0.2, 0.09, -0.35, 'metal');
+      }
+    }
+  } else {
+    switch (item.id) {
+      case 'mirror':
+        rod('MirrorHandle', 0.98, 0.055, 0, 'metal');
+        rod('MirrorNeck', 0.22, 0.03, -0.52, 'metal');
+        ball('MirrorHead', 0.28, 0, 0, -0.67, 'metal', [1,0.18,1]);
+        break;
+      case 'explorer':
+      case 'periodontal-probe':
+        rod('ProbeHandle', 0.94, 0.065, 0.08, 'metal');
+        taper('ProbeTip', 0.42, 0.05, -0.56, 'metal');
+        if (item.id === 'periodontal-probe') for (let i=0;i<4;i++) rod('ProbeMark'+i,0.035,0.085,-0.12-i*.09,'dark');
+        break;
+      case 'cotton-pliers':
+      case 'extraction-forceps':
+      case 'orthodontic-pliers':
+        rod('PliersHandleL', 0.7, 0.06, 0.2, 'metal').position.x = -0.11;
+        rod('PliersHandleR', 0.7, 0.06, 0.2, 'metal').position.x = 0.11;
+        ball('PliersPivot', 0.14, 0, 0, -0.02, 'tealDark');
+        taper('PliersTipL',0.38,0.09,-0.42,'metal').position.x=-0.11;
+        taper('PliersTipR',0.38,0.09,-0.42,'metal').position.x=0.11;
+        break;
+      case 'high-speed':
+      case 'low-speed':
+        rod('HandpieceBody', 0.9, 0.22, 0.05, 'tealDark');
+        rod('HandpieceGrip', 0.37, 0.28, 0.3, 'metal');
+        rod('HeadNeck', 0.2, 0.13, -0.48, 'metal');
+        taper('RotaryBur', 0.34, 0.08, -0.72, 'metal');
+        ball('HeadCap', 0.2, 0, 0, -0.5, 'white', [1,0.9,0.75]);
+        break;
+      case 'bur-kit':
+        for(let i=-1;i<=1;i++) {
+          rod('BurHandle'+i,0.74,0.07,i*.18,'metal');
+          taper('BurHead'+i,0.2,0.09,i*.18-0.42,'metal');
+        }
+        break;
+      case 'rubber-dam':
+        panel('RubberDamSheet',[0.95,0.045,0.75],[0,0,0],'rubber');
+        panel('DamFrameTop',[1.05,0.045,0.045],[0,0.1,0],'metal');
+        panel('DamFrameBottom',[1.05,0.045,0.045],[0,-0.1,0],'metal');
+        break;
+      case 'matrix':
+        panel('MatrixBand',[0.62,0.045,0.42],[0,0,0],'metal');
+        ball('MatrixRetainer',0.24,0.38,0,0,'tealDark',[1,1,0.75]);
+        break;
+      case 'wedges':
+        for(let i=0;i<3;i++) taper('MatrixWedge'+i,0.5,0.16,-0.22+i*.2,'tooth');
+        break;
+      case 'composite-instrument':
+      case 'endo-spreader':
+      case 'elevator':
+      case 'periotome':
+      case 'scalpel':
+      case 'gracey-curette':
+      case 'curette':
+      case 'suture-scissors':
+      case 'needle-holder':
+        rod('InstrumentHandle',0.85,0.12,0.12,'tealDark');
+        rod('InstrumentShaft',0.4,0.055,-0.48,'metal');
+        taper('InstrumentWorkingEnd',0.3,0.13,-0.78,'metal');
+        ball('InstrumentCollar',0.16,0,0,-0.34,'white');
+        break;
+      case 'curing-light':
+        rod('CuringBody',0.86,0.28,0.12,'tealDark');
+        rod('CuringNeck',0.28,0.13,-0.42,'metal');
+        ball('CuringLens',0.24,0,0,-0.61,'glass',[1,0.55,1]);
+        break;
+      case 'endo-files':
+        for(let i=0;i<3;i++) {
+          rod('EndoHandle'+i,0.22,0.13,-0.36+i*.17,'accent').position.x=(i-1)*.16;
+          taper('EndoFile'+i,0.62,0.055,-0.78+i*.17,'metal').position.x=(i-1)*.16;
+        }
+        break;
+      case 'apex-locator':
+        panel('ApexDevice',[0.55,0.4,0.22],[0,0,0],'dark');
+        panel('ApexScreen',[0.36,0.22,0.025],[0,0.02,-0.12],'screen');
+        rod('ApexCable',0.7,0.025,-0.3,'rubber');
+        break;
+      case 'endo-irrigation':
+      case 'air-water':
+      case 'saliva-ejector':
+      case 'high-volume-suction':
+        rod('SyringeBody',0.84,0.18,0.12,'white');
+        rod('SyringeGrip',0.18,0.29,0.43,'metal');
+        taper('SyringeCannula',0.56,0.075,-0.55,'metal');
+        break;
+      case 'impression-tray':
+        panel('TrayBase',[0.8,0.07,0.45],[0,0,0],'metal');
+        panel('TrayHandle',[0.22,0.09,0.18],[0,0,0.34],'metal');
+        break;
+      case 'intraoral-scanner':
+        rod('ScannerBody',0.74,0.28,0.12,'white');
+        rod('ScannerNeck',0.26,0.14,-0.38,'metal');
+        panel('ScannerTip',[0.27,0.11,0.12],[0,0,-0.58],'glass');
+        break;
+      case 'shade-guide':
+        panel('ShadeHandle',[0.18,0.13,0.55],[0,0,0.2],'white');
+        for(let i=0;i<4;i++) panel('ShadeTab'+i,[0.19,0.12,0.08],[0,(i-1.5)*0.16,-0.25],'tooth');
+        break;
+      default:
+        rod('GenericToolHandle',0.9,0.14,0.1,'metal');
+        taper('GenericToolWorkingEnd',0.38,0.1,-0.52,'tealDark');
+    }
+  }
+  root.setEnabled(false);
+  return root;
+}
+function getOralInventoryRoot(item = selectedInventoryItem) {
+  const externalId = item.id === 'ultrasonic-scaler' ? 'ultrasonic-scaler' : item.id === 'curing-light' ? 'curing-light' : null;
+  if (externalId && oralSceneProps.has(externalId)) return oralSceneProps.get(externalId);
+  if (!oralInventoryModels.has(item.id)) oralInventoryModels.set(item.id, buildOralInventoryModel(item));
+  return oralInventoryModels.get(item.id);
+}
+function getOralExamTargetPoint(fdi = currentCariesTarget) {
+  const bounds = dentalManifest?.meshes?.['tooth-' + fdi]?.bounds;
+  if (!bounds) return new Vector3(0, 0.5, 0);
+  const [min, max] = bounds;
+  const point = new Vector3((min[0] + max[0]) / 2, max[1] + 0.75, (min[2] + max[2]) / 2 + 0.15);
+  if (/^[34]/.test(String(fdi)) && dentalLowerJawPivot) {
+    const local = point.subtract(dentalLowerJawPivot.position);
+    return Vector3.TransformCoordinates(local, dentalLowerJawPivot.computeWorldMatrix(true));
+  }
+  return point;
+}
+async function ensureOralSceneProps() {
+  if (oralScenePropsPromise) return oralScenePropsPromise;
+  oralScenePropsPromise = (async () => {
+    const definitions = [
+      { id:'instrument-tray', file:'dental-tools/instrument-tray.glb', url:'https://cdn.3dassets.dev/assets/34383/v1/', size:7.2, position:[7.4,-1.5,2.1], rotation:[0,-0.25,0] },
+      { id:'ultrasonic-scaler', file:'dental-tools/ultrasonic-scaler.glb', url:'https://cdn.3dassets.dev/assets/34384/v1/', size:5.6, position:[-7.2,-1.2,2.5], rotation:[0,0.3,0] },
+      { id:'curing-light', file:'dental-tools/curing-light.glb', url:'https://cdn.3dassets.dev/assets/34385/v1/', size:5.0, position:[6.8,1.7,1.4], rotation:[0,-0.5,0] },
+      { id:'plaster-study-arch', file:'dental-tools/plaster-study-arch.glb', url:'https://cdn.3dassets.dev/assets/34397/v1/', size:5.6, position:[-7.3,1.7,0.4], rotation:[0,0.2,0] }
+    ];
+    const results = await Promise.allSettled(definitions.map(async def => {
+      const container = await loadContainer(def.file, def.url, 'model.glb');
+      const mounted = attachCenteredContainer(container, 'OralSceneProp_' + def.id, def.size);
+      mounted.group.parent = dentalScopeRoot;
+      mounted.group.position.set(...def.position);
+      mounted.group.rotation.set(...def.rotation);
+      mounted.group.metadata = { title:def.id, detail:'نموذج ثلاثي الأبعاد ثابت من حزمة CC0 تعليمية؛ لا يحاكي الحركة أو المعايرة السريرية.' };
+      mounted.group.setEnabled(true);
+      oralSceneProps.set(def.id, mounted.group);
+      oralScenePropPositions.set(def.id, mounted.group.position.clone());
+    }));
+    const failed = results.filter(result => result.status === 'rejected');
+    if (failed.length) console.warn('Some chairside prop models could not be loaded.', failed);
+    return oralSceneProps.size;
+  })();
+  return oralScenePropsPromise;
+}
+function selectOralExamTooth(fdi) {
+  const id = String(fdi);
+  if (!dentalManifest?.teeth?.[id]) return;
+  currentCariesTarget = id;
+  dentalSelectedFdi = id;
+  renderDentalToothGrid(document.getElementById('dental-tooth-search')?.value || '');
+  const label = dentalToothLabel(Number(id));
+  const target = document.getElementById('oral-exam-target-label');
+  if (target) target.textContent = 'السن المستهدف: ' + label;
+  document.getElementById('selection-name').textContent = label;
+  document.getElementById('selection-description').textContent = 'تم اختيار السن للتدريب. تظهر عليه الآفة الافتراضية ويمكن تطبيق الأدوات والمواد التعليمية عليه.';
+  cariesTrainingStage = 'caries';
+  getOralCariesOverlay(id);
+  updateCariesTrainingPanel('تم اختيار ' + label + '. الآفة الافتراضية ظاهرة؛ اختر أداة أو مادة واسحبها إلى مساحة العمل.');
+  updateOralCariesVisual();
+}
+
 async function ensureDentalScope() {
   if(dentalScopeRoot)return;
   setDentalStatus('جارٍ تحميل الفك واللثة والجمجمة والأعصاب والأوعية…');
