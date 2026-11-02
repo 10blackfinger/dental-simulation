@@ -1012,7 +1012,14 @@ async function loadCatalog() {
       layerVisibility.set(key, Boolean(config.visible));
     }
     for (const item of anatomyCatalog) {
-      item.clinicalRecord = clinicalRecords[item.sourceId] || null;
+      const record = clinicalRecords[item.sourceId] || null;
+      item.clinicalRecord = record;
+      if (record) {
+        item.position = record.position;
+        item.type = record.type;
+        item.fdi = record.fdi;
+        item.universal = record.universal;
+      }
     }
   } catch (error) {
     console.warn('CBCT structure metadata unavailable; legacy anatomy will be used.', error);
