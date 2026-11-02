@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NullEngine, Scene, MeshBuilder } from '@babylonjs/core';
 import { createPathologyRenderer } from '../src/pathology-visuals.js';
+import { DENTAL_PATHOLOGIES } from '../src/pathology-catalog.js';
 
 function createFixture() {
   const engine = new NullEngine({ renderWidth: 320, renderHeight: 240 });
@@ -177,5 +178,26 @@ test('developmental tooth size changes stay centered in the socket', () => {
   assert.ok(Math.abs(afterCenter.z - beforeCenter.z) < 0.015);
   assert.ok(afterWidth < beforeWidth * 0.9, 'microdontia should shrink the tooth around its own centroid');
   f.renderer.clear();
+  f.engine.dispose();
+});
+
+
+test('all 108 catalogue diagnoses execute a dedicated visual route without generic fallback', () => {
+  const f = createFixture();
+  for (const condition of DENTAL_PATHOLOGIES) {
+    const state = {
+      caseId: 'catalog-' + condition.id,
+      condition,
+      stage: condition.stages[2],
+      stageIndex: 2,
+      severity: 2,
+      toothSourceId: condition.target === 'tooth' ? 'FMA55681' : null,
+      targetValue: condition.target === 'bone' ? 'mandible' :
+        condition.target === 'oral-soft' ? 'gum-upper' : null
+    };
+    const result = f.renderer.render([state], f.context);
+    assert.deepEqual(result.unhandledVisuals, [], condition.id + ' should not use a generic fallback visual');
+    f.renderer.clear();
+  }
   f.engine.dispose();
 });
