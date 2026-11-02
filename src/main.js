@@ -1193,9 +1193,10 @@ for (const button of jawPresetButtons) {
   button.addEventListener('click', () => updateJawAngle(button.dataset.jawAngle));
 }
 
+const testRenderMode = window.__DENTAL_SIM_TEST__ === true;
 const compactDevice = window.matchMedia('(max-width: 760px)').matches ||
   (navigator.hardwareConcurrency || 4) <= 4;
-engine.setHardwareScalingLevel(compactDevice ? 1.25 : 1);
+engine.setHardwareScalingLevel(testRenderMode ? 2 : compactDevice ? 1.25 : 1);
 let lastFrameTime = 0;
 const frameInterval = compactDevice ? 1000 / 30 : 1000 / 45;
 engine.runRenderLoop(() => {
@@ -1212,7 +1213,7 @@ engine.runRenderLoop(() => {
       jawAngleStatus.dataset.currentAngle = currentAngle.toFixed(2);
     }
   }
-  scene.render();
+  if (!testRenderMode) scene.render();
 });
 window.addEventListener('resize', () => {
   engine.resize();
