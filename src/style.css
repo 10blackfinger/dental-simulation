@@ -160,3 +160,9 @@ body{overscroll-behavior:none}
 .inventory-item:active{cursor:grabbing}
 #render-canvas.clinical-drop-ready{outline:2px dashed rgba(53,197,176,.85);outline-offset:-8px}
 #render-canvas.clinical-drop-active{outline:3px solid rgba(53,197,176,.95);outline-offset:-8px}
+
+
+/* First-class oral examination target and 3D prop drop affordance */
+.oral-exam-target-label{margin:7px 0 10px;padding:8px 10px;border:1px solid #2b776e;border-radius:8px;background:#12313a;color:#8ce3d3;font-size:9px;line-height:1.8}
+#render-canvas.clinical-drop-ready{outline:2px dashed rgba(53,197,176,.85);outline-offset:-8px}
+#render-canvas.clinical-drop-active{outline:3px solid rgba(53,197,176,.95);outline-offset:-8px}
