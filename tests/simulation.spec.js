@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test';
 
+async function triggerPathologyApply(page) {
+  await Promise.race([
+    page.locator('#apply-pathology').evaluate(button => button.click()),
+    new Promise((_, reject) => setTimeout(
+      () => reject(new Error('Applying a pathology effect blocked the browser for more than 20 seconds.')),
+      20000
+    ))
+  ]);
+}
+
 test('the clean workspace exposes only the core oral anatomy experience', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -74,7 +84,7 @@ test('pathology simulation applies concurrent conditions to teeth and jaw', asyn
     input.value = '3';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await page.locator('#apply-pathology').evaluate(button => button.click());
+  await triggerPathologyApply(page);
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1, { timeout: 15000 });
   await expect.poll(async () => Number(await page.locator('#render-canvas').getAttribute('data-pathology-effects'))).toBeGreaterThan(0);
 
