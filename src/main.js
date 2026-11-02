@@ -2821,6 +2821,33 @@ function replaceDentalMeshReference(original, replacement, key) {
     highlight.addMesh(replacement, Color3.FromHexString('#43dbc2'));
   }
 }
+function alignCSG2VertexAttributes(sourceMesh, cutter) {
+  const channels = [
+    [VertexBuffer.NormalKind, 3, [0,1,0]],
+    [VertexBuffer.ColorKind, 4, [1,1,1,1]],
+    [VertexBuffer.UVKind, 2, [0,0]],
+    [VertexBuffer.UV2Kind, 2, [0,0]],
+    [VertexBuffer.UV3Kind, 2, [0,0]],
+    [VertexBuffer.UV4Kind, 2, [0,0]],
+    [VertexBuffer.UV5Kind, 2, [0,0]],
+    [VertexBuffer.UV6Kind, 2, [0,0]]
+  ];
+  for (const [kind, fallbackStride, fill] of channels) {
+    const sourceData = sourceMesh.getVerticesData(kind);
+    const cutterData = cutter.getVerticesData(kind);
+    if (!sourceData && cutterData) {
+      cutter.removeVerticesData(kind);
+      continue;
+    }
+    if (!sourceData || cutterData) continue;
+    const sourceVertices = Math.max(1, sourceMesh.getTotalVertices());
+    const stride = Math.max(1, sourceData.length / sourceVertices || fallbackStride);
+    const count = cutter.getTotalVertices();
+    const data = new Float32Array(count * stride);
+    for (let i=0;i<count;i++) for(let c=0;c<stride;c++) data[i*stride+c]=fill[c] ?? 0;
+    cutter.setVerticesData(kind, data, true, stride);
+  }
+}
 async function applyDentalBooleanWear() {
   const sourceMesh = clinicalSurface.targetMesh;
   const key = clinicalSurface.targetKey;
@@ -2848,6 +2875,8 @@ async function applyDentalBooleanWear() {
         cutter.position.copyFrom(localPoint).subtractInPlace(localNormal.scale(.065));
         cutter.scaling.set(1, .74, 1);
         cutter.bakeCurrentTransformIntoVertices();
+        alignCSG2VertexAttributes(sourceMesh, cutter);
+        cutter.material = sourceMesh.material;
         cutterCSG = CSG2.FromMesh(cutter, true);
         const next = workingCSG.subtract(cutterCSG);
         if (workingCSG !== originalCSG) workingCSG.dispose();
