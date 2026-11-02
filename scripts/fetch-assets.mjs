@@ -154,7 +154,7 @@ async function prepareClinicalModel() {
     if (!builder.includes('DENTAL_SIMULATION_STANDARD_GLTF')) {
       const standardBuilder = builder.replace(
         compressionBlock,
-        '  // DENTAL_SIMULATION_STANDARD_GLTF: keep the runtime asset decoder-independent.\\n  const io = new NodeIO();'
+        '  // DENTAL_SIMULATION_STANDARD_GLTF: keep the runtime asset decoder-independent.\n  const io = new NodeIO();'
       );
       if (standardBuilder === builder) {
         throw new Error('Could not safely adapt the pinned GLB builder for standard glTF output.');
@@ -196,4 +196,4 @@ const manifest = {
   clinicalSource,
   assets
 };
-await writeFile(join(assetDir, 'asset-manifest.json'), JSON.stringify(manifest, null, 2) + '\\n');
+await writeFile(join(assetDir, 'asset-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
