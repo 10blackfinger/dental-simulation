@@ -93,7 +93,6 @@ export function createPathologyRenderer(scene) {
     for (const [mesh, original] of originalMaterials) {
       const current = mesh.material;
       mesh.material = original;
-      if (current && current !== original) current.dispose(false, false);
     }
     originalMaterials.clear();
     for (const tint of tintMaterials) tint.dispose(false, false);
