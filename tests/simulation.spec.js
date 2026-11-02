@@ -136,6 +136,37 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#tool-to-mouth').click();
   await page.locator('#tool-to-tray').click();
 
+  // Hands-on caries workflow: drag/drop support is supplemented by explicit tool placement.
+  await page.locator('#reset-caries-case').click();
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'قبضة عالية السرعة' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تمت إزالة الآفة');
+  await page.locator('#inventory-category').selectOption('materials');
+  await page.locator('.inventory-item').filter({ hasText: 'مادة تخريش' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم التخريش');
+  await page.locator('.inventory-item').filter({ hasText: 'نظام لاصق' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم تطبيق اللاصق');
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'أداة وضع الكومبوزيت' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#apply-clinical-action').click();
+  await page.locator('#inventory-category').selectOption('materials');
+  await page.locator('.inventory-item').filter({ hasText: 'راتنج كومبوزيت' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم وضع مادة الترميم');
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'مصباح التصلب الضوئي' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('اكتمل الترميم التعليمي');
+
   await page.locator('#view-anatomy').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل 33 تركيبًا تشريحيًا منفصلًا', { timeout: 45000 });
   await expect(page.locator('.structure-button')).toHaveCount(33);
