@@ -426,12 +426,15 @@ scene.onPointerObservable.add((pointerInfo) => {
     if (fdi) selectPediatricTooth(fdi);
     return;
   }
-  if (activeExperience === 'dental-scope') {
+  if (activeExperience === 'dental-scope' || activeExperience === 'oral-exam') {
     const dentalKey = picked.metadata?.dentalScopeKey;
     if (dentalKey) {
       selectDentalStructure(dentalKey);
-      const match = dentalKey.match(/^tooth-(\\d{2})$/);
-      if (match) void loadDentalTooth(match[1]);
+      const match = dentalKey.match(/^tooth-(\d{2})$/);
+      if (match) {
+        if (activeExperience === 'oral-exam') selectOralExamTooth(match[1]);
+        else void loadDentalTooth(match[1]);
+      }
     }
     return;
   }
@@ -497,6 +500,22 @@ function setCamera(mode) {
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
     setTimeout(fitVisibleSceneToSquare, 120);
+    return;
+  }
+  if (activeExperience === 'oral-exam') {
+    const views = {
+      orbit: [-Math.PI/2.22, 1.18, 16.5, new Vector3(0, 0.2, 0)],
+      front: [-Math.PI/2, 1.2, 16.5, new Vector3(0, 0.15, 0)],
+      side: [0, 1.2, 16.5, new Vector3(0, 0.15, 0)],
+      top: [-Math.PI/2, .22, 18, new Vector3(0, 0, 0)]
+    };
+    const view = views[mode] || views.orbit;
+    camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    const mouthMeshes = dentalMeshRecords
+      .filter(record => record.file !== 'context.glb' && record.file !== 'neurovascular.glb')
+      .map(record => record.mesh);
+    setTimeout(() => fitVisibleSceneToSquare(mouthMeshes), 120);
     return;
   }
   if (activeExperience === 'body-anatomy') {
@@ -1491,6 +1510,7 @@ function selectDentalStructure(key) {
   document.getElementById('selection-description').textContent=
     'معرّف التركيب: '+key+
     (info?' · المصدر التشريحي: '+(info.sourceRef||'BodyParts3D')+' · مستوى النمذجة: '+info.provenance:'');
+  if (activeExperience === 'oral-exam' && /^tooth-\d{2}$/.test(key)) selectOralExamTooth(key.slice(-2));
   document.querySelectorAll('.dental-structure-button').forEach(button=>button.classList.toggle('selected',button.dataset.key===key));
 }
 function renderDentalToothGrid(filter='') {
@@ -1507,7 +1527,10 @@ function renderDentalToothGrid(filter='') {
     button.className='tooth-chip'+(number===dentalSelectedFdi?' selected':'');
     button.textContent=fdi;
     button.title=label;
-    button.addEventListener('click',()=>void loadDentalTooth(fdi));
+    button.addEventListener('click',()=>{
+      if (activeExperience === 'oral-exam') selectOralExamTooth(fdi);
+      else void loadDentalTooth(fdi);
+    });
     grid.appendChild(button);
   }
 }
