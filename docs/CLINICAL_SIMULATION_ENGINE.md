@@ -33,7 +33,7 @@ The visual effects are teaching markers attached to the selected anatomy. They d
 
 ## Assets and provenance
 
-The oral anatomy meshes and tooth bounds are sourced from the documented Dental Scope / BodyParts3D assets. The four additional static GLB props are CC0 assets listed in public/models/ASSET_CREDITS.md. The procedural inventory models are built from Babylon.js primitives and are original simplified study props. The patient meshes and room pack retain their upstream asset credits.
+The oral anatomy meshes and tooth bounds are sourced from the documented Dental Scope / BodyParts3D assets. The six additional static GLB props (tray, scaler, curing light, plaster arch, forceps and scalpel set) are CC0 assets listed in public/models/ASSET_CREDITS.md. The procedural inventory models are built from Babylon.js primitives and are original simplified study props. The patient meshes and room pack retain their upstream asset credits.
 
 ## Validation
 
