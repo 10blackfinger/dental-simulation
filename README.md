@@ -6,8 +6,10 @@ Arabic-first 3D dental education prototype built with Vite and Babylon.js.
 
 ### Focused oral examination workspace
 - The first workspace is "فحص الأسنان", opening the detailed Dental Scope oral anatomy with the lower jaw articulated open, 32 permanent teeth and FDI tooth selection.
-- The searchable inventory contains 49 tools and material entries. Each entry has a distinct procedural 3D study model and can be selected or dragged into the oral workspace. Four additional CC0 GLB props are bundled: instrument tray, ultrasonic scaler, curing light and plaster arch.
-- The articulated lower jaw opens and closes at a hinge; FDI tooth selection places the training target on an actual Dental Scope tooth mesh. A staged caries overlay illustrates lesion removal, etching, bonding, restorative placement and curing. The overlay is a teaching visualization, not volumetric drilling or validated tissue response.
+- The searchable inventory contains 55 individually selectable 3D study models across examination, restorative, endodontic, surgical, periodontal, prosthodontic, implant, orthodontic, trauma, paediatric and PPE groups. Four additional CC0 GLB props are bundled: instrument tray, ultrasonic scaler, curing light and plaster arch.
+- The articulated lower jaw opens and closes at a hinge. FDI tooth selection focuses the camera and targets actions to the selected Dental Scope tooth mesh.
+- A surface-contact engine uses pointer-ray intersection against the visible tooth/gingiva mesh. Tool actions require a sustained contact gesture; rotary speed and user-entered nominal force drive a teaching wear-depth value. Gingival mesh vertices deform locally and recover, irrigation emits moving particles, and suction attracts particles. This is an approximate visual/interaction model, not physical force sensing or validated tissue mechanics.
+- Guided action sequences now attach 3D outcome objects for examination, endodontic concepts, hygiene, extraction assessment, periodontal care, prosthodontics, implant planning, orthodontics, trauma and paediatric prevention. The restoration pathway has a staged caries/material overlay and requires surface contact before advancing.
 
 ### Integrated chairside encounter
 - A separate treatment-room mode combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
