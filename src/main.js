@@ -4,7 +4,7 @@ import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import {
   Engine, Scene, Vector3, Color3, Color4, Matrix, Quaternion, HemisphericLight, DirectionalLight, PointLight,
-  ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager,
+  ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager, VertexBuffer,
   ExecuteCodeAction, PointerEventTypes, Animation, CubicEase, EasingFunction
 } from '@babylonjs/core';
 
@@ -2829,6 +2829,381 @@ function animateTreatmentNode(node, destination, rotation) {
 }
 let isPatientMouthOpen = true;
 let isPropAtMouth = false;
+
+// Surface-contact simulation: tools only interact when a pointer ray actually intersects
+// a registered tooth or gingival mesh. Pressure is an explicit educational input, not
+// a sensor reading from real dental equipment.
+const clinicalSurface = {
+  dragging: false, pointerId: null, targetMesh: null, targetKey: null,
+  contactPoint: null, contactNormal: null, contactSeconds: 0,
+  depthMm: 0, lastUiUpdate: 0, fluidAccumulator: 0, particles: [],
+  surfaceMark: null, contactMarker: null, deformations: new Map(),
+  lastMessageAt: 0
+};
+const clinicalForceInput = document.getElementById('clinical-force');
+const clinicalSpeedInput = document.getElementById('clinical-speed');
+const clinicalIrrigationInput = document.getElementById('clinical-irrigation');
+const clinicalContactState = document.getElementById('clinical-contact-state');
+const clinicalContactTime = document.getElementById('clinical-contact-time');
+const clinicalDepth = document.getElementById('clinical-depth');
+const clinicalFluidCount = document.getElementById('clinical-fluid-count');
+const clinicalTissueState = document.getElementById('clinical-tissue-state');
+const clinicalForceBar = document.getElementById('clinical-force-bar');
+const clinicalSimulationFeedback = document.getElementById('clinical-simulation-feedback');
+const clinicalForceValue = document.getElementById('clinical-force-value');
+const clinicalSpeedValue = document.getElementById('clinical-speed-value');
+const clinicalWaterMaterial = new StandardMaterial('ClinicalIrrigationWater', scene);
+clinicalWaterMaterial.diffuseColor = new Color3(.22,.72,.92);
+clinicalWaterMaterial.emissiveColor = new Color3(.05,.22,.34);
+clinicalWaterMaterial.alpha = .72;
+clinicalWaterMaterial.specularPower = 96;
+const clinicalDebrisMaterial = new StandardMaterial('ClinicalDebrisMaterial', scene);
+clinicalDebrisMaterial.diffuseColor = new Color3(.75,.68,.51);
+clinicalDebrisMaterial.emissiveColor = new Color3(.10,.08,.04);
+const clinicalCavityMaterial = new StandardMaterial('ClinicalCavityMaterial', scene);
+clinicalCavityMaterial.diffuseColor = new Color3(.16,.09,.06);
+clinicalCavityMaterial.emissiveColor = new Color3(.025,.012,.008);
+const clinicalTissueMarkMaterial = new StandardMaterial('ClinicalTissueMark', scene);
+clinicalTissueMarkMaterial.diffuseColor = new Color3(.82,.35,.43);
+clinicalTissueMarkMaterial.emissiveColor = new Color3(.08,.015,.02);
+
+function currentClinicalForce() {
+  return Math.max(.1, Math.min(2, Number(clinicalForceInput?.value || .8)));
+}
+function currentClinicalSpeed() {
+  return Math.max(0, Math.min(400000, Number(clinicalSpeedInput?.value || 180000)));
+}
+function updateClinicalControlLabels() {
+  if (clinicalForceValue) clinicalForceValue.textContent = currentClinicalForce().toFixed(1) + ' N';
+  if (clinicalSpeedValue) clinicalSpeedValue.textContent = Math.round(currentClinicalSpeed()).toLocaleString('en-US') + ' RPM';
+}
+clinicalForceInput?.addEventListener('input', updateClinicalControlLabels);
+clinicalSpeedInput?.addEventListener('input', updateClinicalControlLabels);
+updateClinicalControlLabels();
+
+function clinicalMeshKey(mesh) {
+  let node = mesh;
+  while (node) {
+    const key = node.metadata?.dentalScopeKey;
+    if (key) return key;
+    node = node.parent;
+  }
+  return null;
+}
+function isClinicalSurfaceMesh(mesh) {
+  const key = clinicalMeshKey(mesh);
+  return !!key && (/^tooth-\d{2}$/.test(key) || key.startsWith('gingiva-'));
+}
+function pickClinicalSurface(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * engine.getRenderWidth() / Math.max(rect.width, 1);
+  const y = (event.clientY - rect.top) * engine.getRenderHeight() / Math.max(rect.height, 1);
+  return scene.pick(x, y, isClinicalSurfaceMesh, false, camera);
+}
+function localPointForMesh(mesh, worldPoint) {
+  mesh.computeWorldMatrix(true);
+  const inverse = Matrix.Invert(mesh.getWorldMatrix());
+  return Vector3.TransformCoordinates(worldPoint, inverse);
+}
+function ensureContactMarker(mesh) {
+  if (clinicalSurface.contactMarker && clinicalSurface.contactMarker.parent !== mesh) {
+    clinicalSurface.contactMarker.dispose();
+    clinicalSurface.contactMarker = null;
+  }
+  if (!clinicalSurface.contactMarker) {
+    clinicalSurface.contactMarker = MeshBuilder.CreateSphere('ClinicalSurfaceContactMarker', { diameter: .15, segments: 16 }, scene);
+    clinicalSurface.contactMarker.material = clinicalCavityMaterial;
+    clinicalSurface.contactMarker.isPickable = false;
+  }
+  clinicalSurface.contactMarker.parent = mesh;
+  clinicalSurface.contactMarker.position.set(0,0,0);
+  clinicalSurface.contactMarker.scaling.set(.5,.12,.5);
+  clinicalSurface.contactMarker.setEnabled(true);
+  return clinicalSurface.contactMarker;
+}
+function ensureSurfaceMark(mesh, point, kind) {
+  if (clinicalSurface.surfaceMark && clinicalSurface.surfaceMark.parent !== mesh) {
+    clinicalSurface.surfaceMark.dispose();
+    clinicalSurface.surfaceMark = null;
+  }
+  if (!clinicalSurface.surfaceMark) {
+    clinicalSurface.surfaceMark = MeshBuilder.CreateSphere('ClinicalDynamicSurfaceMark', { diameter: 1, segments: 20 }, scene);
+    clinicalSurface.surfaceMark.isPickable = false;
+  }
+  const mark = clinicalSurface.surfaceMark;
+  mark.parent = mesh;
+  mark.position.copyFrom(localPointForMesh(mesh, point));
+  mark.material = kind === 'soft-tissue' ? clinicalTissueMarkMaterial
+    : kind === 'debridement' ? clinicalDebrisMaterial : clinicalCavityMaterial;
+  mark.setEnabled(true);
+  mark.scaling.set(.045,.012,.045);
+  return mark;
+}
+function deformGingivaMesh(mesh, worldPoint, force) {
+  if (!mesh || !clinicalMeshKey(mesh)?.startsWith('gingiva-')) return;
+  try {
+    let record = clinicalSurface.deformations.get(mesh);
+    if (!record) {
+      const original = mesh.getVerticesData(VertexBuffer.PositionKind);
+      if (!original || original.length > 240000) return;
+      record = { original: new Float32Array(original), strength: 0, point: Vector3.Zero(), normal: Vector3.Up(), lastUpdate: 0 };
+      clinicalSurface.deformations.set(mesh, record);
+    }
+    record.point.copyFrom(localPointForMesh(mesh, worldPoint));
+    const normalWorld = clinicalSurface.contactNormal || Vector3.Up();
+    const inverse = Matrix.Invert(mesh.getWorldMatrix());
+    record.normal.copyFrom(Vector3.TransformNormal(normalWorld, inverse).normalize());
+    record.strength = Math.min(.16, force * .055);
+    record.lastUpdate = performance.now();
+    const deformed = new Float32Array(record.original);
+    const radius = .48;
+    for (let i = 0; i < deformed.length; i += 3) {
+      const dx = record.original[i] - record.point.x;
+      const dy = record.original[i+1] - record.point.y;
+      const dz = record.original[i+2] - record.point.z;
+      const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if (distance >= radius) continue;
+      const falloff = Math.pow(1 - distance/radius, 2);
+      const amount = record.strength * falloff;
+      deformed[i] += record.normal.x * amount;
+      deformed[i+1] += record.normal.y * amount;
+      deformed[i+2] += record.normal.z * amount;
+    }
+    mesh.updateVerticesData(VertexBuffer.PositionKind, deformed, false, false);
+  } catch (error) {
+    console.debug('Localized gingival deformation skipped for this mesh.', error);
+  }
+}
+function spawnClinicalFluid(point, normal, count = 2) {
+  for (let i = 0; i < count; i++) {
+    if (clinicalSurface.particles.length >= 70) {
+      const old = clinicalSurface.particles.shift();
+      old.mesh.dispose();
+    }
+    const drop = MeshBuilder.CreateSphere('ClinicalFluidParticle', { diameter: .055, segments: 6 }, scene);
+    drop.material = clinicalWaterMaterial;
+    drop.position.copyFrom(point).addInPlace(normal.scale(-.04));
+    drop.isPickable = false;
+    const spread = (i - (count - 1) / 2) * .16;
+    clinicalSurface.particles.push({
+      mesh: drop,
+      velocity: normal.scale(-1.1).add(new Vector3(spread, -.4, -spread)).scale(.7),
+      age: 0
+    });
+  }
+}
+function disposeClinicalParticles() {
+  for (const particle of clinicalSurface.particles) particle.mesh.dispose();
+  clinicalSurface.particles.length = 0;
+  clinicalFluidCount.textContent = '0';
+}
+function updateClinicalSurfaceFromPick(pick) {
+  if (!pick?.hit || !pick.pickedMesh || !isClinicalSurfaceMesh(pick.pickedMesh)) return false;
+  const mesh = pick.pickedMesh;
+  const key = clinicalMeshKey(mesh);
+  const point = pick.pickedPoint.clone();
+  const normal = pick.getNormal(true)?.normalize() || Vector3.Up();
+  clinicalSurface.targetMesh = mesh;
+  clinicalSurface.targetKey = key;
+  clinicalSurface.contactPoint = point;
+  clinicalSurface.contactNormal = normal;
+  clinicalSurface.contactSeconds = 0;
+  ensureContactMarker(mesh).position.copyFrom(localPointForMesh(mesh, point));
+  const tool = selectedOralInventoryRoot;
+  if (tool) {
+    tool.setEnabled(true);
+    tool.position.copyFrom(point.add(normal.scale(.78)));
+    tool.rotation.set(Math.PI / 2, 0, 0);
+  }
+  isPropAtMouth = true;
+  canvas.classList.add('clinical-contact-armed');
+  clinicalContactState.textContent = 'ملامسة ' + (key.startsWith('tooth-') ? 'السن FDI ' + key.slice(-2) : 'اللثة');
+  clinicalSimulationFeedback.textContent = 'تم اكتشاف تقاطع شعاع المؤشر مع سطح تشريحي فعلي. اسحب الأداة فوق السطح لاستمرار التلامس.';
+  return true;
+}
+function resetClinicalContactState(message = 'تمت إعادة ضبط محرك التلامس.') {
+  clinicalSurface.dragging = false;
+  clinicalSurface.pointerId = null;
+  clinicalSurface.targetMesh = null;
+  clinicalSurface.targetKey = null;
+  clinicalSurface.contactPoint = null;
+  clinicalSurface.contactNormal = null;
+  clinicalSurface.contactSeconds = 0;
+  clinicalSurface.depthMm = 0;
+  clinicalSurface.fluidAccumulator = 0;
+  if (clinicalSurface.contactMarker) clinicalSurface.contactMarker.setEnabled(false);
+  if (clinicalSurface.surfaceMark) clinicalSurface.surfaceMark.setEnabled(false);
+  for (const [mesh, record] of clinicalSurface.deformations) {
+    try { mesh.updateVerticesData(VertexBuffer.PositionKind, new Float32Array(record.original), false, false); } catch {}
+  }
+  clinicalSurface.deformations.clear();
+  disposeClinicalParticles();
+  clinicalContactState.textContent = 'لا يوجد تلامس';
+  clinicalContactTime.textContent = '0.00 s';
+  clinicalDepth.textContent = '0.00 mm';
+  clinicalTissueState.textContent = 'مستقرة';
+  clinicalForceBar.style.width = '0%';
+  clinicalSimulationFeedback.textContent = message;
+  canvas.classList.remove('clinical-contact-dragging');
+}
+function updateClinicalTelemetry(force, dt) {
+  const contact = clinicalSurface.dragging && clinicalSurface.targetMesh && clinicalSurface.contactPoint;
+  const id = selectedInventoryItem?.id || '';
+  const key = clinicalSurface.targetKey || '';
+  if (contact) {
+    clinicalSurface.contactSeconds += dt;
+    const rotary = ['high-speed','low-speed','bur-kit'].includes(id);
+    const debriding = ['ultrasonic-scaler','gracey-curette','curette','periotome'].includes(id);
+    const endodontic = ['endo-files','endo-spreader'].includes(id);
+    const pressureScale = force / 2;
+    if (rotary && currentClinicalSpeed() > 0 && key.startsWith('tooth-')) {
+      const speedScale = currentClinicalSpeed() / 400000;
+      clinicalSurface.depthMm = Math.min(2.4, clinicalSurface.depthMm + dt * .74 * speedScale * pressureScale);
+      const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'cut');
+      const radius = .04 + clinicalSurface.depthMm * .12;
+      mark.scaling.set(radius, .012 + clinicalSurface.depthMm * .006, radius);
+      clinicalTissueState.textContent = clinicalSurface.depthMm > 1.6 ? 'تحذير: عمق مرتفع' : 'إزالة سطحية';
+    } else if (debriding && (key.startsWith('tooth-') || key.startsWith('gingiva-'))) {
+      clinicalSurface.depthMm = Math.min(1.1, clinicalSurface.depthMm + dt * .25 * pressureScale);
+      const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'debridement');
+      const radius = .045 + clinicalSurface.depthMm * .1;
+      mark.scaling.set(radius, .014, radius);
+      if (key.startsWith('gingiva-')) deformGingivaMesh(clinicalSurface.targetMesh, clinicalSurface.contactPoint, force);
+      clinicalTissueState.textContent = 'إزالة ترسبات تعليمية';
+    } else if (endodontic && key.startsWith('tooth-')) {
+      clinicalSurface.depthMm = Math.min(8, clinicalSurface.depthMm + dt * .42 * pressureScale);
+      const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'cut');
+      mark.scaling.set(.035, .02 + clinicalSurface.depthMm*.002, .035);
+      clinicalTissueState.textContent = 'تقدم داخل نموذج القناة';
+    } else if (key.startsWith('gingiva-')) {
+      deformGingivaMesh(clinicalSurface.targetMesh, clinicalSurface.contactPoint, force);
+      clinicalTissueState.textContent = force > 1.4 ? 'انضغاط مرتفع' : 'تشوه مرن موضعي';
+    } else {
+      clinicalTissueState.textContent = 'تماس سطحي';
+    }
+    const irrigationTool = ['air-water','endo-irrigation'].includes(id);
+    if (clinicalIrrigationInput?.checked && irrigationTool) {
+      clinicalSurface.fluidAccumulator += dt;
+      while (clinicalSurface.fluidAccumulator > .075) {
+        clinicalSurface.fluidAccumulator -= .075;
+        spawnClinicalFluid(clinicalSurface.contactPoint, clinicalSurface.contactNormal, 2);
+      }
+    }
+    const suctionTool = ['saliva-ejector','high-volume-suction'].includes(id);
+    if (suctionTool && clinicalSurface.particles.length) {
+      const suctionPoint = selectedOralInventoryRoot?.position || clinicalSurface.contactPoint;
+      for (const particle of clinicalSurface.particles) {
+        const delta = suctionPoint.subtract(particle.mesh.position);
+        if (delta.length() > .02) particle.velocity.addInPlace(delta.normalize().scale(dt * 3.2));
+      }
+    }
+    if (rotary && selectedOralInventoryRoot) {
+      const spin = Math.min(45, currentClinicalSpeed() / 400000 * 45);
+      const bur = selectedOralInventoryRoot.getChildMeshes().find(mesh => mesh.name.includes('RotaryBur'));
+      if (bur) bur.rotation.z += dt * spin * 14;
+    }
+  } else if (clinicalSurface.deformations.size) {
+    clinicalTissueState.textContent = 'استعادة مرونة الأنسجة';
+  }
+  clinicalForceBar.style.width = (contact ? Math.min(100, force / 2 * 100) : 0) + '%';
+  clinicalContactTime.textContent = clinicalSurface.contactSeconds.toFixed(2) + ' s';
+  clinicalDepth.textContent = clinicalSurface.depthMm.toFixed(2) + ' mm';
+  clinicalFluidCount.textContent = String(clinicalSurface.particles.length);
+  const now = performance.now();
+  if (now - clinicalSurface.lastUiUpdate > 90) {
+    clinicalSurface.lastUiUpdate = now;
+    if (contact) clinicalContactState.textContent = 'تلامس فعلي · ' + key;
+    else if (!clinicalSurface.dragging) clinicalContactState.textContent = 'لا يوجد تلامس مستمر';
+  }
+}
+function updateClinicalParticles(dt) {
+  const suction = ['saliva-ejector','high-volume-suction'].includes(selectedInventoryItem?.id) &&
+    clinicalSurface.dragging && clinicalSurface.targetPoint;
+  for (let i = clinicalSurface.particles.length - 1; i >= 0; i--) {
+    const particle = clinicalSurface.particles[i];
+    particle.age += dt;
+    particle.velocity.y -= dt * 1.25;
+    particle.mesh.position.addInPlace(particle.velocity.scale(dt));
+    if (suction && selectedOralInventoryRoot) {
+      const toward = selectedOralInventoryRoot.position.subtract(particle.mesh.position);
+      if (toward.length() < .16) particle.age = 5;
+    }
+    if (particle.age > 2.3 || particle.mesh.position.y < -5) {
+      particle.mesh.dispose();
+      clinicalSurface.particles.splice(i, 1);
+    }
+  }
+}
+function restoreSoftTissue(dt) {
+  if (clinicalSurface.dragging) return;
+  for (const [mesh, record] of clinicalSurface.deformations) {
+    record.strength *= Math.exp(-dt * 4.5);
+    if (record.strength < .003) {
+      try { mesh.updateVerticesData(VertexBuffer.PositionKind, new Float32Array(record.original), false, false); } catch {}
+      clinicalSurface.deformations.delete(mesh);
+      continue;
+    }
+    try {
+      const deformed = new Float32Array(record.original);
+      const radius = .48;
+      for (let i=0;i<deformed.length;i+=3) {
+        const dx=record.original[i]-record.point.x, dy=record.original[i+1]-record.point.y, dz=record.original[i+2]-record.point.z;
+        const distance=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(distance>=radius)continue;
+        const amount=record.strength*Math.pow(1-distance/radius,2);
+        deformed[i]+=record.normal.x*amount;deformed[i+1]+=record.normal.y*amount;deformed[i+2]+=record.normal.z*amount;
+      }
+      mesh.updateVerticesData(VertexBuffer.PositionKind,deformed,false,false);
+    } catch {}
+  }
+}
+canvas.addEventListener('pointerdown', event => {
+  if (activeExperience !== 'oral-exam' || !isPropAtMouth || !selectedOralInventoryRoot) return;
+  const pick = pickClinicalSurface(event);
+  if (!pick?.hit || !updateClinicalSurfaceFromPick(pick)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  clinicalSurface.dragging = true;
+  clinicalSurface.pointerId = event.pointerId;
+  clinicalSurface.contactSeconds = 0;
+  canvas.classList.add('clinical-contact-dragging');
+  try { canvas.setPointerCapture(event.pointerId); } catch {}
+}, true);
+canvas.addEventListener('pointermove', event => {
+  if (!clinicalSurface.dragging || event.pointerId !== clinicalSurface.pointerId) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const pick = pickClinicalSurface(event);
+  if (pick?.hit && updateClinicalSurfaceFromPick(pick)) {
+    clinicalSurface.dragging = true;
+    clinicalSurface.pointerId = event.pointerId;
+  } else {
+    clinicalSurface.targetMesh = null;
+    clinicalSurface.targetKey = null;
+    clinicalSurface.contactPoint = null;
+  }
+}, true);
+function endClinicalPointerDrag(event) {
+  if (!clinicalSurface.dragging || event.pointerId !== clinicalSurface.pointerId) return;
+  clinicalSurface.dragging = false;
+  clinicalSurface.pointerId = null;
+  canvas.classList.remove('clinical-contact-dragging');
+  clinicalSimulationFeedback.textContent = clinicalSurface.contactSeconds > .1
+    ? 'تم تسجيل تلامس السطح. راجع زمن التلامس والعمق قبل تنفيذ الخطوة.'
+    : 'كان التلامس أقصر من اللازم؛ حرّك الأداة على السطح مدة أطول.';
+}
+canvas.addEventListener('pointerup', endClinicalPointerDrag, true);
+canvas.addEventListener('pointercancel', endClinicalPointerDrag, true);
+canvas.addEventListener('lostpointercapture', endClinicalPointerDrag, true);
+scene.onBeforeRenderObservable.add(() => {
+  const dt = Math.min(.05, Math.max(.001, engine.getDeltaTime() / 1000));
+  updateClinicalTelemetry(currentClinicalForce(), dt);
+  updateClinicalParticles(dt);
+  restoreSoftTissue(dt);
+});
+document.getElementById('clinical-reset-physics')?.addEventListener('click', () => {
+  resetClinicalContactState();
+});
 document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
   if (activeExperience !== 'treatment' && activeExperience !== 'oral-exam') {
     document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج أولًا.';
