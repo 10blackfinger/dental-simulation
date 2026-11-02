@@ -6,9 +6,8 @@ import { createPathologyRenderer } from '../src/pathology-visuals.js';
 function createFixture() {
   const engine = new NullEngine({ renderWidth: 320, renderHeight: 240 });
   const scene = new Scene(engine);
-  const tooth = MeshBuilder.CreateBox('FMA55681', {
-    width: 0.6, height: 1.9, depth: 0.55
-  }, scene);
+  const tooth = MeshBuilder.CreateSphere('FMA55681', { diameter: 1, segments: 32 }, scene);
+  tooth.scaling.set(0.6, 1.9, 0.55);
   const mandible = MeshBuilder.CreateBox('FMA52748', {
     width: 4.4, height: 1.1, depth: 2.1
   }, scene);
@@ -85,5 +84,35 @@ test('oral mucosal lesions use the documented gingival proxy surface', () => {
   assert.equal(result.effects, 1);
   assert.ok(f.scene.meshes.length > 3);
   f.renderer.clear();
+  f.engine.dispose();
+});
+
+test('caries deforms the real tooth surface and clearing restores its original vertices', () => {
+  const f = createFixture();
+  const original = Float32Array.from(f.tooth.getVerticesData('position'));
+  f.renderer.render([
+    state('5', 'deep-caries', 'deep-caries', 'tooth', { severity: 4 })
+  ], f.context);
+  const damaged = f.tooth.getVerticesData('position');
+  assert.ok(
+    damaged.some((value, index) => Math.abs(value - original[index]) > 1e-7),
+    'deep caries should modify the actual tooth vertex positions'
+  );
+
+  f.renderer.clear();
+  const restored = f.tooth.getVerticesData('position');
+  assert.deepEqual(Array.from(restored), Array.from(original));
+  f.engine.dispose();
+});
+
+test('developmental absence hides the selected tooth and restores it on clear', () => {
+  const f = createFixture();
+  assert.equal(f.tooth.isVisible, true);
+  f.renderer.render([
+    state('6', 'hypodontia', 'missing-tooth', 'tooth')
+  ], f.context);
+  assert.equal(f.tooth.isVisible, false);
+  f.renderer.clear();
+  assert.equal(f.tooth.isVisible, true);
   f.engine.dispose();
 });
