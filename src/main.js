@@ -1977,7 +1977,7 @@ async function showDentalAtlasExperience() {
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
-  for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for(const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
   }
   dentalAtlasPanel.hidden=false;
@@ -1994,6 +1994,9 @@ async function showDentalAtlasExperience() {
     bodyAssetRoot?.setEnabled(false);
     peopleRoot.setEnabled(false);
     activeExperience='dental-scope';
+    isPatientMouthOpen = false;
+    setDentalJawOpen(false);
+    document.getElementById('patient-mouth-toggle').textContent = 'فتح الفم';
     setProceduralControlsEnabled(false,'dental');
     engine.setHardwareScalingLevel(1.25);
     restoreDentalWholeMouth();
@@ -2002,6 +2005,64 @@ async function showDentalAtlasExperience() {
   }
   loadingOverlay?.classList.add('hidden');
 }
+
+async function showOralExamExperience() {
+  loadingOverlay?.classList.remove('hidden');
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
+  patientVariantControls.hidden = true;
+  peopleRoot.setEnabled(false);
+  anatomyPanel.hidden = true;
+  bodyPanel.hidden = true;
+  dentalAtlasPanel.hidden = false;
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-dental-atlas','view-pediatric','view-body']) {
+    document.getElementById(id)?.classList.toggle('selected', id === 'view-oral-exam');
+  }
+  await ensureDentalScope();
+  if (!dentalScopeRoot || !dentalLowerJawPivot) {
+    setAssetStatus('تعذر تحميل تشريح الفم التفصيلي. تحقق من ملفات Dental Scope واتصال الشبكة.', 'warn');
+    loadingOverlay?.classList.add('hidden');
+    return;
+  }
+  dentalScopeRoot.setEnabled(true);
+  dentalToothDetails.forEach(item => item.root.setEnabled(false));
+  root.setEnabled(false);
+  clinicAssetRoot?.setEnabled(false);
+  anatomyAssetRoot?.setEnabled(false);
+  bodyAssetRoot?.setEnabled(false);
+  peopleRoot.setEnabled(false);
+  treatmentRoot.setEnabled(false);
+  activeExperience = 'oral-exam';
+  setProceduralControlsEnabled(false, 'dental');
+  engine.setHardwareScalingLevel(1.15);
+  document.getElementById('dental-context-toggle').checked = false;
+  document.getElementById('dental-nerve-toggle').checked = true;
+  document.getElementById('dental-gum-toggle').checked = true;
+  document.getElementById('dental-shell-toggle').checked = true;
+  applyDentalBaseVisibility();
+  isPatientMouthOpen = true;
+  isPropAtMouth = false;
+  selectedOralInventoryRoot?.setEnabled(false);
+  selectedOralInventoryRoot = null;
+  dentalLowerJawPivot.rotation.x = dentalJawOpenAngle;
+  document.getElementById('patient-mouth-toggle').textContent = 'إغلاق الفم';
+  document.getElementById('apply-clinical-action').disabled = false;
+  await ensureOralSceneProps();
+  activeExperience = 'oral-exam';
+  currentCariesTarget = '36';
+  renderDentalToothGrid(document.getElementById('dental-tooth-search').value);
+  selectOralExamTooth(currentCariesTarget);
+  selectInventoryItem(selectedInventoryItem);
+  setDentalStatus('وضع فحص الأسنان جاهز: فك سفلي متحرك، 32 سنًا، أدوات ومواد قابلة للسحب.', 'ok');
+  setAssetStatus('فحص الأسنان جاهز. الفم مفتوح؛ اختر السن ثم اسحب الأداة أو المادة إلى منطقة العمل.', 'ok');
+  setCamera('orbit');
+  loadingOverlay?.classList.add('hidden');
+}
+document.getElementById('view-oral-exam')?.addEventListener('click', showOralExamExperience);
+
 document.getElementById('view-dental-atlas')?.addEventListener('click',showDentalAtlasExperience);
 document.getElementById('dental-tooth-search')?.addEventListener('input',event=>renderDentalToothGrid(event.target.value));
 document.getElementById('dental-structure-search')?.addEventListener('input',event=>renderDentalStructureList(event.target.value));
@@ -2995,7 +3056,7 @@ aiForm?.addEventListener('submit', async event => {
 configureAiProvider();
 updateCaseView();
 setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتبة العيادة والتشريح…');
-setTimeout(() => showTreatmentExperience(), 50);
+setTimeout(() => showOralExamExperience(), 50);
 
 document.getElementById('mesh-count').textContent=String(scene.meshes.length);
 const isCompactDevice = window.matchMedia('(max-width: 760px)').matches || (navigator.hardwareConcurrency || 4) <= 4;
