@@ -149,3 +149,14 @@ body{overscroll-behavior:none}
 @media(prefers-reduced-motion:reduce){
   .sidebar-right,.sidebar-left{transition:none}
 }
+
+
+/* Clinical procedure training panel */
+.clinical-procedure-panel{display:grid;gap:9px;margin-top:12px;padding:12px;border:1px solid rgba(53,197,176,.3);border-radius:12px;background:rgba(20,43,55,.42)}
+.clinical-procedure-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.clinical-procedure-heading span{font-size:11px;color:#35c5b0;background:rgba(53,197,176,.1);padding:4px 8px;border-radius:20px}
+.clinical-procedure-panel p{margin:0;line-height:1.7}
+.inventory-item{cursor:grab}
+.inventory-item:active{cursor:grabbing}
+#render-canvas.clinical-drop-ready{outline:2px dashed rgba(53,197,176,.85);outline-offset:-8px}
+#render-canvas.clinical-drop-active{outline:3px solid rgba(53,197,176,.95);outline-offset:-8px}
