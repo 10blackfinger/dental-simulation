@@ -2665,6 +2665,266 @@ renderInventory();
 selectInventoryItem(selectedInventoryItem);
 
 let cariesTrainingStage = 'caries';
+
+const clinicalProcedureFlows = {
+  exam: [
+    { tool:'mirror', label:'مسح بصري للأسطح', effect:'inspection', contact:'tooth' },
+    { tool:'explorer', label:'فحص سطح السن', effect:'surface-map', contact:'tooth' },
+    { tool:'periodontal-probe', label:'تسجيل موضع لثوي تعليمي', effect:'measure', contact:'gingiva' }
+  ],
+  endo: [
+    { tool:'rubber-dam', label:'تمثيل العزل حول السن', effect:'isolation', contact:'tooth' },
+    { tool:'high-speed', label:'تحضير مدخل تعليمي', effect:'access', contact:'tooth', depth:.18 },
+    { tool:'endo-files', label:'إظهار مسار أداة القناة', effect:'canal-file', contact:'tooth' },
+    { tool:'endo-irrigation', label:'ري القناة بجزيئات سائلة', effect:'irrigation', contact:'tooth' },
+    { tool:'endodontic-sealer', label:'إضافة طبقة مادة إغلاق', effect:'sealer', contact:'tooth' },
+    { tool:'gutta-percha', label:'إظهار مادة الإغلاق داخل المسار', effect:'obturation', contact:'tooth' }
+  ],
+  hygiene: [
+    { tool:'periodontal-probe', label:'قياس لثوي افتراضي', effect:'measure', contact:'gingiva' },
+    { tool:'ultrasonic-scaler', label:'إزالة ترسبات سطحية افتراضية', effect:'debride', contact:'gingiva' },
+    { tool:'gracey-curette', label:'تنظيف موضعي إضافي', effect:'root-clean', contact:'gingiva' },
+    { tool:'air-water', label:'شطف المجال المرئي', effect:'irrigation', contact:'gingiva' }
+  ],
+  extraction: [
+    { tool:'periodontal-probe', label:'تقييم السن واللثة', effect:'measure', contact:'gingiva' },
+    { tool:'periotome', label:'تمثيل تحرير الرباط حول السن', effect:'release', contact:'gingiva' },
+    { tool:'elevator', label:'تطبيق حركة رفع تعليمية محدودة', effect:'luxation', contact:'tooth', force:.8 },
+    { tool:'extraction-forceps', label:'تمثيل إزالة السن من المشهد', effect:'extraction', contact:'tooth', force:1.0 },
+    { tool:'suture-material', label:'إظهار خيط إغلاق موضعي', effect:'suture', contact:'gingiva' }
+  ],
+  periodontal: [
+    { tool:'periodontal-probe', label:'تسجيل موضع اللثة', effect:'measure', contact:'gingiva' },
+    { tool:'ultrasonic-scaler', label:'إزالة ترسبات سطحية', effect:'debride', contact:'gingiva' },
+    { tool:'gracey-curette', label:'تنظيف سطحي تكميلي', effect:'root-clean', contact:'gingiva' },
+    { tool:'air-water', label:'شطف وإظهار تدفق السوائل', effect:'irrigation', contact:'gingiva' }
+  ],
+  prostho: [
+    { tool:'high-speed', label:'تغيير سطح تحضير افتراضي', effect:'prep', contact:'tooth', depth:.16 },
+    { tool:'intraoral-scanner', label:'مسح ثلاثي الأبعاد للسن', effect:'scan', contact:'tooth' },
+    { tool:'shade-guide', label:'إضافة قراءة لون تعليمية', effect:'shade', contact:'tooth' },
+    { tool:'impression-tray', label:'تحديد موضع ملعقة الطبعة', effect:'tray', contact:'tooth' },
+    { tool:'impression-silicone', label:'إظهار مادة الطبعة', effect:'impression', contact:'tooth' },
+    { tool:'luting-cement', label:'إظهار طبقة تثبيت تعويضية', effect:'cement', contact:'tooth' }
+  ],
+  implant: [
+    { tool:'intraoral-scanner', label:'تسجيل موضع التعويض الرقمي', effect:'scan', contact:'tooth' },
+    { tool:'surgical-drill', label:'تمثيل موضع تحضير عظمي افتراضي', effect:'implant-site', contact:'gingiva' },
+    { tool:'implant-fixture-kit', label:'إظهار جسم زرعة تعليمي', effect:'implant-fixture', contact:'gingiva' },
+    { tool:'suture-material', label:'إظهار خيط إغلاق موضعي', effect:'suture', contact:'gingiva' }
+  ],
+  ortho: [
+    { tool:'intraoral-scanner', label:'مسح موضع السن', effect:'scan', contact:'tooth' },
+    { tool:'ortho-bracket-kit', label:'وضع قاعدة تقويم على السن', effect:'bracket', contact:'tooth' },
+    { tool:'orthodontic-wire', label:'ربط قواعد التقويم بسلك', effect:'archwire', contact:'tooth' },
+    { tool:'curing-light', label:'تثبيت بصري افتراضي للقاعدة', effect:'bond', contact:'tooth' }
+  ],
+  trauma: [
+    { tool:'mirror', label:'فحص بصري أولي', effect:'inspection', contact:'tooth' },
+    { tool:'explorer', label:'تحديد سطح الإصابة', effect:'surface-map', contact:'tooth' },
+    { tool:'splint-wire', label:'إظهار وصلة تثبيت تعليمية', effect:'splint', contact:'tooth' },
+    { tool:'composite-resin', label:'إضافة مادة ربط افتراضية', effect:'bond', contact:'tooth' },
+    { tool:'curing-light', label:'إكمال التثبيت البصري', effect:'bond', contact:'tooth' }
+  ],
+  emergency: [
+    { tool:'mirror', label:'تقييم مجال الفم بصريًا', effect:'inspection', contact:'tooth' },
+    { tool:'high-volume-suction', label:'إظهار سحب السوائل والجزيئات', effect:'suction', contact:'tooth' },
+    { tool:'air-water', label:'شطف المجال المرئي', effect:'irrigation', contact:'tooth' }
+  ],
+  pediatric: [
+    { tool:'mirror', label:'فحص بصري لطيف', effect:'inspection', contact:'tooth' },
+    { tool:'fluoride-varnish', label:'تغطية سطحية تعليمية بالورنيش', effect:'fluoride', contact:'tooth' },
+    { tool:'glass-ionomer', label:'إظهار كتلة مادة ترميمية افتراضية', effect:'bond', contact:'tooth' }
+  ]
+};
+let activeClinicalProcedure = 'restoration';
+let activeClinicalProcedureIndex = 0;
+const clinicalProcedureVisuals = [];
+const extractedToothKeys = new Set();
+function resetClinicalProcedureFlow(scenario = 'restoration') {
+  activeClinicalProcedure = clinicalProcedureFlows[scenario] ? scenario : 'restoration';
+  activeClinicalProcedureIndex = 0;
+  for (const visual of clinicalProcedureVisuals) visual.dispose();
+  clinicalProcedureVisuals.length = 0;
+  for (const key of extractedToothKeys) {
+    for (const mesh of dentalMeshByKey.get(key) || []) {
+      mesh.setEnabled(true);
+      mesh.isVisible = true;
+    }
+  }
+  extractedToothKeys.clear();
+  resetClinicalContactState('تمت إعادة ضبط المحاكاة الإجرائية والأنسجة المرئية.');
+}
+function addProcedureVisual(effect) {
+  const mesh = clinicalSurface.targetMesh;
+  const worldPoint = clinicalSurface.contactPoint;
+  if (!mesh || !worldPoint) return;
+  const root = new TransformNode('ClinicalProcedure_' + effect + '_' + clinicalProcedureVisuals.length, scene);
+  root.parent = mesh;
+  root.position.copyFrom(localPointForMesh(mesh, worldPoint));
+  root.metadata = { clinicalEffect:effect, targetKey:clinicalSurface.targetKey };
+  const addSphere = (name, diameter, position, materialName, scaling = null) => {
+    const object = MeshBuilder.CreateSphere(name, { diameter, segments:18 }, scene);
+    object.parent = root;
+    object.position.copyFrom(position);
+    object.material = materialName;
+    object.isPickable = false;
+    if (scaling) object.scaling.copyFrom(scaling);
+    return object;
+  };
+  const addBox = (name, dimensions, position, materialName) => {
+    const object = MeshBuilder.CreateBox(name, { width:dimensions[0],height:dimensions[1],depth:dimensions[2] }, scene);
+    object.parent = root;
+    object.position.copyFrom(position);
+    object.material = materialName;
+    object.isPickable = false;
+    return object;
+  };
+  switch (effect) {
+    case 'inspection':
+    case 'surface-map':
+    case 'measure':
+      addSphere('ClinicalInspectionMarker', .18, Vector3.Zero(), mats.accent, new Vector3(1,.12,1));
+      break;
+    case 'isolation':
+      MeshBuilder.CreateTorus('ClinicalRubberDamRing', { diameter:1.1,thickness:.055,tessellation:32 }, scene).parent = root;
+      break;
+    case 'access':
+    case 'prep':
+    case 'implant-site':
+      addSphere('ClinicalPreparationZone', .34, Vector3.Zero(), clinicalCavityMaterial, new Vector3(1,.2,1));
+      break;
+    case 'canal-file':
+      {
+        const file = MeshBuilder.CreateCylinder('ClinicalCanalFile', {height:.9,diameterTop:.018,diameterBottom:.045,tessellation:12},scene);
+        file.parent=root;file.material=mats.metal;file.isPickable=false;file.rotation.x=Math.PI/2;
+      }
+      break;
+    case 'irrigation':
+    case 'suction':
+      spawnClinicalFluid(worldPoint, clinicalSurface.contactNormal || Vector3.Up(), effect === 'suction' ? 4 : 6);
+      addSphere('ClinicalFluidTarget', .22, Vector3.Zero(), clinicalWaterMaterial, new Vector3(1,.16,1));
+      break;
+    case 'sealer':
+    case 'cement':
+    case 'fluoride':
+    case 'bond':
+    case 'impression':
+      addSphere('ClinicalMaterialLayer', .42, Vector3.Zero(), effect === 'fluoride' ? clinicalWaterMaterial : mats.tooth, new Vector3(1,.11,1));
+      break;
+    case 'obturation':
+      {
+        const cone = MeshBuilder.CreateCylinder('ClinicalObturationCone', {height:.85,diameterTop:.015,diameterBottom:.12,tessellation:16},scene);
+        cone.parent=root;cone.material=mats.accent;cone.isPickable=false;cone.rotation.x=Math.PI/2;
+      }
+      break;
+    case 'debride':
+    case 'root-clean':
+      addSphere('ClinicalDebridementTrace', .46, Vector3.Zero(), clinicalDebrisMaterial, new Vector3(1,.1,1));
+      break;
+    case 'release':
+      addSphere('ClinicalLigamentReleaseTrace', .32, Vector3.Zero(), clinicalTissueMarkMaterial, new Vector3(1,.12,1));
+      break;
+    case 'luxation':
+      {
+        const pivot = new TransformNode('ClinicalMobilityIndicator',scene);pivot.parent=root;
+        const needle = MeshBuilder.CreateCylinder('ClinicalMobilityArrow',{height:.7,diameter:.04,tessellation:10},scene);
+        needle.parent=pivot;needle.position.x=.3;needle.rotation.z=Math.PI/2;needle.material=mats.accent;needle.isPickable=false;
+        pivot.rotation.z=.16;
+      }
+      break;
+    case 'extraction':
+      if (/^tooth-\d{2}$/.test(clinicalSurface.targetKey || '')) {
+        for (const toothMesh of dentalMeshByKey.get(clinicalSurface.targetKey) || []) {
+          toothMesh.setEnabled(false);
+          extractedToothKeys.add(clinicalSurface.targetKey);
+        }
+      }
+      addSphere('ClinicalSocketDisplay', .56, Vector3.Zero(), mats.gum, new Vector3(1,.14,1));
+      break;
+    case 'scan':
+      {
+        const ring = MeshBuilder.CreateTorus('ClinicalScanRing',{diameter:.8,thickness:.025,tessellation:40},scene);
+        ring.parent=root;ring.material=mats.accent;ring.isPickable=false;
+        const ring2=MeshBuilder.CreateTorus('ClinicalScanRing2',{diameter:1.02,thickness:.016,tessellation:40},scene);
+        ring2.parent=root;ring2.material=mats.glass;ring2.isPickable=false;
+      }
+      break;
+    case 'shade':
+      addSphere('ClinicalShadeSample', .25, Vector3.Zero(), mats.tooth, new Vector3(1,.35,.7));
+      break;
+    case 'tray':
+      addBox('ClinicalImpressionTray',[.68,.08,.34],Vector3.Zero(),mats.metal);
+      break;
+    case 'bracket':
+      addBox('ClinicalOrthodonticBracket',[.25,.14,.12],Vector3.Zero(),mats.metal);
+      break;
+    case 'archwire':
+    case 'splint':
+    case 'suture':
+      tube('ClinicalWireOrSuture',[[0,0,0],[.25,.10,.1],[.5,0,.18],[.75,.08,.28]],.025,effect==='suture'?'accent':'metal',root);
+      break;
+    case 'implant-fixture':
+      {
+        const fixture = MeshBuilder.CreateCylinder('ClinicalImplantFixture',{height:.72,diameterTop:.2,diameterBottom:.27,tessellation:24},scene);
+        fixture.parent=root;fixture.material=mats.metal;fixture.isPickable=false;
+        for (let i=0;i<4;i++) {
+          const thread=MeshBuilder.CreateTorus('ClinicalImplantThread_'+i,{diameter:.2+i*.012,thickness:.024,tessellation:20},scene);
+          thread.parent=root;thread.position.y=-.22+i*.13;thread.material=mats.metal;thread.isPickable=false;
+        }
+      }
+      break;
+    default:
+      addSphere('ClinicalProcedureMarker', .3, Vector3.Zero(), mats.accent);
+  }
+  clinicalProcedureVisuals.push(root);
+}
+function performGuidedClinicalProcedure() {
+  const flow = clinicalProcedureFlows[activeClinicalProcedure] || [];
+  const step = flow[activeClinicalProcedureIndex];
+  if (!step) {
+    clinicalSimulationFeedback.textContent = 'اكتمل هذا المسار التفاعلي. راجع النتيجة مع المشرف السريري.';
+    return true;
+  }
+  const id = selectedInventoryItem?.id;
+  if (id !== step.tool) {
+    clinicalSimulationFeedback.textContent = 'الخطوة الحالية تتطلب: ' + (dentalInventory.find(item => item.id === step.tool)?.name || step.tool) + '.';
+    return false;
+  }
+  if (!clinicalSurface.targetMesh || !clinicalSurface.targetKey || clinicalSurface.contactSeconds < .18) {
+    clinicalSimulationFeedback.textContent = 'لم يتم رصد تلامس كافٍ مع سطح السن أو اللثة. اضغط واسحب الأداة على السطح أولًا.';
+    return false;
+  }
+  if (step.contact === 'tooth' && !clinicalSurface.targetKey.startsWith('tooth-')) {
+    clinicalSimulationFeedback.textContent = 'الموضع المستهدف لهذه الخطوة هو سطح السن، وليس اللثة.';
+    return false;
+  }
+  if (step.contact === 'gingiva' && !clinicalSurface.targetKey.startsWith('gingiva-')) {
+    clinicalSimulationFeedback.textContent = 'الموضع المستهدف لهذه الخطوة هو سطح اللثة.';
+    return false;
+  }
+  if (step.depth && clinicalSurface.depthMm < step.depth) {
+    clinicalSimulationFeedback.textContent = 'استمر في التلامس السطحي المنضبط حتى يظهر تقدم التحضير التعليمي المطلوب.';
+    return false;
+  }
+  if (step.force && currentClinicalForce() < step.force) {
+    clinicalSimulationFeedback.textContent = 'قوة التطبيق الافتراضية أقل من نطاق التدريب لهذه الخطوة.';
+    return false;
+  }
+  if (step.effect === 'irrigation' && !clinicalIrrigationInput?.checked) {
+    clinicalSimulationFeedback.textContent = 'فعّل تدفق الري في لوحة محرك التلامس أولًا.';
+    return false;
+  }
+  addProcedureVisual(step.effect);
+  activeClinicalProcedureIndex += 1;
+  const next = flow[activeClinicalProcedureIndex];
+  document.getElementById('caries-stage-label').textContent = 'خطوة ' + activeClinicalProcedureIndex + ' / ' + flow.length;
+  document.getElementById('caries-procedure-help').textContent = step.label + ' — سُجلت نتيجة بصرية على المجسم المحدد.';
+  clinicalSimulationFeedback.textContent = next
+    ? 'اكتملت: ' + step.label + '. الخطوة التالية: ' + (dentalInventory.find(item => item.id === next.tool)?.name || next.tool) + '.'
+    : 'اكتمل المسار التفاعلي لهذه الحالة. التقييم النهائي تعليمي وليس شهادة كفاءة سريرية.';
+  return true;
+}
 function updateCariesTrainingPanel(message) {
   const labels = {
     caries: 'الآفة موجودة', cavity: 'تمت إزالة الآفة', etched: 'تم التخريش', bonded: 'تم تطبيق اللاصق', 'ready-to-fill': 'جاهز لوضع الترميم',
