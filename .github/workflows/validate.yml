@@ -1,0 +1,25 @@
+name: Validate Dental Simulation
+on:
+  pull_request:
+  push:
+    branches:
+      - feature/clinical-treatment-simulator
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Syntax check
+        run: npm run check
+      - name: Production build
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        run: npm run test:e2e
