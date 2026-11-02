@@ -2822,24 +2822,40 @@ function replaceDentalMeshReference(original, replacement, key) {
 async function applyDentalBooleanWear() {
   const sourceMesh = clinicalSurface.targetMesh;
   const key = clinicalSurface.targetKey;
-  const point = clinicalSurface.contactPoint;
-  if (!sourceMesh || !key?.startsWith('tooth-') || !point) return false;
+  if (!sourceMesh || !key?.startsWith('tooth-') || !clinicalSurface.contactPoint) return false;
   await ensureDentalBooleanEngine();
-  const localPoint = localPointForMesh(sourceMesh, point);
-  const inverse = Matrix.Invert(sourceMesh.computeWorldMatrix(true));
-  const localNormal = Vector3.TransformNormal(clinicalSurface.contactNormal || Vector3.Up(), inverse).normalize();
-  const cutter = MeshBuilder.CreateSphere('DentalBurBooleanCutter', { diameter:.34, segments:18 }, scene);
-  cutter.position.copyFrom(localPoint).subtractInPlace(localNormal.scale(.075));
-  cutter.scaling.set(1, .72, 1);
-  cutter.bakeCurrentTransformIntoVertices();
+  const path = clinicalSurface.contactTrace.length
+    ? clinicalSurface.contactTrace.filter(sample => sample.key === key)
+    : [{ point:clinicalSurface.contactPoint, normal:clinicalSurface.contactNormal, key }];
+  const samples = path.length > 10
+    ? path.filter((sample, index) => index === 0 || index === path.length - 1 || index % Math.ceil(path.length / 10) === 0)
+    : path;
   let originalCSG = null;
-  let cutterCSG = null;
-  let difference = null;
+  let workingCSG = null;
   try {
     originalCSG = CSG2.FromMesh(sourceMesh, true);
-    cutterCSG = CSG2.FromMesh(cutter, true);
-    difference = originalCSG.subtract(cutterCSG);
-    const replacement = difference.toMesh('Prepared_' + key + '_' + dentalBooleanCutHistory.length, scene, {
+    workingCSG = originalCSG;
+    for (let i=0; i<samples.length; i++) {
+      const sample = samples[i];
+      const localPoint = localPointForMesh(sourceMesh, sample.point);
+      const inverse = Matrix.Invert(sourceMesh.computeWorldMatrix(true));
+      const localNormal = Vector3.TransformNormal(sample.normal || Vector3.Up(), inverse).normalize();
+      const cutter = MeshBuilder.CreateSphere('DentalBurBooleanCutter_' + i, { diameter:.28, segments:16 }, scene);
+      let cutterCSG = null;
+      try {
+        cutter.position.copyFrom(localPoint).subtractInPlace(localNormal.scale(.065));
+        cutter.scaling.set(1, .74, 1);
+        cutter.bakeCurrentTransformIntoVertices();
+        cutterCSG = CSG2.FromMesh(cutter, true);
+        const next = workingCSG.subtract(cutterCSG);
+        if (workingCSG !== originalCSG) workingCSG.dispose();
+        workingCSG = next;
+      } finally {
+        cutterCSG?.dispose();
+        cutter.dispose();
+      }
+    }
+    const replacement = workingCSG.toMesh('Prepared_' + key + '_' + dentalBooleanCutHistory.length, scene, {
       centerMesh:false,
       rebuildNormals:true
     });
@@ -2863,22 +2879,28 @@ async function applyDentalBooleanWear() {
     clinicalSurface.targetMesh = replacement;
     if (clinicalSurface.contactMarker) {
       clinicalSurface.contactMarker.parent = replacement;
-      clinicalSurface.contactMarker.position.copyFrom(localPoint);
+      clinicalSurface.contactMarker.position.copyFrom(localPointForMesh(replacement, clinicalSurface.contactPoint));
     }
     if (clinicalSurface.surfaceMark) {
       clinicalSurface.surfaceMark.parent = replacement;
-      clinicalSurface.surfaceMark.position.copyFrom(localPoint);
+      clinicalSurface.surfaceMark.position.copyFrom(localPointForMesh(replacement, clinicalSurface.contactPoint));
     }
     replacement.computeWorldMatrix(true);
     return true;
   } finally {
-    difference?.dispose();
+    if (workingCSG && workingCSG !== originalCSG) workingCSG.dispose();
     originalCSG?.dispose();
-    cutterCSG?.dispose();
-    cutter.dispose();
   }
 }
 function restoreDentalBooleanWear() {
+  if (dentalBooleanCutHistory.length) {
+    clinicalSurface.contactMarker?.dispose();
+    clinicalSurface.surfaceMark?.dispose();
+    clinicalSurface.contactMarker = null;
+    clinicalSurface.surfaceMark = null;
+    clinicalSurface.targetMesh = null;
+    clinicalSurface.contactTrace = [];
+  }
   for (let i=dentalBooleanCutHistory.length-1;i>=0;i--) {
     const item = dentalBooleanCutHistory[i];
     item.replacement.setEnabled(false);
@@ -3259,7 +3281,7 @@ let isPropAtMouth = false;
 // a sensor reading from real dental equipment.
 const clinicalSurface = {
   dragging: false, pointerId: null, targetMesh: null, targetKey: null,
-  contactPoint: null, contactNormal: null, contactSeconds: 0,
+  contactPoint: null, contactNormal: null, contactSeconds: 0, contactTrace: [],
   depthMm: 0, lastUiUpdate: 0, fluidAccumulator: 0, particles: [],
   surfaceMark: null, contactMarker: null, deformations: new Map(),
   lastMessageAt: 0
@@ -3429,11 +3451,19 @@ function updateClinicalSurfaceFromPick(pick) {
   const key = clinicalMeshKey(mesh);
   const point = pick.pickedPoint.clone();
   const normal = pick.getNormal(true)?.normalize() || Vector3.Up();
+  if (clinicalSurface.targetKey && clinicalSurface.targetKey !== key) {
+    clinicalSurface.contactTrace = [];
+    clinicalSurface.contactSeconds = 0;
+  }
   clinicalSurface.targetMesh = mesh;
   clinicalSurface.targetKey = key;
   clinicalSurface.contactPoint = point;
   clinicalSurface.contactNormal = normal;
-  clinicalSurface.contactSeconds = 0;
+  const previous = clinicalSurface.contactTrace[clinicalSurface.contactTrace.length - 1];
+  if (!previous || Vector3.DistanceSquared(previous.point, point) > .035 * .035) {
+    clinicalSurface.contactTrace.push({ point:point.clone(), normal:normal.clone(), key });
+    if (clinicalSurface.contactTrace.length > 18) clinicalSurface.contactTrace.splice(1, 1);
+  }
   ensureContactMarker(mesh).position.copyFrom(localPointForMesh(mesh, point));
   const tool = selectedOralInventoryRoot;
   if (tool) {
@@ -3444,7 +3474,7 @@ function updateClinicalSurfaceFromPick(pick) {
   isPropAtMouth = true;
   canvas.classList.add('clinical-contact-armed');
   clinicalContactState.textContent = 'ملامسة ' + (key.startsWith('tooth-') ? 'السن FDI ' + key.slice(-2) : 'اللثة');
-  clinicalSimulationFeedback.textContent = 'تم اكتشاف تقاطع شعاع المؤشر مع سطح تشريحي فعلي. اسحب الأداة فوق السطح لاستمرار التلامس.';
+  clinicalSimulationFeedback.textContent = 'تم اكتشاف تقاطع شعاع المؤشر مع سطح تشريحي فعلي. استمر بالسحب لرسم مسار تلامس الأداة.';
   return true;
 }
 function resetClinicalContactState(message = 'تمت إعادة ضبط محرك التلامس.') {
@@ -3455,6 +3485,7 @@ function resetClinicalContactState(message = 'تمت إعادة ضبط محرك 
   clinicalSurface.contactPoint = null;
   clinicalSurface.contactNormal = null;
   clinicalSurface.contactSeconds = 0;
+  clinicalSurface.contactTrace = [];
   clinicalSurface.depthMm = 0;
   clinicalSurface.fluidAccumulator = 0;
   if (clinicalSurface.contactMarker) clinicalSurface.contactMarker.setEnabled(false);
@@ -3592,6 +3623,7 @@ canvas.addEventListener('pointerdown', event => {
   clinicalSurface.dragging = true;
   clinicalSurface.pointerId = event.pointerId;
   clinicalSurface.contactSeconds = 0;
+  clinicalSurface.contactTrace = [];
   canvas.classList.add('clinical-contact-dragging');
   try { canvas.setPointerCapture(event.pointerId); } catch {}
 }, true);
