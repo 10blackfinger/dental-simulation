@@ -119,3 +119,15 @@ Those character models are static rather than rigged/animated according to their
 - **Coverage limitation:** these ten teeth represent only the left quadrants of the primary dentition. They are not a complete primary dentition, mixed-dentition atlas or age-specific eruption model. The app labels this limitation in the UI.
 - **Clinical limitation:** the source licence establishes reuse rights, not clinical or educational validation. Qualified paediatric dental specialists must review model geometry, terminology and teaching context before formal teaching or clinical use.
 - **Share/attribution:** preserve the author attribution, link the licence and indicate any changes made to the source material. No claim of endorsement by the University of Dundee is made.
+
+
+## 8. Chairside instruments and study props (CC0)
+
+The following additional static 3D props are downloaded by `scripts/fetch-assets.mjs` into `public/models/dental-tools/`. They are presentation and interaction assets, not calibrated or clinically validated instruments.
+
+- **Instrument tray:** [3DAssets.dev asset 34383](https://3dassets.dev/assets/34383) — [GLB](https://cdn.3dassets.dev/assets/34383/v1/model.glb), 30,452 bytes; CC0 1.0 Universal. The publisher's description lists a mirror, probe, cotton pliers and cotton rolls. The items are static meshes, not independently rigged tools.
+- **Ultrasonic scaler:** [3DAssets.dev asset 34384](https://3dassets.dev/assets/34384) — [GLB](https://cdn.3dassets.dev/assets/34384/v1/model.glb), 28,284 bytes; CC0 1.0 Universal. Visual prop only; no powered vibration, calibrated tip or scaling physics.
+- **Light-curing device:** [3DAssets.dev asset 34385](https://3dassets.dev/assets/34385) — [GLB](https://cdn.3dassets.dev/assets/34385/v1/model.glb), 22,728 bytes; CC0 1.0 Universal. Visual prop only; it does not emit validated irradiance or model polymerisation chemistry.
+- **Plaster lower-arch study model:** [3DAssets.dev asset 34397](https://3dassets.dev/assets/34397) — [GLB](https://cdn.3dassets.dev/assets/34397/v1/model.glb), 24,768 bytes; CC0 1.0 Universal. A separate teaching/display object, not a replacement for the Dental Scope clinical anatomy mesh.
+
+The 3DAssets.dev models are low-polygon static props. The associated catalogue reports CC0 1.0 Universal for these entries; the download script checks exact file sizes and GLB magic bytes. Keep this attribution record with redistributed copies even though CC0 does not require attribution.
