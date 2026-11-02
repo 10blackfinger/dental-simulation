@@ -28,7 +28,8 @@
         <section class="control-section asset-section">
           <h2>المشاهد والمجسمات</h2>
           <div class="asset-switch">
-            <button id="view-treatment" class="asset-switch-button selected" type="button"><b>جلسة علاج متكاملة</b><small>مريض مستلقٍ + طبيب ومساعد</small></button>
+            <button id="view-oral-exam" class="asset-switch-button selected" type="button"><b>فحص الأسنان</b><small>الفم مفتوح · 32 سنًا · أدوات ومواد عملية</small></button>
+            <button id="view-treatment" class="asset-switch-button" type="button"><b>جلسة علاج متكاملة</b><small>مريض مستلقٍ + طبيب ومساعد</small></button>
             <button id="view-clinic" class="asset-switch-button" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
             <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
             <button id="view-people" class="asset-switch-button" type="button"><b>الشخصيات</b><small>طبيب ومريض ومساعد</small></button>
@@ -76,8 +77,9 @@
           <p class="asset-license-note">المصدر الحالي يضم 28 سنًا دائمًا، ولا يشمل ضروس العقل أو الأسنان اللبنية أو الأعصاب والأوعية.</p>
         </section>
         <section id="dental-atlas-section" class="control-section dental-atlas-section" hidden>
-          <h2>الأطلس السني التفصيلي</h2>
-          <p class="asset-license-note">415 تركيبًا في دليل الأطلس، و32 نموذج سنّ منفصلًا مع طبقات داخلية وقنوات جذرية، إلى جانب اللثة وعظام الفك ومفصل الفك والأعصاب والأوعية والجيوب الفكية.</p>
+          <h2>فحص الأسنان — تشريح الفم واختيار السن</h2>
+          <p id="oral-exam-target-label" class="oral-exam-target-label">السن المستهدف: الضرس السفلي الأيسر الأول (FDI 36)</p>
+          <p class="asset-license-note">فك علوي وسفلي مع مفصل متحرك، 32 سنًا دائمًا، لثة وطبقات سنية وأعصاب وأوعية. اختر أي سن ثم اسحب الأداة أو المادة إلى مساحة العمل.</p>
           <div id="dental-atlas-status" class="case-progress" role="status">تحميل مكتبة التشريح السني…</div>
           <div class="body-layer-controls">
             <label class="switch-row"><span>العظام والجمجمة والعضلات</span><input id="dental-context-toggle" type="checkbox" checked><i></i></label>
@@ -152,7 +154,7 @@
 
       <section class="viewport" aria-label="المشهد ثلاثي الأبعاد">
         <canvas id="render-canvas"></canvas>
-        <div class="viewport-top"><span class="scene-tag"><i></i> DENTAL CLINIC / 3D</span><span class="hint">اسحب للدوران · عجلة الفأرة للتقريب</span></div>
+        <div class="viewport-top"><span class="scene-tag"><i></i> DENTAL CLINIC / 3D</span><span class="hint" id="viewport-interaction-hint">اسحب للدوران · عجلة الفأرة للتقريب</span></div>
         <div id="selection-card" class="selection-card"><span class="selection-kicker">العنصر المحدد</span><b id="selection-name">عيادة الأسنان</b><small id="selection-description">اختر أي مجسم داخل المشهد لعرض اسمه.</small></div>
         <div class="viewport-bottom"><span>وضع العرض: تعليمي</span><span id="fps-counter">3D Engine</span></div>
         <div id="loading" class="loading-overlay"><div class="loader"></div><b>جارٍ تجهيز العيادة ثلاثية الأبعاد</b><small>إنشاء المجسمات والإضاءة</small></div>
@@ -166,6 +168,13 @@
           <button id="chair-down" class="action-row"><span class="action-icon">↓</span><span><b>خفض الكرسي</b><small>إرجاع المقعد لأسفل</small></span><span class="chevron">‹</span></button>
           <button id="lamp-toggle" class="action-row"><span class="action-icon">✧</span><span><b>مصباح الفحص</b><small id="lamp-state">الإضاءة تعمل</small></span><span class="chevron">‹</span></button>
         </section>
+        <section class="control-section clinic-animation-section" id="clinic-animation-section">
+          <h2>حركات العيادة الأصلية</h2>
+          <div id="clinic-animation-status" class="case-progress" role="status">تحميل مجموعات الحركة من ملف العيادة…</div>
+          <div id="clinic-animation-list" class="clinic-animation-list"></div>
+          <button id="clinic-animation-stop" class="small-action" type="button">إيقاف كل الحركات</button>
+          <p class="asset-license-note">تعرض هذه اللوحة حركات العقد الموجودة أصلًا داخل ملف GLB. العناصر التي لا تحتوي على مسار حركة مدمج ستظل ثابتة.</p>
+        </section>
         <section class="control-section treatment-interaction-section" id="treatment-interaction-section">
           <h2>التفاعل داخل جلسة العلاج</h2>
           <div class="treatment-actions">
@@ -173,8 +182,33 @@
             <button id="tool-to-mouth" class="small-action primary-action" type="button">تحريك الأداة للفم</button>
             <button id="tool-to-tray" class="small-action" type="button">إرجاع الأداة للصينية</button>
           </div>
-          <div id="treatment-interaction-status" class="case-feedback" aria-live="polite">اختر أداة من قائمة الأدوات والمواد، ثم حرّكها عند الحاجة فقط.</div>
-          <p class="asset-license-note">الحركة مرتبطة بأوامرك فقط، بسرعات انتقال هادئة. مواضع المجسمات تقريبية وتحتاج معايرة بصرية على بيئة الجهاز الفعلية.</p>
+          <div id="treatment-interaction-status" class="case-feedback" aria-live="polite">اختر أداة من قائمة الأدوات والمواد، ثم اسحبها إلى مربع العمل أو استخدم أزرار النقل.</div>
+          <div class="clinical-procedure-panel">
+            <div class="clinical-procedure-heading"><b>مختبر علاج التسوس العملي</b><span id="caries-stage-label">الآفة موجودة</span></div>
+            <p id="caries-procedure-help">ابدأ بحالة ضرس متسوس. اسحب القبضة عالية السرعة إلى مساحة العمل ثم نفّذ الإجراء التعليمي.</p>
+            <button id="apply-clinical-action" class="small-action primary-action" type="button">تنفيذ الإجراء بالأداة / المادة المختارة</button>
+            <button id="reset-caries-case" class="small-action" type="button">إعادة الحالة من البداية</button>
+            <p class="asset-license-note">محاكاة تعليمية مبسطة لتتابع إزالة الآفة والترميم؛ لا تمثل استجابة حيوية أو عمق حفر أو بروتوكولًا سريريًا معتمدًا.</p>
+          </div>
+          <section id="clinical-simulation-panel" class="clinical-simulation-panel">
+            <div class="clinical-simulation-heading"><b>محرك التلامس والمحاكاة</b><span id="clinical-contact-state">لا يوجد تلامس</span></div>
+            <p class="asset-license-note">انقل الأداة إلى الفم، ثم اضغط واسحب طرفها فوق السن أو اللثة داخل نافذة العرض. لن تُسجل الخطوة بمجرد تحريك الأداة قرب الفم.</p>
+            <label class="clinical-control-label" for="clinical-force">قوة التطبيق الافتراضية <output id="clinical-force-value">0.8 N</output></label>
+            <input id="clinical-force" class="clinical-range" type="range" min="0.1" max="2.0" step="0.1" value="0.8">
+            <label class="clinical-control-label" for="clinical-speed">سرعة الأداة الدوارة <output id="clinical-speed-value">180,000 RPM</output></label>
+            <input id="clinical-speed" class="clinical-range" type="range" min="0" max="400000" step="5000" value="180000">
+            <label class="switch-row clinical-irrigation-row"><span>تشغيل تدفق الري عند استخدام سرنجة الهواء/الماء أو الري اللبي</span><input id="clinical-irrigation" type="checkbox" checked><i></i></label>
+            <div class="clinical-metrics">
+              <div><small>زمن التلامس</small><b id="clinical-contact-time">0.00 s</b></div>
+              <div><small>عمق التحضير التعليمي</small><b id="clinical-depth">0.00 mm</b></div>
+              <div><small>جزيئات السوائل</small><b id="clinical-fluid-count">0</b></div>
+              <div><small>استجابة الأنسجة</small><b id="clinical-tissue-state">مستقرة</b></div>
+            </div>
+            <div class="clinical-force-track"><span id="clinical-force-bar"></span></div>
+            <p id="clinical-simulation-feedback" class="case-feedback" aria-live="polite">جاهز للتلامس السطحي. المؤشرات قيم محاكاة تعليمية وليست قياسات سريرية فعلية.</p>
+            <button id="clinical-reset-physics" class="small-action" type="button">إعادة ضبط التلامس والتحضير</button>
+          </section>
+          <p class="asset-license-note">الضغط والسرعة والارتداد والسوائل مؤثرات رقمية تقريبية للتعلم. لا تمثل معايرة جهاز حقيقي أو قوة يد مقاسة.</p>
         </section>
         <section class="control-section inventory-section" id="inventory-section">
           <h2>مكتبة الأدوات والمواد</h2>

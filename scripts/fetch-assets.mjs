@@ -49,6 +49,52 @@ const assets = [
     expectedBytes: 445616,
     expectedGitBlobSha1: '516b8323004ab3248e640070ee7a860f01978f84',
     expectedMinBytes: 445616
+  },
+  {
+    file: 'dental-tools/instrument-tray.glb',
+    url: 'https://cdn.3dassets.dev/assets/34383/v1/model.glb',
+    license: 'CC0 1.0 Universal',
+    source: '3DAssets.dev — dental instrument tray and included mirror/probe/pliers; published asset 34383',
+    expectedBytes: 30452,
+    expectedMinBytes: 30452
+  },
+  {
+    file: 'dental-tools/ultrasonic-scaler.glb',
+    url: 'https://cdn.3dassets.dev/assets/34384/v1/model.glb',
+    license: 'CC0 1.0 Universal',
+    source: '3DAssets.dev — ultrasonic scaler; published asset 34384',
+    expectedBytes: 28284,
+    expectedMinBytes: 28284
+  },
+  {
+    file: 'dental-tools/curing-light.glb',
+    url: 'https://cdn.3dassets.dev/assets/34385/v1/model.glb',
+    license: 'CC0 1.0 Universal',
+    source: '3DAssets.dev — dental light-curing device; published asset 34385',
+    expectedBytes: 22728,
+    expectedMinBytes: 22728
+  },
+  {
+    file: 'dental-tools/plaster-study-arch.glb',
+    url: 'https://cdn.3dassets.dev/assets/34397/v1/model.glb',
+    license: 'CC0 1.0 Universal',
+    source: '3DAssets.dev — plaster lower-arch study model; published asset 34397',
+    expectedBytes: 24768,
+    expectedMinBytes: 24768
+  },
+  {
+    file: 'dental-tools/surgical-forceps.glb',
+    url: 'https://files.innerscene.com/library/forceps-0697e09f/23a4b04dccffb1867b5e/forceps.glb',
+    license: 'CC0 1.0 Universal',
+    source: 'Innerscene Free Parts Library — Forceps (Adson tissue forceps, dressing forceps and haemostat), model added 2026-10-29',
+    expectedMinBytes: 4000000
+  },
+  {
+    file: 'dental-tools/scalpel-set.glb',
+    url: 'https://files.innerscene.com/library/scalpel-set-31709647/50ebfbee69cd692b267c/scalpel-set.glb',
+    license: 'CC0 1.0 Universal',
+    source: 'Innerscene Free Parts Library — Scalpel set (No. 10, 11, 15 and 20 blades), model added 2026-10-29',
+    expectedMinBytes: 4500000
   }
 ];
 

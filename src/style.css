@@ -149,3 +149,48 @@ body{overscroll-behavior:none}
 @media(prefers-reduced-motion:reduce){
   .sidebar-right,.sidebar-left{transition:none}
 }
+
+
+/* Clinical procedure training panel */
+.clinical-procedure-panel{display:grid;gap:9px;margin-top:12px;padding:12px;border:1px solid rgba(53,197,176,.3);border-radius:12px;background:rgba(20,43,55,.42)}
+.clinical-procedure-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.clinical-procedure-heading span{font-size:11px;color:#35c5b0;background:rgba(53,197,176,.1);padding:4px 8px;border-radius:20px}
+.clinical-procedure-panel p{margin:0;line-height:1.7}
+.inventory-item{cursor:grab}
+.inventory-item:active{cursor:grabbing}
+#render-canvas.clinical-drop-ready{outline:2px dashed rgba(53,197,176,.85);outline-offset:-8px}
+#render-canvas.clinical-drop-active{outline:3px solid rgba(53,197,176,.95);outline-offset:-8px}
+
+
+/* First-class oral examination target and 3D prop drop affordance */
+.oral-exam-target-label{margin:7px 0 10px;padding:8px 10px;border:1px solid #2b776e;border-radius:8px;background:#12313a;color:#8ce3d3;font-size:9px;line-height:1.8}
+#render-canvas.clinical-drop-ready{outline:2px dashed rgba(53,197,176,.85);outline-offset:-8px}
+#render-canvas.clinical-drop-active{outline:3px solid rgba(53,197,176,.95);outline-offset:-8px}
+
+
+.clinical-simulation-panel{margin-top:12px;padding:12px;border:1px solid #294a5b;border-radius:9px;background:linear-gradient(180deg,#12283a,#111e2d);display:grid;gap:8px}
+.clinical-simulation-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.clinical-simulation-heading b{font-size:10px;color:#80e1d2}
+.clinical-simulation-heading span{font-size:8px;color:#f0c47f;background:#263447;border-radius:20px;padding:4px 7px}
+.clinical-control-label{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#aebed0;font-size:9px}
+.clinical-control-label output{color:#7fe0d0;font-weight:700;font-variant-numeric:tabular-nums}
+.clinical-range{width:100%;accent-color:#36c6b4}
+.clinical-irrigation-row{font-size:9px;line-height:1.8}
+.clinical-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.clinical-metrics>div{display:grid;gap:3px;background:#0e1b29;border:1px solid #263e53;border-radius:7px;padding:7px}
+.clinical-metrics small{font-size:8px;color:#7f96ad}
+.clinical-metrics b{font-size:10px;color:#d7e9f0;font-variant-numeric:tabular-nums}
+.clinical-force-track{height:6px;background:#26394a;border-radius:99px;overflow:hidden}
+.clinical-force-track span{display:block;width:0;height:100%;background:linear-gradient(90deg,#41cba9,#e6bb67,#dc725f);transition:width .08s linear}
+#render-canvas.clinical-contact-armed{cursor:crosshair}
+#render-canvas.clinical-contact-dragging{cursor:grabbing;outline:2px solid rgba(62,216,188,.8);outline-offset:-5px}
+
+
+.clinic-animation-section[hidden]{display:none}
+.clinic-animation-list{display:grid;gap:6px;max-height:240px;overflow:auto;margin:9px 0}
+.clinic-animation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;padding:8px;background:#142438;border:1px solid #2a4056;border-radius:8px}
+.clinic-animation-meta{display:grid;min-width:0;gap:3px}
+.clinic-animation-meta b{font-size:9px;color:#d5e4f0;overflow-wrap:anywhere}
+.clinic-animation-meta small{font-size:8px;color:#849bb1;overflow-wrap:anywhere}
+.clinic-animation-play{min-width:68px;flex:none}
+.clinic-animation-play.active{background:#14594f;border-color:#2ba68f;color:#b4fff0}

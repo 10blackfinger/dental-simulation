@@ -2,9 +2,10 @@ import './style.css';
 import '@babylonjs/loaders/glTF';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
+import { CSG2, InitializeCSG2Async } from '@babylonjs/core/Meshes/csg2';
 import {
-  Engine, Scene, Vector3, Color3, Color4, HemisphericLight, DirectionalLight, PointLight,
-  ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager,
+  Engine, Scene, Vector3, Color3, Color4, Matrix, Quaternion, HemisphericLight, DirectionalLight, PointLight,
+  ArcRotateCamera, MeshBuilder, StandardMaterial, TransformNode, ActionManager, VertexBuffer,
   ExecuteCodeAction, PointerEventTypes, Animation, CubicEase, EasingFunction
 } from '@babylonjs/core';
 
@@ -47,6 +48,7 @@ window.addEventListener('resize', () => {
   if (window.matchMedia('(min-width: 761px)').matches) closeMobileDrawers();
 });
 
+let clinicalSurfaceReady = false;
 const canvas = document.getElementById('render-canvas');
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: true, antialias: false });
 engine.setHardwareScalingLevel(1.15);
@@ -336,11 +338,36 @@ sphere('TreatmentPatientMouth', .17, [0, .277, -.84], 'rubber', treatmentPatient
 const patientJawPivot = new TransformNode('TreatmentPatientLowerJawPivot', scene);
 patientJawPivot.parent = treatmentPatient;
 patientJawPivot.position.set(0, .08, -.81);
+patientJawPivot.rotation.x = .24;
 box('TreatmentPatientLowerJaw', [.31, .085, .2], [0, -.015, -.045], 'skin', patientJawPivot);
 for (let i = 0; i < 4; i++) {
   sphere('TreatmentPatientUpperTooth_' + i, .055, [-.09 + i * .06, .315, -.865], 'tooth', treatmentPatient, [1, .35, .7]);
   sphere('TreatmentPatientLowerTooth_' + i, .05, [-.09 + i * .06, .085, -.85], 'tooth', patientJawPivot, [1, .35, .7]);
 }
+// Hands-on restorative training tooth: distinct crown, roots, caries lesion and treatment states.
+const clinicalToothRoot = new TransformNode('ClinicalRestorationTooth', scene);
+clinicalToothRoot.parent = treatmentPatient;
+clinicalToothRoot.position.set(.12, .245, -.91);
+const clinicalToothCrown = sphere('ClinicalToothCrown', .245, [0, 0, 0], 'tooth', clinicalToothRoot, [1.05, .82, .92]);
+const clinicalToothNeck = cylinder('ClinicalToothNeck', .18, .105, [0, -.115, -.005], 'tooth', clinicalToothRoot, 24);
+clinicalToothNeck.rotation.x = Math.PI / 2;
+for (const dx of [-.055, .055]) {
+  const root = cylinder('ClinicalToothRoot_' + dx, .25, .065, [dx, -.27, -.005], 'tooth', clinicalToothRoot, 20);
+  root.rotation.z = dx < 0 ? -.12 : .12;
+}
+for (const dx of [-.065, .065]) {
+  sphere('ClinicalToothCusp_' + dx, .09, [dx, .065, -.015], 'tooth', clinicalToothRoot, [.8, .48, .8]);
+}
+const clinicalCariesLesion = sphere('ClinicalCariesLesion', .092, [.055, .012, -.092], 'dark', clinicalToothRoot, [1, .78, .34]);
+const clinicalCariesTint = new StandardMaterial('ClinicalCariesTint', scene);
+clinicalCariesTint.diffuseColor = new Color3(.20, .075, .035);
+clinicalCariesTint.specularColor = new Color3(.04, .03, .02);
+clinicalCariesLesion.material = clinicalCariesTint;
+const clinicalCavity = sphere('ClinicalPreparedCavity', .068, [.055, .012, -.086], 'dark', clinicalToothRoot, [1, .68, .26]);
+clinicalCavity.setEnabled(false);
+const clinicalRestoration = sphere('ClinicalCompositeRestoration', .067, [.055, .012, -.091], 'accent', clinicalToothRoot, [1, .72, .3]);
+clinicalRestoration.setEnabled(false);
+clinicalToothRoot.metadata = { title: 'ضرس تدريبي مصاب بالتسوس', detail: 'نموذج تعليمي لحالة تسوس إطباقي؛ تغيرات العلاج هنا مرئية ومبسطة وليست محاكاة نسيجية أو توصية علاجية.' };
 box('TreatmentPatientBib', [.62, .045, .72], [0, .39, -.12], 'white', treatmentPatient);
 for (const side of [-1, 1]) {
   tube('TreatmentPatientUpperArm_' + side, [[side*.32,.02,-.5],[side*.52,-.02,-.18],[side*.56,-.08,.2]], .105, 'gown', treatmentPatient);
@@ -401,12 +428,15 @@ scene.onPointerObservable.add((pointerInfo) => {
     if (fdi) selectPediatricTooth(fdi);
     return;
   }
-  if (activeExperience === 'dental-scope') {
+  if (activeExperience === 'dental-scope' || activeExperience === 'oral-exam') {
     const dentalKey = picked.metadata?.dentalScopeKey;
     if (dentalKey) {
       selectDentalStructure(dentalKey);
-      const match = dentalKey.match(/^tooth-(\\d{2})$/);
-      if (match) void loadDentalTooth(match[1]);
+      const match = dentalKey.match(/^tooth-(\d{2})$/);
+      if (match) {
+        if (activeExperience === 'oral-exam') selectOralExamTooth(match[1]);
+        else void loadDentalTooth(match[1]);
+      }
     }
     return;
   }
@@ -472,6 +502,22 @@ function setCamera(mode) {
     camera.alpha=view[0];camera.beta=view[1];camera.radius=view[2];camera.setTarget(view[3]);
     document.querySelectorAll('.camera-button').forEach(b=>b.classList.toggle('selected',b.dataset.camera===mode));
     setTimeout(fitVisibleSceneToSquare, 120);
+    return;
+  }
+  if (activeExperience === 'oral-exam') {
+    const views = {
+      orbit: [-Math.PI/2.22, 1.18, 16.5, new Vector3(0, 0.2, 0)],
+      front: [-Math.PI/2, 1.2, 16.5, new Vector3(0, 0.15, 0)],
+      side: [0, 1.2, 16.5, new Vector3(0, 0.15, 0)],
+      top: [-Math.PI/2, .22, 18, new Vector3(0, 0, 0)]
+    };
+    const view = views[mode] || views.orbit;
+    camera.alpha = view[0]; camera.beta = view[1]; camera.radius = view[2]; camera.setTarget(view[3]);
+    document.querySelectorAll('.camera-button').forEach(b => b.classList.toggle('selected', b.dataset.camera === mode));
+    const mouthMeshes = dentalMeshRecords
+      .filter(record => record.file !== 'context.glb' && record.file !== 'neurovascular.glb')
+      .map(record => record.mesh);
+    setTimeout(() => fitVisibleSceneToSquare(mouthMeshes), 120);
     return;
   }
   if (activeExperience === 'body-anatomy') {
@@ -607,6 +653,8 @@ const highlight = new HighlightLayer('SelectedStructure', scene);
 let clinicAssetRoot = null;
 let anatomyAssetRoot = null;
 let clinicContainer = null;
+let clinicAnimationGroups = [];
+let activeClinicAnimationButton = null;
 let anatomyContainer = null;
 let selectedAnatomyId = null;
 
@@ -700,6 +748,71 @@ function attachCenteredContainer(container, nodeName, desiredSpan) {
   return { group, meshes: renderMeshes, size: size.scale(scale) };
 }
 
+function renderClinicAnimationControls() {
+  const list = document.getElementById('clinic-animation-list');
+  const status = document.getElementById('clinic-animation-status');
+  if (!list || !status) return;
+  list.replaceChildren();
+  clinicAnimationGroups = (clinicContainer?.animationGroups || []);
+  if (!clinicAnimationGroups.length) {
+    status.textContent = 'ملف GLB الحالي لا يحتوي على مجموعات حركة مدمجة قابلة للتشغيل.';
+    return;
+  }
+  status.textContent = 'تم اكتشاف ' + clinicAnimationGroups.length + ' مجموعة حركة مدمجة في أصل العيادة.';
+  clinicAnimationGroups.forEach((group,index) => {
+    const row = document.createElement('div');
+    row.className = 'clinic-animation-row';
+    const meta = document.createElement('div');
+    meta.className = 'clinic-animation-meta';
+    const name = document.createElement('b');
+    name.textContent = group.name || ('Animation ' + (index + 1));
+    const targets = [...new Set((group.targetedAnimations || []).map(item => item.animationTarget?.name).filter(Boolean))];
+    const detail = document.createElement('small');
+    detail.textContent = targets.length
+      ? targets.slice(0,3).join(' · ') + (targets.length > 3 ? ' +' + (targets.length - 3) : '')
+      : 'مسار حركة مدمج';
+    meta.append(name,detail);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'small-action clinic-animation-play';
+    button.textContent = 'تشغيل';
+    button.setAttribute('aria-label','تشغيل ' + (group.name || ('الحركة ' + (index + 1))));
+    button.addEventListener('click',() => {
+      try {
+        if (group.isPlaying) {
+          group.stop();
+          button.textContent = 'تشغيل';
+          button.classList.remove('active');
+          return;
+        }
+        group.stop();
+        group.start(false,1);
+        button.textContent = 'إعادة التشغيل';
+        button.classList.add('active');
+        group.onAnimationGroupEndObservable.addOnce(() => {
+          button.textContent = 'تشغيل';
+          button.classList.remove('active');
+        });
+      } catch (error) {
+        console.error('Unable to play clinic animation group.',group.name,error);
+        status.textContent = 'تعذر تشغيل الحركة: ' + (group.name || (index + 1));
+      }
+    });
+    row.append(meta,button);
+    list.appendChild(row);
+  });
+}
+function stopAllClinicAnimations() {
+  for (const group of clinicAnimationGroups) {
+    try { group.stop(); } catch (error) { console.debug('Unable to stop animation group.',error); }
+  }
+  document.querySelectorAll('.clinic-animation-play').forEach(button => {
+    button.textContent = 'تشغيل';
+    button.classList.remove('active');
+  });
+}
+document.getElementById('clinic-animation-stop')?.addEventListener('click',stopAllClinicAnimations);
+
 async function ensureClinicModel() {
   if (clinicAssetRoot) return;
   setAssetStatus('جارٍ تحميل نموذج العيادة المتكامل…');
@@ -711,6 +824,7 @@ async function ensureClinicModel() {
     );
     const mounted = attachCenteredContainer(clinicContainer, 'ExternalClinicPack', 8.4);
     clinicAssetRoot = mounted.group;
+    renderClinicAnimationControls();
     root.setEnabled(false);
     clinicAssetRoot.setEnabled(true);
     setProceduralControlsEnabled(false, 'clinic');
@@ -719,6 +833,9 @@ async function ensureClinicModel() {
     setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد، غرفة علاج وتجهيزات ومناطق مساندة.', 'ok');
   } catch (error) {
     console.error('Clinic asset load failed', error);
+    clinicAnimationGroups = [];
+    const animationStatus = document.getElementById('clinic-animation-status');
+    if (animationStatus) animationStatus.textContent = 'تعذر تحميل حركات GLB؛ استخدم العيادة البديلة.';
     root.setEnabled(true);
     setProceduralControlsEnabled(true, 'clinic');
     setAssetStatus('تعذر تحميل الحزمة الخارجية؛ تم تشغيل العيادة البديلة المولّدة داخل المشروع.', 'warn');
@@ -822,7 +939,7 @@ async function showClinicExperience() {
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
   anatomyPanel.hidden = true;
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-clinic');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -858,17 +975,23 @@ async function showTreatmentExperience() {
   bodyPanel.hidden = true;
   dentalAtlasPanel.hidden = true;
   activeExperience = 'treatment';
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  isPropAtMouth = false;
+  selectedOralInventoryRoot?.setEnabled(false);
+  selectedOralInventoryRoot = null;
+  isPatientMouthOpen = true;
+  patientJawPivot.rotation.x = .24;
+  document.getElementById('patient-mouth-toggle').textContent = 'إغلاق الفم';
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected', id === 'view-treatment');
   }
   loadingOverlay?.classList.remove('hidden');
   await ensureClinicModel();
+  treatmentRoot.setEnabled(true);
   await selectPatientVariant(selectedPatientVariant);
   if (anatomyAssetRoot) anatomyAssetRoot.setEnabled(false);
   if (bodyAssetRoot) bodyAssetRoot.setEnabled(false);
   if (dentalScopeRoot) dentalScopeRoot.setEnabled(false);
   for (const item of dentalToothDetails.values()) item.root.setEnabled(false);
-  for (const item of patientVariants.values()) item.root.setEnabled(false);
   if (clinicAssetRoot) {
     clinicAssetRoot.setEnabled(true);
     root.setEnabled(false);
@@ -936,6 +1059,7 @@ async function selectPatientVariant(variant) {
     patientVariantControls?.querySelectorAll('.patient-variant-button').forEach(button=>{
       button.classList.toggle('selected',button.id===(variant==='female'?'patient-female':'patient-male'));
     });
+    patientStatus.dataset.modelVisible = String(selected.root.isEnabled());
     patientStatus.textContent='تم تحميل '+selected.label+' ثلاثي الأبعاد (CC0 / MakeHuman-derived).';
     document.getElementById('selection-name').textContent=selected.label;
     document.getElementById('selection-description').textContent='مجسم ثلاثي الأبعاد بملابس طبية وخامات مدمجة. يحتوي ملف المصدر على هيكل عظمي مختزل؛ لم تُضف بعد حركات أو وضعيات علاجية معتمدة.';
@@ -945,6 +1069,7 @@ async function selectPatientVariant(variant) {
     for(const item of patientVariants.values())item.root.setEnabled(false);
     proceduralPatient.setEnabled(activeExperience === 'people');
     treatmentPatient.setEnabled(activeExperience === 'treatment');
+    patientStatus.dataset.modelVisible = String(activeExperience === 'treatment' ? treatmentPatient.isEnabled() : proceduralPatient.isEnabled());
     patientStatus.textContent='تعذر تحميل المجسم الخارجي؛ تم إظهار النموذج البديل داخل المشروع.';
     return false;
   }
@@ -965,7 +1090,7 @@ async function showPeopleExperience() {
   activeExperience = 'people';
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   root.setEnabled(false);
@@ -974,7 +1099,7 @@ async function showPeopleExperience() {
   peopleRoot.setEnabled(true);
   patientVariantControls.hidden = false;
   anatomyPanel.hidden = true;
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-people');
   }
   setProceduralControlsEnabled(false,'clinic');
@@ -1002,7 +1127,7 @@ async function showAnatomyExperience() {
   peopleRoot.setEnabled(false);
   bodyPanel.hidden = true;
   bodyAssetRoot?.setEnabled(false);
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-anatomy');
   }
   loadingOverlay?.classList.remove('hidden');
@@ -1188,7 +1313,7 @@ async function showBodyExperience() {
   dentalToothDetails.forEach(item=>item.root.setEnabled(false));
   dentalAtlasPanel.hidden=true;
   engine.setHardwareScalingLevel(1.15);
-  for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for(const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-body');
   }
   peopleRoot.setEnabled(false);
@@ -1241,6 +1366,17 @@ let dentalSelectedKey = null;
 let dentalIsolatedKey = null;
 let dentalSelectedFdi = null;
 let dentalSelectedToothDetails = null;
+let dentalLowerJawPivot = null;
+let dentalLowerJawMeshes = [];
+let dentalJawOpenAngle = 0.42;
+let currentCariesTarget = '36';
+const oralCariesOverlays = new Map();
+const oralInventoryModels = new Map();
+const oralSceneProps = new Map();
+const oralScenePropPositions = new Map();
+let oralScenePropsPromise = null;
+let selectedOralInventoryRoot = null;
+const oralInventoryTrayPosition = new Vector3(7.2, -1.4, 2.6);
 const dentalToothDetails = new Map();
 const dentalLayerState = {
   enamel: true,
@@ -1319,6 +1455,69 @@ function registerDentalMeshes(container, validKeys) {
   }
   return records;
 }
+function isLowerJawStructureKey(key) {
+  return /^tooth-[34]\d$/.test(key) ||
+    key === 'gingiva-lower' ||
+    key === 'mandible-body' ||
+    key === 'mandibular-alveolar-process' ||
+    key === 'mandibular-condyle-right' ||
+    key === 'mandibular-condyle-left' ||
+    /^mandibular-(ramus|body|condyle|coronoid)/.test(key);
+}
+function preserveWorldParent(mesh, parent) {
+  mesh.computeWorldMatrix(true);
+  const world = mesh.getWorldMatrix().clone();
+  parent.computeWorldMatrix(true);
+  const parentInverse = Matrix.Invert(parent.getWorldMatrix());
+  const local = world.multiply(parentInverse);
+  const scaling = Vector3.One();
+  const rotation = Quaternion.Identity();
+  const position = Vector3.Zero();
+  if (!local.decompose(scaling, rotation, position)) {
+    throw new Error('Could not preserve dental mesh transform while attaching lower jaw.');
+  }
+  mesh.parent = parent;
+  mesh.position.copyFrom(position);
+  mesh.scaling.copyFrom(scaling);
+  mesh.rotationQuaternion = rotation;
+  mesh.computeWorldMatrix(true);
+}
+function configureDentalLowerJawPivot() {
+  if (dentalLowerJawPivot || !dentalScopeRoot) return;
+  // Dental Scope coordinates are centimetres, +Y up and +Z anterior.
+  // This hinge sits near the condyles; lower teeth, gingiva and mandible rotate together.
+  dentalLowerJawPivot = new TransformNode('DentalLowerJawHinge', scene);
+  dentalLowerJawPivot.parent = dentalScopeRoot;
+  dentalLowerJawPivot.position.set(0, 4.1, -5.63);
+  dentalLowerJawPivot.rotation.setAll(0);
+  dentalLowerJawPivot.computeWorldMatrix(true);
+  dentalLowerJawMeshes = [];
+  for (const record of dentalMeshRecords) {
+    if (!isLowerJawStructureKey(record.key)) continue;
+    preserveWorldParent(record.mesh, dentalLowerJawPivot);
+    record.mesh.metadata = record.mesh.metadata || {};
+    record.mesh.metadata.dentalJawGroup = 'lower';
+    dentalLowerJawMeshes.push(record.mesh);
+  }
+  if (dentalLowerJawMeshes.length < 8) {
+    throw new Error('Lower jaw pivot did not attach the expected tooth and mandible structures.');
+  }
+  dentalLowerJawPivot.rotation.x = dentalJawOpenAngle;
+}
+function setDentalJawOpen(open) {
+  if (!dentalLowerJawPivot) return;
+  dentalLowerJawPivot.getScene().stopAnimation(dentalLowerJawPivot);
+  const target = open ? dentalJawOpenAngle : 0;
+  const animation = new Animation('DentalScopeMandibleOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+  animation.setKeys([
+    { frame: 0, value: dentalLowerJawPivot.rotation.x },
+    { frame: 54, value: target }
+  ]);
+  const ease = new CubicEase();
+  ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+  animation.setEasingFunction(ease);
+  scene.beginDirectAnimation(dentalLowerJawPivot, [animation], 0, 54, false);
+}
 function dentalArabicLabel(key) {
   if(/^tooth-\d{2}$/.test(key))return dentalToothLabel(key.slice(-2));
   const map={
@@ -1394,6 +1593,7 @@ function selectDentalStructure(key) {
   document.getElementById('selection-description').textContent=
     'معرّف التركيب: '+key+
     (info?' · المصدر التشريحي: '+(info.sourceRef||'BodyParts3D')+' · مستوى النمذجة: '+info.provenance:'');
+  if (activeExperience === 'oral-exam' && /^tooth-\d{2}$/.test(key)) selectOralExamTooth(key.slice(-2));
   document.querySelectorAll('.dental-structure-button').forEach(button=>button.classList.toggle('selected',button.dataset.key===key));
 }
 function renderDentalToothGrid(filter='') {
@@ -1410,7 +1610,10 @@ function renderDentalToothGrid(filter='') {
     button.className='tooth-chip'+(number===dentalSelectedFdi?' selected':'');
     button.textContent=fdi;
     button.title=label;
-    button.addEventListener('click',()=>void loadDentalTooth(fdi));
+    button.addEventListener('click',()=>{
+      if (activeExperience === 'oral-exam') selectOralExamTooth(fdi);
+      else void loadDentalTooth(fdi);
+    });
     grid.appendChild(button);
   }
 }
@@ -1474,6 +1677,7 @@ function recordsForTooth(item){return item.records||[];}
 function restoreDentalWholeMouth() {
   dentalSelectedFdi=null;
   dentalSelectedToothDetails=null;
+  dentalIsolatedKey=null;
   for(const item of dentalToothDetails.values())item.root.setEnabled(false);
   document.getElementById('dental-tooth-detail-panel').hidden=true;
   for(const [key,meshes] of dentalMeshByKey)if(/^tooth-\d{2}$/.test(key))for(const mesh of meshes)mesh.isVisible=true;
@@ -1483,6 +1687,374 @@ function restoreDentalWholeMouth() {
   setCamera('orbit');
   document.getElementById('selection-name').textContent='الأطلس السني الكامل';
   document.getElementById('selection-description').textContent='الفك واللثة والأسنان والأعصاب والأوعية والتراكيب حول المفصل.';
+}
+
+function oralOverlayMaterial(name, hex, alpha = 1) {
+  const mat = new StandardMaterial(name, scene);
+  mat.diffuseColor = Color3.FromHexString(hex);
+  mat.emissiveColor = Color3.FromHexString(hex).scale(0.12);
+  mat.specularColor = new Color3(0.18, 0.18, 0.18);
+  mat.alpha = alpha;
+  mat.backFaceCulling = false;
+  return mat;
+}
+let oralOverlayMaterials = null;
+function ensureOralOverlayMaterials() {
+  if (oralOverlayMaterials) return oralOverlayMaterials;
+  oralOverlayMaterials = {
+    caries: oralOverlayMaterial('OralCariesBrown', '#4b2117'),
+    cavity: oralOverlayMaterial('OralCavityDark', '#241512'),
+    etch: oralOverlayMaterial('OralEtchBlue', '#66bde1', 0.48),
+    bond: oralOverlayMaterial('OralBondAmber', '#e2a84f', 0.58),
+    restoration: oralOverlayMaterial('OralComposite', '#e9dfc9')
+  };
+  return oralOverlayMaterials;
+}
+function getOralCariesOverlay(fdi = currentCariesTarget) {
+  const id = String(fdi);
+  if (oralCariesOverlays.has(id)) return oralCariesOverlays.get(id);
+  const info = dentalManifest?.meshes?.['tooth-' + id];
+  if (!info?.bounds) return null;
+  const [min, max] = info.bounds;
+  const center = new Vector3((min[0] + max[0]) / 2, max[1] + 0.035, (min[2] + max[2]) / 2);
+  const lower = /^[34]/.test(id);
+  const parent = lower && dentalLowerJawPivot ? dentalLowerJawPivot : dentalScopeRoot;
+  const localPosition = lower && dentalLowerJawPivot
+    ? center.subtract(dentalLowerJawPivot.position)
+    : center;
+  const root = new TransformNode('CariesOverlay_' + id, scene);
+  root.parent = parent;
+  root.position.copyFrom(localPosition);
+  const materials = ensureOralOverlayMaterials();
+  function overlay(name, diameter, material, scale) {
+    const mesh = MeshBuilder.CreateSphere(name + '_' + id, { diameter, segments: 20 }, scene);
+    mesh.parent = root;
+    mesh.position.set(0, 0, 0);
+    mesh.scaling.copyFrom(scale);
+    mesh.material = material;
+    mesh.isPickable = false;
+    return mesh;
+  }
+  const visual = {
+    root,
+    lesion: overlay('CariesLesion', 0.38, materials.caries, new Vector3(1, 0.22, 0.86)),
+    cavity: overlay('PreparedCavity', 0.31, materials.cavity, new Vector3(1, 0.2, 0.84)),
+    etch: overlay('EtchFilm', 0.47, materials.etch, new Vector3(1, 0.12, 0.9)),
+    bond: overlay('AdhesiveFilm', 0.40, materials.bond, new Vector3(1, 0.1, 0.86)),
+    restoration: overlay('CompositeFill', 0.34, materials.restoration, new Vector3(1, 0.2, 0.86))
+  };
+  visual.root.setEnabled(true);
+  oralCariesOverlays.set(id, visual);
+  return visual;
+}
+function updateOralCariesVisual() {
+  if (activeExperience !== 'oral-exam') return;
+  const visual = getOralCariesOverlay(currentCariesTarget);
+  if (!visual) return;
+  const stage = cariesTrainingStage;
+  visual.lesion.setEnabled(stage === 'caries');
+  visual.cavity.setEnabled(['cavity', 'etched', 'bonded', 'ready-to-fill'].includes(stage));
+  visual.etch.setEnabled(stage === 'etched');
+  visual.bond.setEnabled(['bonded', 'ready-to-fill'].includes(stage));
+  visual.restoration.setEnabled(['filled', 'restored'].includes(stage));
+}
+function selectOralExamTooth(fdi) {
+  if (clinicalSurfaceReady) resetClinicalContactState('تم تغيير السن المستهدف. تم مسح أثر التلامس السابق.');
+  const id = String(fdi);
+  if (!dentalManifest?.teeth?.[id]) return;
+  currentCariesTarget = id;
+  dentalSelectedFdi = id;
+  renderDentalToothGrid(document.getElementById('dental-tooth-search')?.value || '');
+  const label = dentalToothLabel(Number(id));
+  const target = document.getElementById('oral-exam-target-label');
+  if (target) target.textContent = 'السن المستهدف: ' + label;
+  document.getElementById('selection-name').textContent = label;
+  document.getElementById('selection-description').textContent = 'تم اختيار السن للتدريب. تظهر عليه الآفة الافتراضية ويمكن تطبيق الأدوات والمواد التعليمية عليه.';
+  cariesTrainingStage = 'caries';
+  getOralCariesOverlay(id);
+  const toothFocus = getOralExamTargetPoint(id);
+  camera.setTarget(toothFocus);
+  camera.radius = 6.4;
+  updateCariesTrainingPanel('تم اختيار ' + label + '. الآفة الافتراضية ظاهرة؛ اختر أداة أو مادة واسحبها إلى مساحة العمل.');
+  updateOralCariesVisual();
+}
+function buildOralInventoryModel(item) {
+  const root = new TransformNode('OralInventory_' + item.id, scene);
+  root.parent = dentalScopeRoot;
+  root.position.copyFrom(oralInventoryTrayPosition);
+  root.metadata = { title: item.name, detail: item.detail, inventoryId: item.id };
+  const rod = (name, length, diameter, z, mat = 'metal') => {
+    const mesh = cylinder(name + '_' + item.id, length, diameter, [0, 0, z], mat, root, 20);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.isPickable = false;
+    return mesh;
+  };
+  const ball = (name, diameter, x, y, z, mat = 'metal', scale = [1, 1, 1]) => {
+    const mesh = sphere(name + '_' + item.id, diameter, [x, y, z], mat, root, scale);
+    mesh.isPickable = false;
+    return mesh;
+  };
+  const panel = (name, dimensions, position, mat = 'white') => {
+    const mesh = box(name + '_' + item.id, dimensions, position, mat, root);
+    mesh.isPickable = false;
+    return mesh;
+  };
+  const taper = (name, length, wide, z, mat = 'metal') => {
+    const mesh = MeshBuilder.CreateCylinder(name + '_' + item.id, {
+      height: length, diameterTop: 0.012, diameterBottom: wide, tessellation: 16
+    }, scene);
+    mesh.parent = root;
+    mesh.position.z = z;
+    mesh.rotation.x = Math.PI / 2;
+    mesh.material = mats[mat];
+    mesh.isPickable = false;
+    return mesh;
+  };
+  if (item.type === 'material') {
+    if (['gutta-percha', 'paper-points', 'suture-material'].includes(item.id)) {
+      if (item.id === 'suture-material') {
+        const spool = cylinder('SutureSpool_' + item.id, 0.22, 0.34, [0, 0, 0], 'white', root, 24);
+        spool.rotation.x = Math.PI / 2;
+        tube('SutureThread_' + item.id, [[0.05,0,0.08],[0.3,0.02,-0.1],[0.48,0.08,-0.28]], 0.012, 'accent', root);
+      } else {
+        for (let i = -1; i <= 1; i++) taper('Point_' + i, 0.78, 0.09, i * 0.12, item.id === 'gutta-percha' ? 'accent' : 'white');
+      }
+    } else if (['ppe-gloves', 'ppe-mask', 'eye-protection', 'sterile-drape'].includes(item.id)) {
+      panel('BarrierPack', [0.68, 0.18, 0.42], [0, 0, 0], 'glass');
+      panel('BarrierLabel', [0.35, 0.025, 0.16], [0, 0.11, 0.02], 'white');
+    } else {
+      const bodyColor = item.id === 'composite-resin' ? 'tooth'
+        : item.id === 'glass-ionomer' ? 'white'
+        : item.id === 'etchant' ? 'glass'
+        : item.id === 'adhesive' ? 'accent'
+        : item.id === 'calcium-silicate' ? 'white'
+        : item.id === 'endodontic-sealer' ? 'glass'
+        : item.id === 'impression-silicone' ? 'gum'
+        : item.id === 'fluoride-varnish' ? 'accent'
+        : 'white';
+      if (['etchant', 'adhesive'].includes(item.id)) {
+        const barrel = cylinder('MaterialSyringe_' + item.id, 0.72, 0.2, [0,0,0], bodyColor, root, 20);
+        barrel.rotation.x = Math.PI / 2;
+        rod('SyringePlunger', 0.18, 0.12, 0.42, 'metal');
+        taper('SyringeTip', 0.32, 0.08, -0.48, 'metal');
+      } else {
+        const cartridge = cylinder('MaterialCartridge_' + item.id, 0.55, 0.28, [0,0,0], bodyColor, root, 24);
+        cartridge.rotation.x = Math.PI / 2;
+        rod('CartridgeCap', 0.12, 0.31, 0.31, 'tealDark');
+        rod('CartridgeNozzle', 0.2, 0.09, -0.35, 'metal');
+      }
+    }
+  } else {
+    switch (item.id) {
+      case 'mirror':
+        rod('MirrorHandle', 0.98, 0.055, 0, 'metal');
+        rod('MirrorNeck', 0.22, 0.03, -0.52, 'metal');
+        ball('MirrorHead', 0.28, 0, 0, -0.67, 'metal', [1,0.18,1]);
+        break;
+      case 'explorer':
+      case 'periodontal-probe':
+        rod('ProbeHandle', 0.94, 0.065, 0.08, 'metal');
+        taper('ProbeTip', 0.42, 0.05, -0.56, 'metal');
+        if (item.id === 'periodontal-probe') for (let i=0;i<4;i++) rod('ProbeMark'+i,0.035,0.085,-0.12-i*.09,'dark');
+        break;
+      case 'cotton-pliers':
+      case 'extraction-forceps':
+      case 'orthodontic-pliers':
+        rod('PliersHandleL', 0.7, 0.06, 0.2, 'metal').position.x = -0.11;
+        rod('PliersHandleR', 0.7, 0.06, 0.2, 'metal').position.x = 0.11;
+        ball('PliersPivot', 0.14, 0, 0, -0.02, 'tealDark');
+        taper('PliersTipL',0.38,0.09,-0.42,'metal').position.x=-0.11;
+        taper('PliersTipR',0.38,0.09,-0.42,'metal').position.x=0.11;
+        break;
+      case 'high-speed':
+      case 'low-speed':
+        rod('HandpieceBody', 0.9, 0.22, 0.05, 'tealDark');
+        rod('HandpieceGrip', 0.37, 0.28, 0.3, 'metal');
+        rod('HeadNeck', 0.2, 0.13, -0.48, 'metal');
+        taper('RotaryBur', 0.34, 0.08, -0.72, 'metal');
+        ball('HeadCap', 0.2, 0, 0, -0.5, 'white', [1,0.9,0.75]);
+        break;
+      case 'bur-kit':
+        for(let i=-1;i<=1;i++) {
+          rod('BurHandle'+i,0.74,0.07,i*.18,'metal');
+          taper('BurHead'+i,0.2,0.09,i*.18-0.42,'metal');
+        }
+        break;
+      case 'rubber-dam':
+        panel('RubberDamSheet',[0.95,0.045,0.75],[0,0,0],'rubber');
+        panel('DamFrameTop',[1.05,0.045,0.045],[0,0.1,0],'metal');
+        panel('DamFrameBottom',[1.05,0.045,0.045],[0,-0.1,0],'metal');
+        break;
+      case 'matrix':
+        panel('MatrixBand',[0.62,0.045,0.42],[0,0,0],'metal');
+        ball('MatrixRetainer',0.24,0.38,0,0,'tealDark',[1,1,0.75]);
+        break;
+      case 'wedges':
+        for(let i=0;i<3;i++) taper('MatrixWedge'+i,0.5,0.16,-0.22+i*.2,'tooth');
+        break;
+      case 'composite-instrument':
+      case 'endo-spreader':
+      case 'elevator':
+      case 'periotome':
+      case 'scalpel':
+      case 'gracey-curette':
+      case 'curette':
+      case 'suture-scissors':
+      case 'needle-holder':
+        rod('InstrumentHandle',0.85,0.12,0.12,'tealDark');
+        rod('InstrumentShaft',0.4,0.055,-0.48,'metal');
+        taper('InstrumentWorkingEnd',0.3,0.13,-0.78,'metal');
+        ball('InstrumentCollar',0.16,0,0,-0.34,'white');
+        break;
+      case 'curing-light':
+        rod('CuringBody',0.86,0.28,0.12,'tealDark');
+        rod('CuringNeck',0.28,0.13,-0.42,'metal');
+        ball('CuringLens',0.24,0,0,-0.61,'glass',[1,0.55,1]);
+        break;
+      case 'surgical-drill':
+        rod('SurgicalDrillBody',0.92,0.28,0.12,'tealDark');
+        rod('SurgicalDrillNeck',0.36,0.15,-0.42,'metal');
+        taper('SurgicalDrillBit',0.48,0.1,-0.78,'metal');
+        ball('SurgicalDrillBearing',0.2,0,0,-0.45,'white');
+        break;
+      case 'implant-fixture-kit':
+        rod('ImplantFixtureCore',0.8,0.25,0,'metal');
+        for(let i=0;i<5;i++) rod('ImplantThread_'+i,0.035,0.34,-0.3+i*.14,'metal');
+        rod('ImplantAbutment',0.28,0.17,-0.54,'tealDark');
+        break;
+      case 'ortho-bracket-kit':
+        for(let i=-1;i<=1;i++) {
+          panel('OrthoBracketBase_'+i,[0.22,0.15,0.12],[i*.25,0,0],'metal');
+          rod('OrthoBracketSlot_'+i,0.18,0.045,0,'tealDark').position.x=i*.25;
+        }
+        break;
+      case 'orthodontic-wire':
+      case 'splint-wire':
+        tube('OrthoWireArc',[[0,0,.45],[.25,.06,.25],[.5,.08,0],[.25,.06,-.25],[0,0,-.45],[-.25,.06,-.25],[-.5,.08,0],[-.25,.06,.25],[0,0,.45]],.026,item.id==='splint-wire'?'accent':'metal',root);
+        break;
+      case 'endo-files':
+        for(let i=0;i<3;i++) {
+          rod('EndoHandle'+i,0.22,0.13,-0.36+i*.17,'accent').position.x=(i-1)*.16;
+          taper('EndoFile'+i,0.62,0.055,-0.78+i*.17,'metal').position.x=(i-1)*.16;
+        }
+        break;
+      case 'apex-locator':
+        panel('ApexDevice',[0.55,0.4,0.22],[0,0,0],'dark');
+        panel('ApexScreen',[0.36,0.22,0.025],[0,0.02,-0.12],'screen');
+        rod('ApexCable',0.7,0.025,-0.3,'rubber');
+        break;
+      case 'endo-irrigation':
+      case 'air-water':
+      case 'saliva-ejector':
+      case 'high-volume-suction':
+        rod('SyringeBody',0.84,0.18,0.12,'white');
+        rod('SyringeGrip',0.18,0.29,0.43,'metal');
+        taper('SyringeCannula',0.56,0.075,-0.55,'metal');
+        break;
+      case 'impression-tray':
+        panel('TrayBase',[0.8,0.07,0.45],[0,0,0],'metal');
+        panel('TrayHandle',[0.22,0.09,0.18],[0,0,0.34],'metal');
+        break;
+      case 'intraoral-scanner':
+        rod('ScannerBody',0.74,0.28,0.12,'white');
+        rod('ScannerNeck',0.26,0.14,-0.38,'metal');
+        panel('ScannerTip',[0.27,0.11,0.12],[0,0,-0.58],'glass');
+        break;
+      case 'shade-guide':
+        panel('ShadeHandle',[0.18,0.13,0.55],[0,0,0.2],'white');
+        for(let i=0;i<4;i++) panel('ShadeTab'+i,[0.19,0.12,0.08],[0,(i-1.5)*0.16,-0.25],'tooth');
+        break;
+      default:
+        rod('GenericToolHandle',0.9,0.14,0.1,'metal');
+        taper('GenericToolWorkingEnd',0.38,0.1,-0.52,'tealDark');
+    }
+  }
+  root.setEnabled(false);
+  return root;
+}
+function getOralInventoryRoot(item = selectedInventoryItem) {
+  const externalId = ['ultrasonic-scaler','curing-light','extraction-forceps','scalpel'].includes(item.id) ? item.id : null;
+  if (externalId && oralSceneProps.has(externalId)) return oralSceneProps.get(externalId);
+  if (!oralInventoryModels.has(item.id)) oralInventoryModels.set(item.id, buildOralInventoryModel(item));
+  return oralInventoryModels.get(item.id);
+}
+let selectedOralInventoryId = null;
+function selectOralInventoryVisual(item) {
+  if (selectedOralInventoryRoot) {
+    isPropAtMouth = false;
+    const previousWasProcedural = oralInventoryModels.get(selectedOralInventoryId) === selectedOralInventoryRoot;
+    if (previousWasProcedural) selectedOralInventoryRoot.setEnabled(false);
+    else if (oralScenePropPositions.has(selectedOralInventoryId)) {
+      selectedOralInventoryRoot.position.copyFrom(oralScenePropPositions.get(selectedOralInventoryId));
+    }
+  }
+  const root = getOralInventoryRoot(item);
+  const external = root === oralSceneProps.get(item.id);
+  if (external && oralScenePropPositions.has(item.id)) root.position.copyFrom(oralScenePropPositions.get(item.id));
+  else if (!external) root.position.copyFrom(oralInventoryTrayPosition);
+  root.setEnabled(true);
+  root.rotation.set(0, 0, 0);
+  root.metadata = { title:item.name, detail:item.detail, inventoryId:item.id };
+  selectedOralInventoryRoot = root;
+  selectedOralInventoryId = item.id;
+  return root;
+}
+function moveSelectedOralInventoryToMouth(item = selectedInventoryItem) {
+  const root = selectedOralInventoryRoot || selectOralInventoryVisual(item);
+  if (!root) return false;
+  const destination = getOralExamTargetPoint(currentCariesTarget).add(new Vector3(0, 0.22, 0.65));
+  root.setEnabled(true);
+  animateTreatmentNode(root, destination, new Vector3(0, 0, -0.18));
+  isPropAtMouth = true;
+  return true;
+}
+function returnSelectedOralInventoryToTray() {
+  if (!selectedOralInventoryRoot) {
+    isPropAtMouth = false;
+    return;
+  }
+  const position = oralScenePropPositions.get(selectedOralInventoryId) || oralInventoryTrayPosition;
+  animateTreatmentNode(selectedOralInventoryRoot, position.clone(), new Vector3(0, 0, 0));
+  isPropAtMouth = false;
+}
+function getOralExamTargetPoint(fdi = currentCariesTarget) {
+  const bounds = dentalManifest?.meshes?.['tooth-' + fdi]?.bounds;
+  if (!bounds) return new Vector3(0, 0.5, 0);
+  const [min, max] = bounds;
+  const point = new Vector3((min[0] + max[0]) / 2, max[1] + 0.75, (min[2] + max[2]) / 2 + 0.15);
+  if (/^[34]/.test(String(fdi)) && dentalLowerJawPivot) {
+    const local = point.subtract(dentalLowerJawPivot.position);
+    return Vector3.TransformCoordinates(local, dentalLowerJawPivot.computeWorldMatrix(true));
+  }
+  return point;
+}
+async function ensureOralSceneProps() {
+  if (oralScenePropsPromise) return oralScenePropsPromise;
+  oralScenePropsPromise = (async () => {
+    const definitions = [
+      { id:'instrument-tray', file:'dental-tools/instrument-tray.glb', url:'https://cdn.3dassets.dev/assets/34383/v1/', size:7.2, position:[7.4,-1.5,2.1], rotation:[0,-0.25,0] },
+      { id:'ultrasonic-scaler', file:'dental-tools/ultrasonic-scaler.glb', url:'https://cdn.3dassets.dev/assets/34384/v1/', size:5.6, position:[-7.2,-1.2,2.5], rotation:[0,0.3,0] },
+      { id:'curing-light', file:'dental-tools/curing-light.glb', url:'https://cdn.3dassets.dev/assets/34385/v1/', size:5.0, position:[6.8,1.7,1.4], rotation:[0,-0.5,0] },
+      { id:'plaster-study-arch', file:'dental-tools/plaster-study-arch.glb', url:'https://cdn.3dassets.dev/assets/34397/v1/', size:5.6, position:[-7.3,1.7,0.4], rotation:[0,0.2,0] },
+      { id:'extraction-forceps', file:'dental-tools/surgical-forceps.glb', url:'https://files.innerscene.com/library/forceps-0697e09f/23a4b04dccffb1867b5e/', remoteFile:'forceps.glb', size:1.6, position:[7.2,-1.2,3.2], rotation:[0,0.15,0] },
+      { id:'scalpel', file:'dental-tools/scalpel-set.glb', url:'https://files.innerscene.com/library/scalpel-set-31709647/50ebfbee69cd692b267c/', remoteFile:'scalpel-set.glb', size:1.8, position:[-7.2,-1.2,3.2], rotation:[0,-0.15,0] }
+    ];
+    const results = await Promise.allSettled(definitions.map(async def => {
+      const container = await loadContainer(def.file, def.url, def.remoteFile || 'model.glb');
+      const mounted = attachCenteredContainer(container, 'OralSceneProp_' + def.id, def.size);
+      mounted.group.parent = dentalScopeRoot;
+      mounted.group.position.addInPlace(new Vector3(...def.position));
+      mounted.group.rotation.set(...def.rotation);
+      mounted.group.metadata = { title:def.id, detail:'نموذج ثلاثي الأبعاد ثابت من حزمة CC0 تعليمية؛ لا يحاكي الحركة أو المعايرة السريرية.' };
+      mounted.group.setEnabled(true);
+      oralSceneProps.set(def.id, mounted.group);
+      oralScenePropPositions.set(def.id, mounted.group.position.clone());
+    }));
+    const failed = results.filter(result => result.status === 'rejected');
+    if (failed.length) console.warn('Some chairside prop models could not be loaded.', failed);
+    return oralSceneProps.size;
+  })();
+  return oralScenePropsPromise;
 }
 async function ensureDentalScope() {
   if(dentalScopeRoot)return;
@@ -1510,6 +2082,7 @@ async function ensureDentalScope() {
     }
     if(dentalMeshRecords.length<120)throw new Error('Dental atlas did not expose enough of the expected named mesh records.');
     dentalStructureRecords=[...new Map(dentalMeshRecords.map(record=>[record.key,record])).values()].sort((a,b)=>a.key.localeCompare(b.key));
+    configureDentalLowerJawPivot();
     dentalScopeRoot.setEnabled(true);
     root.setEnabled(false);
     clinicAssetRoot?.setEnabled(false);
@@ -1536,9 +2109,12 @@ async function showDentalAtlasExperience() {
   treatmentLight.intensity = 0;
   treatmentLight.setEnabled(false);
   patientVariantControls.hidden = true;
-  for(const id of ['view-clinic','view-anatomy','view-people','view-body','view-dental-atlas']) {
+  for(const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
   }
+  isPropAtMouth = false;
+  selectedOralInventoryRoot?.setEnabled(false);
+  selectedOralInventoryRoot = null;
   dentalAtlasPanel.hidden=false;
   bodyPanel.hidden=true;
   anatomyPanel.hidden=true;
@@ -1553,6 +2129,9 @@ async function showDentalAtlasExperience() {
     bodyAssetRoot?.setEnabled(false);
     peopleRoot.setEnabled(false);
     activeExperience='dental-scope';
+    isPatientMouthOpen = false;
+    setDentalJawOpen(false);
+    document.getElementById('patient-mouth-toggle').textContent = 'فتح الفم';
     setProceduralControlsEnabled(false,'dental');
     engine.setHardwareScalingLevel(1.25);
     restoreDentalWholeMouth();
@@ -1561,6 +2140,68 @@ async function showDentalAtlasExperience() {
   }
   loadingOverlay?.classList.add('hidden');
 }
+
+async function showOralExamExperience() {
+  loadingOverlay?.classList.remove('hidden');
+  pediatricRoot.setEnabled(false);
+  pediatricPanel.hidden = true;
+  treatmentRoot.setEnabled(false);
+  treatmentLight.intensity = 0;
+  treatmentLight.setEnabled(false);
+  patientVariantControls.hidden = true;
+  peopleRoot.setEnabled(false);
+  anatomyPanel.hidden = true;
+  bodyPanel.hidden = true;
+  dentalAtlasPanel.hidden = false;
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-dental-atlas','view-pediatric','view-body']) {
+    document.getElementById(id)?.classList.toggle('selected', id === 'view-oral-exam');
+  }
+  await ensureDentalScope();
+  if (!dentalScopeRoot || !dentalLowerJawPivot) {
+    setAssetStatus('تعذر تحميل تشريح الفم التفصيلي. تحقق من ملفات Dental Scope واتصال الشبكة.', 'warn');
+    loadingOverlay?.classList.add('hidden');
+    return;
+  }
+  dentalScopeRoot.setEnabled(true);
+  dentalToothDetails.forEach(item => item.root.setEnabled(false));
+  root.setEnabled(false);
+  clinicAssetRoot?.setEnabled(false);
+  anatomyAssetRoot?.setEnabled(false);
+  bodyAssetRoot?.setEnabled(false);
+  peopleRoot.setEnabled(false);
+  treatmentRoot.setEnabled(false);
+  activeExperience = 'oral-exam';
+  setProceduralControlsEnabled(false, 'dental');
+  engine.setHardwareScalingLevel(1.15);
+  document.getElementById('dental-context-toggle').checked = false;
+  document.getElementById('dental-nerve-toggle').checked = true;
+  document.getElementById('dental-gum-toggle').checked = true;
+  document.getElementById('dental-shell-toggle').checked = true;
+  applyDentalBaseVisibility();
+  isPatientMouthOpen = true;
+  isPropAtMouth = false;
+  dentalIsolatedKey = null;
+  selectedOralInventoryRoot?.setEnabled(false);
+  selectedOralInventoryRoot = null;
+  scene.stopAnimation(dentalLowerJawPivot);
+  dentalLowerJawPivot.rotation.x = dentalJawOpenAngle;
+  document.getElementById('patient-mouth-toggle').textContent = 'إغلاق الفم';
+  document.getElementById('apply-clinical-action').disabled = false;
+  await ensureOralSceneProps();
+  activeExperience = 'oral-exam';
+  currentCariesTarget = '36';
+  renderDentalToothGrid(document.getElementById('dental-tooth-search').value);
+  selectOralExamTooth(currentCariesTarget);
+  selectInventoryItem(selectedInventoryItem);
+  setDentalStatus('وضع فحص الأسنان جاهز: فك سفلي متحرك، 32 سنًا، أدوات ومواد قابلة للسحب.', 'ok');
+  setAssetStatus('فحص الأسنان جاهز. الفم مفتوح؛ اختر السن ثم اسحب الأداة أو المادة إلى منطقة العمل.', 'ok');
+  setCamera('orbit');
+  camera.setTarget(getOralExamTargetPoint(currentCariesTarget));
+  camera.radius = 6.4;
+  loadingOverlay?.classList.add('hidden');
+}
+document.getElementById('view-oral-exam')?.addEventListener('click', showOralExamExperience);
+
 document.getElementById('view-dental-atlas')?.addEventListener('click',showDentalAtlasExperience);
 document.getElementById('dental-tooth-search')?.addEventListener('input',event=>renderDentalToothGrid(event.target.value));
 document.getElementById('dental-structure-search')?.addEventListener('input',event=>renderDentalStructureList(event.target.value));
@@ -1711,7 +2352,7 @@ async function showPediatricDentitionExperience() {
   bodyAssetRoot?.setEnabled(false);
   dentalScopeRoot?.setEnabled(false);
   dentalToothDetails.forEach(item => item.root.setEnabled(false));
-  for (const id of ['view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
+  for (const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected', id === 'view-pediatric');
   }
   activeExperience = 'pediatric';
@@ -1933,6 +2574,7 @@ function updateCaseView() {
 }
 scenarioSelect?.addEventListener('change', event => {
   currentCase = event.target.value;
+  if (clinicalSurfaceReady) resetClinicalProcedureFlow(currentCase);
   currentStep = -1;
   completedSteps = [];
   caseFeedback.textContent = 'تم اختيار السيناريو. اضغط ابدأ التدريب لعرض الخطوات.';
@@ -1940,6 +2582,8 @@ scenarioSelect?.addEventListener('change', event => {
 });
 document.getElementById('start-case')?.addEventListener('click', () => {
   currentCase = scenarioSelect.value;
+  if (clinicalSurfaceReady) resetClinicalProcedureFlow(currentCase);
+  if (currentCase === 'restoration') resetCariesTrainingCase();
   currentStep = 0;
   completedSteps = [];
   caseFeedback.textContent = trainingCases[currentCase].steps[0][1];
@@ -2027,6 +2671,11 @@ const dentalInventory = [
   {id:'intraoral-scanner',name:'ماسح داخل الفم',category:'prostho',type:'tool',keywords:'intraoral scanner digital scan',detail:'يلتقط بيانات رقمية لأسطح الأسنان والنسج الظاهرة.',note:'جودة المسح تعتمد على المجال والرطوبة وخطة المسح والمعايرة.'},
   {id:'shade-guide',name:'دليل اختيار اللون',category:'prostho',type:'tool',keywords:'shade guide color',detail:'مرجع بصري لتسجيل لون الأسنان والتواصل مع المختبر.',note:'الإضاءة والبيئة والشفافية تؤثر في التقييم.'},
   {id:'orthodontic-pliers',name:'كماشات تقويمية',category:'ortho',type:'tool',keywords:'orthodontic pliers bracket wire',detail:'أدوات مخصصة لمناولة الأسلاك والملحقات التقويمية.',note:'كل تصميم له وظيفة محددة؛ يلزم تدريب اختصاصي التقويم.'},
+  {id:'surgical-drill',name:'قبضة جراحية تعليمية للزرعات',category:'surgery',type:'tool',keywords:'implant surgical drill handpiece',detail:'مجسم تدريبي لتوضيح التفاعل ثلاثي الأبعاد مع موضع افتراضي في الفك.',note:'لا يحاكي سرعة جهاز جراحي أو كثافة العظم أو التخطيط الآمن للزرعة.'},
+  {id:'implant-fixture-kit',name:'مجموعة جسم الزرعة والدعامة',category:'surgery',type:'tool',keywords:'implant fixture abutment dental implant',detail:'مجسم تعليمي لجسم الزرعة والدعامة في مسار تقييم التعويض.',note:'أبعاد المجسم وعلاقته بالعظم غير معايرة ولا تصلح لتخطيط مريض.'},
+  {id:'ortho-bracket-kit',name:'مجموعة حاصرات التقويم',category:'ortho',type:'tool',keywords:'orthodontic brackets brace',detail:'مكونات مرئية لتدريب ترتيب الحاصرات وربطها بسلك تقويمي افتراضي.',note:'المواضع والقوى غير محسوبة وفق تشخيص تقويمي حقيقي.'},
+  {id:'orthodontic-wire',name:'سلك تقويم الأسنان',category:'ortho',type:'tool',keywords:'orthodontic archwire',detail:'سلك افتراضي يربط الحاصرات على القوس السني في مشهد التدريب.',note:'لا يحاكي خواص سبائك التقويم أو القوى البيوميكانيكية المقاسة.'},
+  {id:'splint-wire',name:'سلك تثبيت رضوض الأسنان',category:'ortho',type:'tool',keywords:'dental trauma splint wire',detail:'مجسم يوضح مبدأ الربط المرن للأسنان المجاورة في مسار الرضوض.',note:'ليس قالبًا سريريًا أو تعليمات تثبيت معتمدة لإصابة محددة.'},
   {id:'composite-resin',name:'راتنج كومبوزيت',category:'materials',type:'material',keywords:'composite resin restorative',detail:'مادة ترميمية راتنجية ذات خصائص تختلف حسب المنتج واللزوجة والحشوات.',note:'التزم بنشرة الشركة والتوافق اللاصق والتخزين وتاريخ الصلاحية.'},
   {id:'glass-ionomer',name:'إسمنت زجاجي أيوني',category:'materials',type:'material',keywords:'glass ionomer GIC restorative',detail:'مادة ذات استخدامات ترميمية أو قاعدية أو إسمنتية بحسب الصيغة.',note:'لا تفترض أن جميع الأنواع قابلة للتبادل؛ راجع الاستطبابات وتعليمات الشركة.'},
   {id:'etchant',name:'مادة تخريش',category:'materials',type:'material',keywords:'etch phosphoric acid',detail:'مادة لمعالجة السطح ضمن نظم التصاق محددة.',note:'احمِ النسج الرخوة والتزم بتعليمات المادة ولا تعمم زمنًا واحدًا.'},
@@ -2038,6 +2687,7 @@ const dentalInventory = [
   {id:'impression-silicone',name:'سيليكون طبعات',category:'materials',type:'material',keywords:'PVS addition silicone impression',detail:'مادة طبعة مرنة تستخدم في تطبيقات تعويضية مختلفة.',note:'الخلط وزمن العمل والتخزين وفق المنتج المحدد.'},
   {id:'luting-cement',name:'إسمنت تثبيت تعويضي',category:'materials',type:'material',keywords:'resin cement glass ionomer luting',detail:'مواد لتثبيت التعويضات بحسب نوع الترميم والسطح والمادة.',note:'لا يوجد إسمنت واحد مناسب لكل التعويضات؛ اتبع تعليمات الشركة.'},
   {id:'suture-material',name:'خيوط جراحية',category:'materials',type:'material',keywords:'suture silk vicryl nylon',detail:'خيوط جراحية تختلف في الامتصاص والقطر والبنية.',note:'اختيار النوع والحجم والتوقيت ضمن التدريب الجراحي وبروتوكول المنشأة.'},
+  {id:'fluoride-varnish',name:'ورنيش فلورايد تعليمي',category:'materials',type:'material',keywords:'fluoride varnish prevention pediatric',detail:'عبوة افتراضية لتوضيح التغطية الوقائية على سطح السن في مسار الأطفال.',note:'لا تمثل تركيزًا دوائيًا أو جرعة أو قرارًا علاجيًا لطفل بعينه.'},
   {id:'ppe-gloves',name:'قفازات طبية',category:'ppe',type:'material',keywords:'gloves nitrile latex',detail:'حاجز وقائي لليدين ضمن احتياطات مكافحة العدوى.',note:'اختر مادة متوافقة مع الحساسية وسياسة المنشأة، وبدلها بين المهام.'},
   {id:'ppe-mask',name:'كمامة طبية/حماية تنفسية',category:'ppe',type:'material',keywords:'mask respirator',detail:'وسيلة حماية تنفسية تختار وفق نوع الإجراء وتقييم المخاطر.',note:'الملاءمة والاستخدام وفق السياسة الصحية الحالية.'},
   {id:'eye-protection',name:'نظارات واقية ودرع وجه',category:'ppe',type:'material',keywords:'goggles face shield',detail:'حماية العين والوجه من الرذاذ والجزيئات.',note:'نظفها وعقمها أو استبدلها وفق تعليمات الشركة ومكافحة العدوى.'},
@@ -2058,6 +2708,7 @@ const materialBottleCap = cylinder('ActiveMaterialCap', .09, .12, [0,.22,0], 'te
 activeMaterialRoot.setEnabled(false);
 
 function selectInventoryItem(item) {
+  if (clinicalSurfaceReady) resetClinicalContactState('تم اختيار عنصر جديد. أعد ملامسة سطح السن لتنفيذ الخطوة التالية.');
   selectedInventoryItem = item;
   if (inventoryDetail) {
     inventoryDetail.replaceChildren();
@@ -2070,11 +2721,17 @@ function selectInventoryItem(item) {
     inventoryDetail.append(title, purpose, note);
   }
   const isMaterial = item.type === 'material';
-  activeInstrumentRoot.setEnabled(!isMaterial);
-  activeMaterialRoot.setEnabled(isMaterial);
-  activeInstrumentRoot.metadata = { treatmentLabel: item.name, detail: item.detail };
+  if (activeExperience === 'oral-exam') {
+    activeInstrumentRoot.setEnabled(false);
+    activeMaterialRoot.setEnabled(false);
+    selectOralInventoryVisual(item);
+  } else {
+    activeInstrumentRoot.setEnabled(!isMaterial);
+    activeMaterialRoot.setEnabled(isMaterial);
+    activeInstrumentRoot.metadata = { treatmentLabel: item.name, detail: item.detail };
+  }
   document.getElementById('treatment-interaction-status').textContent =
-    'تم اختيار ' + item.name + '. اضغط تحريك الأداة للفم لنقل المجسم بهدوء، أو إرجاعه للصينية.';
+    'تم اختيار ' + item.name + '. اسحب المجسم إلى مربع العمل أو استخدم زر تحريك الأداة للفم.';
   document.getElementById('selection-name').textContent = item.name;
   document.getElementById('selection-description').textContent = item.detail;
   inventoryList?.querySelectorAll('.inventory-item').forEach(button => {
@@ -2096,6 +2753,11 @@ function renderInventory() {
     button.type = 'button';
     button.className = 'inventory-item' + (item.id === selectedInventoryItem.id ? ' selected' : '');
     button.dataset.inventoryId = item.id;
+    button.draggable = true;
+    button.addEventListener('dragstart', event => {
+      event.dataTransfer?.setData('application/x-dental-inventory', item.id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    });
     const name = document.createElement('b');
     name.textContent = item.name;
     const tag = document.createElement('small');
@@ -2115,6 +2777,605 @@ inventorySearch?.addEventListener('input', renderInventory);
 inventoryCategory?.addEventListener('change', renderInventory);
 renderInventory();
 selectInventoryItem(selectedInventoryItem);
+
+let cariesTrainingStage = 'caries';
+
+const clinicalProcedureFlows = {
+  exam: [
+    { tool:'mirror', label:'مسح بصري للأسطح', effect:'inspection', contact:'tooth' },
+    { tool:'explorer', label:'فحص سطح السن', effect:'surface-map', contact:'tooth' },
+    { tool:'periodontal-probe', label:'تسجيل موضع لثوي تعليمي', effect:'measure', contact:'gingiva' }
+  ],
+  endo: [
+    { tool:'rubber-dam', label:'تمثيل العزل حول السن', effect:'isolation', contact:'tooth' },
+    { tool:'high-speed', label:'تحضير مدخل تعليمي', effect:'access', contact:'tooth', depth:.18 },
+    { tool:'endo-files', label:'إظهار مسار أداة القناة', effect:'canal-file', contact:'tooth' },
+    { tool:'endo-irrigation', label:'ري القناة بجزيئات سائلة', effect:'irrigation', contact:'tooth' },
+    { tool:'endodontic-sealer', label:'إضافة طبقة مادة إغلاق', effect:'sealer', contact:'tooth' },
+    { tool:'gutta-percha', label:'إظهار مادة الإغلاق داخل المسار', effect:'obturation', contact:'tooth' }
+  ],
+  hygiene: [
+    { tool:'periodontal-probe', label:'قياس لثوي افتراضي', effect:'measure', contact:'gingiva' },
+    { tool:'ultrasonic-scaler', label:'إزالة ترسبات سطحية افتراضية', effect:'debride', contact:'gingiva' },
+    { tool:'gracey-curette', label:'تنظيف موضعي إضافي', effect:'root-clean', contact:'gingiva' },
+    { tool:'air-water', label:'شطف المجال المرئي', effect:'irrigation', contact:'gingiva' }
+  ],
+  extraction: [
+    { tool:'periodontal-probe', label:'تقييم السن واللثة', effect:'measure', contact:'gingiva' },
+    { tool:'periotome', label:'تمثيل تحرير الرباط حول السن', effect:'release', contact:'gingiva' },
+    { tool:'elevator', label:'تطبيق حركة رفع تعليمية محدودة', effect:'luxation', contact:'tooth', force:.8 },
+    { tool:'extraction-forceps', label:'تمثيل إزالة السن من المشهد', effect:'extraction', contact:'tooth', force:1.0 },
+    { tool:'suture-material', label:'إظهار خيط إغلاق موضعي', effect:'suture', contact:'gingiva' }
+  ],
+  periodontal: [
+    { tool:'periodontal-probe', label:'تسجيل موضع اللثة', effect:'measure', contact:'gingiva' },
+    { tool:'ultrasonic-scaler', label:'إزالة ترسبات سطحية', effect:'debride', contact:'gingiva' },
+    { tool:'gracey-curette', label:'تنظيف سطحي تكميلي', effect:'root-clean', contact:'gingiva' },
+    { tool:'air-water', label:'شطف وإظهار تدفق السوائل', effect:'irrigation', contact:'gingiva' }
+  ],
+  prostho: [
+    { tool:'high-speed', label:'تغيير سطح تحضير افتراضي', effect:'prep', contact:'tooth', depth:.16 },
+    { tool:'intraoral-scanner', label:'مسح ثلاثي الأبعاد للسن', effect:'scan', contact:'tooth' },
+    { tool:'shade-guide', label:'إضافة قراءة لون تعليمية', effect:'shade', contact:'tooth' },
+    { tool:'impression-tray', label:'تحديد موضع ملعقة الطبعة', effect:'tray', contact:'tooth' },
+    { tool:'impression-silicone', label:'إظهار مادة الطبعة', effect:'impression', contact:'tooth' },
+    { tool:'luting-cement', label:'إظهار طبقة تثبيت تعويضية', effect:'cement', contact:'tooth' }
+  ],
+  implant: [
+    { tool:'intraoral-scanner', label:'تسجيل موضع التعويض الرقمي', effect:'scan', contact:'tooth' },
+    { tool:'surgical-drill', label:'تحضير حفرة عظمية تعليمية', effect:'implant-site', contact:'bone', depth:.07 },
+    { tool:'implant-fixture-kit', label:'إظهار جسم زرعة تعليمي', effect:'implant-fixture', contact:'gingiva' },
+    { tool:'suture-material', label:'إظهار خيط إغلاق موضعي', effect:'suture', contact:'gingiva' }
+  ],
+  ortho: [
+    { tool:'intraoral-scanner', label:'مسح موضع السن', effect:'scan', contact:'tooth' },
+    { tool:'ortho-bracket-kit', label:'وضع قاعدة تقويم على السن', effect:'bracket', contact:'tooth' },
+    { tool:'orthodontic-wire', label:'ربط قواعد التقويم بسلك', effect:'archwire', contact:'tooth' },
+    { tool:'curing-light', label:'تثبيت بصري افتراضي للقاعدة', effect:'bond', contact:'tooth' }
+  ],
+  trauma: [
+    { tool:'mirror', label:'فحص بصري أولي', effect:'inspection', contact:'tooth' },
+    { tool:'explorer', label:'تحديد سطح الإصابة', effect:'surface-map', contact:'tooth' },
+    { tool:'splint-wire', label:'إظهار وصلة تثبيت تعليمية', effect:'splint', contact:'tooth' },
+    { tool:'composite-resin', label:'إضافة مادة ربط افتراضية', effect:'bond', contact:'tooth' },
+    { tool:'curing-light', label:'إكمال التثبيت البصري', effect:'bond', contact:'tooth' }
+  ],
+  emergency: [
+    { tool:'mirror', label:'تقييم مجال الفم بصريًا', effect:'inspection', contact:'tooth' },
+    { tool:'high-volume-suction', label:'إظهار سحب السوائل والجزيئات', effect:'suction', contact:'tooth' },
+    { tool:'air-water', label:'شطف المجال المرئي', effect:'irrigation', contact:'tooth' }
+  ],
+  pediatric: [
+    { tool:'mirror', label:'فحص بصري لطيف', effect:'inspection', contact:'tooth' },
+    { tool:'fluoride-varnish', label:'تغطية سطحية تعليمية بالورنيش', effect:'fluoride', contact:'tooth' },
+    { tool:'glass-ionomer', label:'إظهار كتلة مادة ترميمية افتراضية', effect:'bond', contact:'tooth' }
+  ]
+};
+let activeClinicalProcedure = 'exam';
+let activeClinicalProcedureIndex = 0;
+const clinicalProcedureVisuals = [];
+const extractedToothKeys = new Set();
+let csg2Initialization = null;
+const dentalBooleanCutHistory = [];
+function resetClinicalProcedureFlow(scenario = 'restoration') {
+  restoreDentalBooleanWear();
+  activeClinicalProcedure = clinicalProcedureFlows[scenario] ? scenario : 'restoration';
+  activeClinicalProcedureIndex = 0;
+  for (const visual of clinicalProcedureVisuals) visual.dispose();
+  clinicalProcedureVisuals.length = 0;
+  for (const key of extractedToothKeys) {
+    for (const mesh of dentalMeshByKey.get(key) || []) {
+      mesh.setEnabled(true);
+      mesh.isVisible = true;
+    }
+  }
+  extractedToothKeys.clear();
+  resetClinicalContactState('تمت إعادة ضبط المحاكاة الإجرائية والأنسجة المرئية.');
+}
+async function ensureDentalBooleanEngine() {
+  if (!csg2Initialization) {
+    csg2Initialization = InitializeCSG2Async().catch(error => {
+      csg2Initialization = null;
+      throw error;
+    });
+  }
+  await csg2Initialization;
+}
+function replaceDentalMeshReference(original, replacement, key) {
+  const current = dentalMeshByKey.get(key) || [];
+  dentalMeshByKey.set(key, current.map(mesh => mesh === original ? replacement : mesh));
+  dentalMeshRecords = dentalMeshRecords.map(record =>
+    record.mesh === original ? { ...record, mesh: replacement } : record
+  );
+  const structureIndex = dentalStructureRecords.findIndex(record => record.mesh === original);
+  if (structureIndex >= 0) dentalStructureRecords[structureIndex] = { ...dentalStructureRecords[structureIndex], mesh: replacement };
+  if (dentalSelectedKey === key) {
+    highlight.removeMesh(original);
+    highlight.addMesh(replacement, Color3.FromHexString('#43dbc2'));
+  }
+}
+function alignCSG2VertexAttributes(sourceMesh, cutter) {
+  const channels = [
+    [VertexBuffer.NormalKind, 3, [0,1,0]],
+    [VertexBuffer.ColorKind, 4, [1,1,1,1]],
+    [VertexBuffer.UVKind, 2, [0,0]],
+    [VertexBuffer.UV2Kind, 2, [0,0]],
+    [VertexBuffer.UV3Kind, 2, [0,0]],
+    [VertexBuffer.UV4Kind, 2, [0,0]],
+    [VertexBuffer.UV5Kind, 2, [0,0]],
+    [VertexBuffer.UV6Kind, 2, [0,0]]
+  ];
+  for (const [kind, fallbackStride, fill] of channels) {
+    const sourceData = sourceMesh.getVerticesData(kind);
+    const cutterData = cutter.getVerticesData(kind);
+    if (!sourceData && cutterData) {
+      cutter.removeVerticesData(kind);
+      continue;
+    }
+    if (!sourceData || cutterData) continue;
+    const sourceVertices = Math.max(1, sourceMesh.getTotalVertices());
+    const stride = Math.max(1, sourceData.length / sourceVertices || fallbackStride);
+    const count = cutter.getTotalVertices();
+    const data = new Float32Array(count * stride);
+    for (let i=0;i<count;i++) for(let c=0;c<stride;c++) data[i*stride+c]=fill[c] ?? 0;
+    cutter.setVerticesData(kind, data, true, stride);
+  }
+}
+async function applyDentalBooleanWear(cutterDiameter = .28) {
+  const sourceMesh = clinicalSurface.targetMesh;
+  const key = clinicalSurface.targetKey;
+  if (!sourceMesh || !(key?.startsWith('tooth-') || isClinicalBoneKey(key)) || !clinicalSurface.contactPoint) return false;
+  await ensureDentalBooleanEngine();
+  const path = clinicalSurface.contactTrace.length
+    ? clinicalSurface.contactTrace.filter(sample => sample.key === key)
+    : [{ point:clinicalSurface.contactPoint, normal:clinicalSurface.contactNormal, key }];
+  const samples = path.length > 10
+    ? path.filter((sample, index) => index === 0 || index === path.length - 1 || index % Math.ceil(path.length / 10) === 0)
+    : path;
+  let originalCSG = null;
+  let workingCSG = null;
+  try {
+    originalCSG = CSG2.FromMesh(sourceMesh, true);
+    workingCSG = originalCSG;
+    for (let i=0; i<samples.length; i++) {
+      const sample = samples[i];
+      const localPoint = localPointForMesh(sourceMesh, sample.point);
+      const inverse = Matrix.Invert(sourceMesh.computeWorldMatrix(true));
+      const localNormal = Vector3.TransformNormal(sample.normal || Vector3.Up(), inverse).normalize();
+      const cutter = MeshBuilder.CreateSphere('DentalBurBooleanCutter_' + i, { diameter:cutterDiameter, segments:18 }, scene);
+      let cutterCSG = null;
+      try {
+        cutter.position.copyFrom(localPoint).subtractInPlace(localNormal.scale(cutterDiameter * .23));
+        cutter.scaling.set(1, .74, 1);
+        cutter.bakeCurrentTransformIntoVertices();
+        alignCSG2VertexAttributes(sourceMesh, cutter);
+        cutter.material = sourceMesh.material;
+        cutterCSG = CSG2.FromMesh(cutter, true);
+        const next = workingCSG.subtract(cutterCSG);
+        if (workingCSG !== originalCSG) workingCSG.dispose();
+        workingCSG = next;
+      } finally {
+        cutterCSG?.dispose();
+        cutter.dispose();
+      }
+    }
+    const replacement = workingCSG.toMesh('Prepared_' + key + '_' + dentalBooleanCutHistory.length, scene, {
+      centerMesh:false,
+      rebuildNormals:true
+    });
+    replacement.parent = sourceMesh.parent;
+    replacement.position.copyFrom(sourceMesh.position);
+    replacement.scaling.copyFrom(sourceMesh.scaling);
+    if (sourceMesh.rotationQuaternion) {
+      replacement.rotationQuaternion = sourceMesh.rotationQuaternion.clone();
+      replacement.rotation.setAll(0);
+    } else {
+      replacement.rotation.copyFrom(sourceMesh.rotation);
+    }
+    replacement.material = sourceMesh.material;
+    replacement.metadata = { ...(sourceMesh.metadata || {}), dentalScopeKey:key, isBooleanPrepared:true };
+    replacement.isPickable = true;
+    replacement.isVisible = sourceMesh.isVisible;
+    replacement.setEnabled(true);
+    sourceMesh.setEnabled(false);
+    replaceDentalMeshReference(sourceMesh, replacement, key);
+    dentalBooleanCutHistory.push({ original:sourceMesh, replacement, key });
+    clinicalSurface.targetMesh = replacement;
+    if (clinicalSurface.contactMarker) {
+      clinicalSurface.contactMarker.parent = replacement;
+      clinicalSurface.contactMarker.position.copyFrom(localPointForMesh(replacement, clinicalSurface.contactPoint));
+    }
+    if (clinicalSurface.surfaceMark) {
+      clinicalSurface.surfaceMark.parent = replacement;
+      clinicalSurface.surfaceMark.position.copyFrom(localPointForMesh(replacement, clinicalSurface.contactPoint));
+    }
+    replacement.computeWorldMatrix(true);
+    return true;
+  } finally {
+    if (workingCSG && workingCSG !== originalCSG) workingCSG.dispose();
+    originalCSG?.dispose();
+  }
+}
+function restoreDentalBooleanWear() {
+  if (dentalBooleanCutHistory.length) {
+    clinicalSurface.contactMarker?.dispose();
+    clinicalSurface.surfaceMark?.dispose();
+    clinicalSurface.contactMarker = null;
+    clinicalSurface.surfaceMark = null;
+    clinicalSurface.targetMesh = null;
+    clinicalSurface.contactTrace = [];
+  }
+  for (let i=dentalBooleanCutHistory.length-1;i>=0;i--) {
+    const item = dentalBooleanCutHistory[i];
+    item.replacement.setEnabled(false);
+    item.original.setEnabled(true);
+    replaceDentalMeshReference(item.replacement, item.original, item.key);
+    item.replacement.dispose(false, true);
+  }
+  dentalBooleanCutHistory.length = 0;
+}
+function addProcedureVisual(effect) {
+  const mesh = clinicalSurface.targetMesh;
+  const worldPoint = clinicalSurface.contactPoint;
+  if (!mesh || !worldPoint) return;
+  const root = new TransformNode('ClinicalProcedure_' + effect + '_' + clinicalProcedureVisuals.length, scene);
+  const attachToSceneRoot = effect === 'extraction';
+  root.parent = attachToSceneRoot ? dentalScopeRoot : mesh;
+  root.position.copyFrom(attachToSceneRoot ? Vector3.TransformCoordinates(worldPoint, Matrix.Invert(dentalScopeRoot.computeWorldMatrix(true))) : localPointForMesh(mesh, worldPoint));
+  root.metadata = { clinicalEffect:effect, targetKey:clinicalSurface.targetKey };
+  const addSphere = (name, diameter, position, materialName, scaling = null) => {
+    const object = MeshBuilder.CreateSphere(name, { diameter, segments:18 }, scene);
+    object.parent = root;
+    object.position.copyFrom(position);
+    object.material = materialName;
+    object.isPickable = false;
+    if (scaling) object.scaling.copyFrom(scaling);
+    return object;
+  };
+  const addBox = (name, dimensions, position, materialName) => {
+    const object = MeshBuilder.CreateBox(name, { width:dimensions[0],height:dimensions[1],depth:dimensions[2] }, scene);
+    object.parent = root;
+    object.position.copyFrom(position);
+    object.material = materialName;
+    object.isPickable = false;
+    return object;
+  };
+  switch (effect) {
+    case 'inspection':
+    case 'surface-map':
+    case 'measure':
+      addSphere('ClinicalInspectionMarker', .18, Vector3.Zero(), mats.accent, new Vector3(1,.12,1));
+      break;
+    case 'isolation':
+      MeshBuilder.CreateTorus('ClinicalRubberDamRing', { diameter:1.1,thickness:.055,tessellation:32 }, scene).parent = root;
+      break;
+    case 'access':
+    case 'prep':
+    case 'implant-site':
+      addSphere('ClinicalPreparationZone', .34, Vector3.Zero(), clinicalCavityMaterial, new Vector3(1,.2,1));
+      break;
+    case 'canal-file':
+      {
+        const file = MeshBuilder.CreateCylinder('ClinicalCanalFile', {height:.9,diameterTop:.018,diameterBottom:.045,tessellation:12},scene);
+        file.parent=root;file.material=mats.metal;file.isPickable=false;file.rotation.x=Math.PI/2;
+      }
+      break;
+    case 'irrigation':
+    case 'suction':
+      spawnClinicalFluid(worldPoint, clinicalSurface.contactNormal || Vector3.Up(), effect === 'suction' ? 4 : 6);
+      addSphere('ClinicalFluidTarget', .22, Vector3.Zero(), clinicalWaterMaterial, new Vector3(1,.16,1));
+      break;
+    case 'sealer':
+    case 'cement':
+    case 'fluoride':
+    case 'bond':
+    case 'impression':
+      addSphere('ClinicalMaterialLayer', .42, Vector3.Zero(), effect === 'fluoride' ? clinicalWaterMaterial : mats.tooth, new Vector3(1,.11,1));
+      break;
+    case 'obturation':
+      {
+        const cone = MeshBuilder.CreateCylinder('ClinicalObturationCone', {height:.85,diameterTop:.015,diameterBottom:.12,tessellation:16},scene);
+        cone.parent=root;cone.material=mats.accent;cone.isPickable=false;cone.rotation.x=Math.PI/2;
+      }
+      break;
+    case 'debride':
+    case 'root-clean':
+      addSphere('ClinicalDebridementTrace', .46, Vector3.Zero(), clinicalDebrisMaterial, new Vector3(1,.1,1));
+      break;
+    case 'release':
+      addSphere('ClinicalLigamentReleaseTrace', .32, Vector3.Zero(), clinicalTissueMarkMaterial, new Vector3(1,.12,1));
+      break;
+    case 'luxation':
+      {
+        const pivot = new TransformNode('ClinicalMobilityIndicator',scene);pivot.parent=root;
+        const needle = MeshBuilder.CreateCylinder('ClinicalMobilityArrow',{height:.7,diameter:.04,tessellation:10},scene);
+        needle.parent=pivot;needle.position.x=.3;needle.rotation.z=Math.PI/2;needle.material=mats.accent;needle.isPickable=false;
+        pivot.rotation.z=.16;
+      }
+      break;
+    case 'extraction':
+      if (/^tooth-\d{2}$/.test(clinicalSurface.targetKey || '')) {
+        for (const toothMesh of dentalMeshByKey.get(clinicalSurface.targetKey) || []) {
+          toothMesh.setEnabled(false);
+          extractedToothKeys.add(clinicalSurface.targetKey);
+        }
+      }
+      addSphere('ClinicalSocketDisplay', .56, Vector3.Zero(), mats.gum, new Vector3(1,.14,1));
+      break;
+    case 'scan':
+      {
+        const ring = MeshBuilder.CreateTorus('ClinicalScanRing',{diameter:.8,thickness:.025,tessellation:40},scene);
+        ring.parent=root;ring.material=mats.accent;ring.isPickable=false;
+        const ring2=MeshBuilder.CreateTorus('ClinicalScanRing2',{diameter:1.02,thickness:.016,tessellation:40},scene);
+        ring2.parent=root;ring2.material=mats.glass;ring2.isPickable=false;
+      }
+      break;
+    case 'shade':
+      addSphere('ClinicalShadeSample', .25, Vector3.Zero(), mats.tooth, new Vector3(1,.35,.7));
+      break;
+    case 'tray':
+      addBox('ClinicalImpressionTray',[.68,.08,.34],Vector3.Zero(),mats.metal);
+      break;
+    case 'bracket':
+      addBox('ClinicalOrthodonticBracket',[.25,.14,.12],Vector3.Zero(),mats.metal);
+      break;
+    case 'archwire':
+    case 'splint':
+    case 'suture':
+      tube('ClinicalWireOrSuture',[[0,0,0],[.25,.10,.1],[.5,0,.18],[.75,.08,.28]],.025,effect==='suture'?'accent':'metal',root);
+      break;
+    case 'implant-fixture':
+      {
+        const fixture = MeshBuilder.CreateCylinder('ClinicalImplantFixture',{height:.72,diameterTop:.2,diameterBottom:.27,tessellation:24},scene);
+        fixture.parent=root;fixture.material=mats.metal;fixture.isPickable=false;
+        for (let i=0;i<4;i++) {
+          const thread=MeshBuilder.CreateTorus('ClinicalImplantThread_'+i,{diameter:.2+i*.012,thickness:.024,tessellation:20},scene);
+          thread.parent=root;thread.position.y=-.22+i*.13;thread.material=mats.metal;thread.isPickable=false;
+        }
+      }
+      break;
+    default:
+      addSphere('ClinicalProcedureMarker', .3, Vector3.Zero(), mats.accent);
+  }
+  clinicalProcedureVisuals.push(root);
+}
+async function performGuidedClinicalProcedure() {
+  const flow = clinicalProcedureFlows[activeClinicalProcedure] || [];
+  const step = flow[activeClinicalProcedureIndex];
+  if (!step) {
+    clinicalSimulationFeedback.textContent = 'اكتمل هذا المسار التفاعلي. راجع النتيجة مع المشرف السريري.';
+    return true;
+  }
+  const id = selectedInventoryItem?.id;
+  if (id !== step.tool) {
+    clinicalSimulationFeedback.textContent = 'الخطوة الحالية تتطلب: ' + (dentalInventory.find(item => item.id === step.tool)?.name || step.tool) + '.';
+    return false;
+  }
+  if (!clinicalSurface.targetMesh || !clinicalSurface.targetKey || clinicalSurface.contactSeconds < .18) {
+    clinicalSimulationFeedback.textContent = 'لم يتم رصد تلامس كافٍ مع سطح السن أو اللثة. اضغط واسحب الأداة على السطح أولًا.';
+    return false;
+  }
+  if (step.contact === 'tooth' && !clinicalSurface.targetKey.startsWith('tooth-')) {
+    clinicalSimulationFeedback.textContent = 'الموضع المستهدف لهذه الخطوة هو سطح السن، وليس اللثة.';
+    return false;
+  }
+  if (step.contact === 'gingiva' && !clinicalSurface.targetKey.startsWith('gingiva-')) {
+    clinicalSimulationFeedback.textContent = 'الموضع المستهدف لهذه الخطوة هو سطح اللثة.';
+    return false;
+  }
+  if (step.contact === 'bone' && !isClinicalBoneKey(clinicalSurface.targetKey)) {
+    clinicalSimulationFeedback.textContent = 'اختر سطح عظم الفك أو الناتئ السنخي قبل تحضير موضع الزراعة التعليمي.';
+    return false;
+  }
+  if (step.depth && clinicalSurface.depthMm < step.depth) {
+    clinicalSimulationFeedback.textContent = 'استمر في التلامس السطحي المنضبط حتى يظهر تقدم التحضير التعليمي المطلوب.';
+    return false;
+  }
+  if (step.force && currentClinicalForce() < step.force) {
+    clinicalSimulationFeedback.textContent = 'قوة التطبيق الافتراضية أقل من نطاق التدريب لهذه الخطوة.';
+    return false;
+  }
+  if (step.effect === 'irrigation' && !clinicalIrrigationInput?.checked) {
+    clinicalSimulationFeedback.textContent = 'فعّل تدفق الري في لوحة محرك التلامس أولًا.';
+    return false;
+  }
+  let booleanPreparation = false;
+  if (['access','prep'].includes(step.effect) && clinicalSurface.targetKey.startsWith('tooth-')) {
+    try { booleanPreparation = await applyDentalBooleanWear(.24); }
+    catch (error) { console.warn('Tooth preparation Boolean failed; keeping the surface preparation fallback.', error); }
+  } else if (step.effect === 'implant-site' && isClinicalBoneKey(clinicalSurface.targetKey)) {
+    try { booleanPreparation = await applyDentalBooleanWear(.48); }
+    catch (error) { console.warn('Bone site Boolean failed; keeping the implant site marker fallback.', error); }
+  }
+  addProcedureVisual(step.effect);
+  activeClinicalProcedureIndex += 1;
+  const next = flow[activeClinicalProcedureIndex];
+  document.getElementById('caries-stage-label').textContent = 'خطوة ' + activeClinicalProcedureIndex + ' / ' + flow.length;
+  document.getElementById('caries-procedure-help').textContent = step.label + (booleanPreparation
+    ? ' — تم تعديل هندسة السطح فعليًا بعملية طرح Boolean ثلاثية الأبعاد.'
+    : ' — أضيفت نتيجة تفاعلية إلى المجسم المحدد.');
+  clinicalSimulationFeedback.textContent = next
+    ? 'اكتملت: ' + step.label + '. الخطوة التالية: ' + (dentalInventory.find(item => item.id === next.tool)?.name || next.tool) + '.'
+    : 'اكتمل المسار التفاعلي لهذه الحالة. التقييم النهائي تعليمي وليس شهادة كفاءة سريرية.';
+  return true;
+}
+function updateCariesTrainingPanel(message) {
+  const labels = {
+    caries: 'الآفة موجودة', cavity: 'تمت إزالة الآفة', etched: 'تم التخريش', bonded: 'تم تطبيق اللاصق', 'ready-to-fill': 'جاهز لوضع الترميم',
+    filled: 'تم وضع مادة الترميم', restored: 'اكتمل الترميم التعليمي'
+  };
+  const stage = document.getElementById('caries-stage-label');
+  const help = document.getElementById('caries-procedure-help');
+  if (stage) stage.textContent = labels[cariesTrainingStage] || 'حالة غير معروفة';
+  if (help) help.textContent = message;
+}
+function resetCariesTrainingCase() {
+  if (clinicalSurfaceReady) restoreDentalBooleanWear();
+  if (clinicalSurfaceReady) resetClinicalContactState('أُعيدت حالة التسوس والتلامس إلى البداية.');
+  cariesTrainingStage = 'caries';
+  clinicalCariesLesion.setEnabled(true);
+  clinicalCavity.setEnabled(false);
+  clinicalRestoration.setEnabled(false);
+  if (activeExperience === 'oral-exam') {
+    getOralCariesOverlay(currentCariesTarget);
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('ظهرت آفة تسوس افتراضية على السن FDI ' + currentCariesTarget + '. اختر القبضة عالية السرعة ثم اسحبها إلى السن لتنفيذ خطوة العرض.');
+    return;
+  }
+  updateCariesTrainingPanel('ظهرت آفة تسوس إطباقية على الضرس التدريبي. اختر القبضة عالية السرعة لإزالة الآفة في النموذج.');
+}
+async function performClinicalAction() {
+  const status = document.getElementById('treatment-interaction-status');
+  const oralMode = activeExperience === 'oral-exam';
+  if (activeExperience !== 'treatment' && !oralMode) {
+    status.textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج أولًا.';
+    return;
+  }
+  if (!isPatientMouthOpen) {
+    status.textContent = 'افتح الفم أولًا قبل تنفيذ الإجراء.';
+    return;
+  }
+  if (!isPropAtMouth) {
+    status.textContent = 'اسحب الأداة أو المادة إلى مربع العمل أولًا.';
+    return;
+  }
+  const id = selectedInventoryItem.id;
+  if (oralMode) {
+    if (!clinicalSurface.targetMesh || !clinicalSurface.targetKey || clinicalSurface.contactSeconds < .2) {
+      clinicalSimulationFeedback.textContent = 'لا يمكن تسجيل الخطوة دون تلامس فعلي مستمر مع سطح السن أو اللثة. اضغط واسحب الأداة على المجسم أولًا.';
+      return;
+    }
+    if (clinicalSurface.targetKey.startsWith('tooth-') && clinicalSurface.targetKey !== 'tooth-' + currentCariesTarget) {
+      clinicalSimulationFeedback.textContent = 'الأداة تلامس سنًا مختلفًا عن السن المستهدف. اختر السن الصحيح أو حدّث الهدف.';
+      return;
+    }
+    const selectedScenario = document.getElementById('scenario-select')?.value || 'restoration';
+    if (selectedScenario !== 'restoration') {
+      await performGuidedClinicalProcedure();
+      return;
+    }
+    if (['high-speed','bur-kit'].includes(id) && clinicalSurface.depthMm < .04) {
+      clinicalSimulationFeedback.textContent = 'لم يتم تسجيل إزالة سطحية بعد. أبقِ القبضة ملامسة للسن مع تحكم هادئ في السرعة والضغط.';
+      return;
+    }
+  }
+  if (['high-speed','bur-kit'].includes(id) && cariesTrainingStage === 'caries') {
+    let booleanWearApplied = false;
+    if (oralMode) {
+      try {
+        booleanWearApplied = await applyDentalBooleanWear();
+      } catch (error) {
+        console.warn('Boolean tooth preparation could not be applied; keep the contact mark fallback.', error);
+      }
+    }
+    if (!oralMode) {
+      clinicalCariesLesion.setEnabled(false);
+      clinicalCavity.setEnabled(true);
+    }
+    cariesTrainingStage = 'cavity';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel(booleanWearApplied
+      ? 'تم طرح حجم القاطع من هندسة سطح السن ثلاثية الأبعاد، ثم تحديث مشهد التحضير. هذه عملية هندسية تعليمية وليست نموذج إزالة أنسجة سريريًا معايرًا.'
+      : 'تعذر إجراء Boolean على هندسة هذا السن؛ بقي مؤشر التحضير المرئي بديلًا حتى لا تتوقف التجربة.');
+    status.textContent = booleanWearApplied ? 'تم تعديل هندسة السن بعملية طرح ثلاثية الأبعاد.' : 'تم تسجيل أثر تحضير بديل على السن.';
+    return;
+  }
+  if (oralMode && ['high-speed','bur-kit'].includes(id) && cariesTrainingStage === 'cavity') {
+    try {
+      const deeperPass = await applyDentalBooleanWear(.20);
+      updateOralCariesVisual();
+      clinicalSimulationFeedback.textContent = deeperPass
+        ? 'تم تنفيذ تمريرة إضافية وطرح حجم جديد من سطح السن. راقب قيمة العمق ولا تتجاوز حدود التدريب الافتراضية.'
+        : 'تعذر طرح حجم إضافي من الشبكة الحالية؛ بقي أثر التحضير السابق محفوظًا.';
+      status.textContent = deeperPass ? 'تمت تمريرة حفر إضافية على هندسة السن.' : 'تعذر تنفيذ التمريرة الإضافية.';
+    } catch (error) {
+      console.warn('Additional Boolean preparation pass failed.', error);
+      clinicalSimulationFeedback.textContent = 'تعذر تنفيذ تمريرة هندسية إضافية على هذا السطح.';
+    }
+    return;
+  }
+  if (id === 'etchant' && cariesTrainingStage === 'cavity') {
+    cariesTrainingStage = 'etched';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('تم تسجيل خطوة التخريش التعليمية. راجع تعليمات المادة الفعلية وإرشادات المشرف قبل أي استخدام سريري.');
+    status.textContent = 'تم تطبيق خطوة التخريش على الحالة الافتراضية.';
+    return;
+  }
+  if (id === 'adhesive' && cariesTrainingStage === 'etched') {
+    cariesTrainingStage = 'bonded';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('تم تسجيل خطوة تطبيق النظام اللاصق. لم تتم محاكاة التفاعل الكيميائي أو التصلب الحقيقي.');
+    status.textContent = 'تم تطبيق خطوة اللاصق في النموذج التعليمي.';
+    return;
+  }
+  if (id === 'composite-instrument' && cariesTrainingStage === 'bonded') {
+    cariesTrainingStage = 'ready-to-fill';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('الأداة جاهزة لوضع مادة الترميم. اختر راتنج الكومبوزيت أو الزجاج الأيوني من المكتبة.');
+    status.textContent = 'تم تجهيز أداة وضع مادة الترميم.';
+    return;
+  }
+  if (['composite-resin','glass-ionomer'].includes(id) && ['bonded','ready-to-fill'].includes(cariesTrainingStage)) {
+    if (!oralMode) clinicalRestoration.setEnabled(true);
+    cariesTrainingStage = id === 'glass-ionomer' ? 'restored' : 'filled';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel(id === 'glass-ionomer'
+      ? 'اكتمل الترميم الافتراضي بمادة الزجاج الأيوني.'
+      : 'وضعت كتلة كومبوزيت افتراضية. اختر مصباح التصلب لإكمال تسلسل العرض.');
+    status.textContent = 'تم وضع مادة الترميم على السن المستهدف.';
+    return;
+  }
+  if (id === 'curing-light' && cariesTrainingStage === 'filled') {
+    if (!oralMode) clinicalCavity.setEnabled(false);
+    cariesTrainingStage = 'restored';
+    updateOralCariesVisual();
+    updateCariesTrainingPanel('اكتمل تسلسل الترميم الافتراضي. الشكل النهائي تعليمي ولا يقيس الحواف أو الإطباق أو جودة الالتصاق.');
+    status.textContent = 'اكتمل الترميم المرئي في الحالة الافتراضية.';
+    return;
+  }
+  status.textContent = 'هذه الأداة لا تطابق الخطوة الحالية في سيناريو التسوس. راجع وصف الخطوة واختر العنصر المناسب.';
+}
+document.getElementById('apply-clinical-action')?.addEventListener('click', performClinicalAction);
+document.getElementById('reset-caries-case')?.addEventListener('click', resetCariesTrainingCase);
+resetCariesTrainingCase();
+
+canvas.addEventListener('dragover', event => {
+  if (!event.dataTransfer?.types.includes('application/x-dental-inventory')) return;
+  event.preventDefault();
+  canvas.classList.add('clinical-drop-active');
+});
+canvas.addEventListener('dragleave', () => canvas.classList.remove('clinical-drop-active'));
+canvas.addEventListener('drop', event => {
+  const id = event.dataTransfer?.getData('application/x-dental-inventory');
+  if (!id) return;
+  event.preventDefault();
+  canvas.classList.remove('clinical-drop-active');
+  const item = dentalInventory.find(entry => entry.id === id);
+  if (!item) return;
+  selectInventoryItem(item);
+  if (activeExperience === 'oral-exam') {
+    if (!isPatientMouthOpen) {
+      document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر؛ افتح الفم أولًا ثم اسحبه مرة أخرى إلى مساحة العمل.';
+      return;
+    }
+    moveSelectedOralInventoryToMouth(item);
+    document.getElementById('treatment-interaction-status').textContent = 'تم سحب ' + item.name + ' إلى السن FDI ' + currentCariesTarget + '. اضغط تنفيذ الإجراء بالأداة / المادة المختارة.';
+    return;
+  }
+  if (activeExperience !== 'treatment') {
+    document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر. افتح وضع فحص الأسنان أو جلسة العلاج لإدخاله إلى الفم.';
+    return;
+  }
+  if (!isPatientMouthOpen) {
+    document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر؛ افتح الفم أولًا ثم اسحبه مرة أخرى إلى مساحة العمل.';
+    return;
+  }
+  const prop = item.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
+  prop.setEnabled(true);
+  animateTreatmentNode(prop, new Vector3(-.05, 1.55, -.72), new Vector3(0, 0, -.22));
+  isPropAtMouth = true;
+  document.getElementById('treatment-interaction-status').textContent = 'تم سحب ' + item.name + ' إلى منطقة العمل. اضغط تنفيذ الإجراء بالأداة / المادة المختارة.';
+});
 
 function animateTreatmentNode(node, destination, rotation) {
   const positionAnimation = new Animation(
@@ -2147,37 +3408,466 @@ function animateTreatmentNode(node, destination, rotation) {
 }
 let isPatientMouthOpen = true;
 let isPropAtMouth = false;
+
+// Surface-contact simulation: tools only interact when a pointer ray actually intersects
+// a registered tooth or gingival mesh. Pressure is an explicit educational input, not
+// a sensor reading from real dental equipment.
+const clinicalSurface = {
+  dragging: false, pointerId: null, targetMesh: null, targetKey: null,
+  contactPoint: null, contactNormal: null, contactSeconds: 0, contactTrace: [], activeStrokeKey: null,
+  depthMm: 0, lastUiUpdate: 0, fluidAccumulator: 0, particles: [],
+  surfaceMark: null, contactMarker: null, deformations: new Map(),
+  lastMessageAt: 0
+};
+const clinicalForceInput = document.getElementById('clinical-force');
+const clinicalSpeedInput = document.getElementById('clinical-speed');
+const clinicalIrrigationInput = document.getElementById('clinical-irrigation');
+const clinicalContactState = document.getElementById('clinical-contact-state');
+const clinicalContactTime = document.getElementById('clinical-contact-time');
+const clinicalDepth = document.getElementById('clinical-depth');
+const clinicalFluidCount = document.getElementById('clinical-fluid-count');
+const clinicalTissueState = document.getElementById('clinical-tissue-state');
+const clinicalForceBar = document.getElementById('clinical-force-bar');
+const clinicalSimulationFeedback = document.getElementById('clinical-simulation-feedback');
+const clinicalForceValue = document.getElementById('clinical-force-value');
+const clinicalSpeedValue = document.getElementById('clinical-speed-value');
+const clinicalWaterMaterial = new StandardMaterial('ClinicalIrrigationWater', scene);
+clinicalWaterMaterial.diffuseColor = new Color3(.22,.72,.92);
+clinicalWaterMaterial.emissiveColor = new Color3(.05,.22,.34);
+clinicalWaterMaterial.alpha = .72;
+clinicalWaterMaterial.specularPower = 96;
+const clinicalDebrisMaterial = new StandardMaterial('ClinicalDebrisMaterial', scene);
+clinicalDebrisMaterial.diffuseColor = new Color3(.75,.68,.51);
+clinicalDebrisMaterial.emissiveColor = new Color3(.10,.08,.04);
+const clinicalCavityMaterial = new StandardMaterial('ClinicalCavityMaterial', scene);
+clinicalCavityMaterial.diffuseColor = new Color3(.16,.09,.06);
+clinicalCavityMaterial.emissiveColor = new Color3(.025,.012,.008);
+const clinicalTissueMarkMaterial = new StandardMaterial('ClinicalTissueMark', scene);
+clinicalTissueMarkMaterial.diffuseColor = new Color3(.82,.35,.43);
+clinicalTissueMarkMaterial.emissiveColor = new Color3(.08,.015,.02);
+
+function currentClinicalForce() {
+  return Math.max(.1, Math.min(2, Number(clinicalForceInput?.value || .8)));
+}
+function currentClinicalSpeed() {
+  return Math.max(0, Math.min(400000, Number(clinicalSpeedInput?.value || 180000)));
+}
+function updateClinicalControlLabels() {
+  if (clinicalForceValue) clinicalForceValue.textContent = currentClinicalForce().toFixed(1) + ' N';
+  if (clinicalSpeedValue) clinicalSpeedValue.textContent = Math.round(currentClinicalSpeed()).toLocaleString('en-US') + ' RPM';
+}
+clinicalForceInput?.addEventListener('input', updateClinicalControlLabels);
+clinicalSpeedInput?.addEventListener('input', updateClinicalControlLabels);
+updateClinicalControlLabels();
+
+function clinicalMeshKey(mesh) {
+  let node = mesh;
+  while (node) {
+    const key = node.metadata?.dentalScopeKey;
+    if (key) return key;
+    node = node.parent;
+  }
+  return null;
+}
+function isClinicalBoneKey(key) {
+  return ['mandible-body','mandibular-alveolar-process','maxilla-right','maxilla-left'].includes(key);
+}
+function isClinicalSurfaceMesh(mesh) {
+  const key = clinicalMeshKey(mesh);
+  return !!key && (/^tooth-\d{2}$/.test(key) || key.startsWith('gingiva-') || isClinicalBoneKey(key));
+}
+function pickClinicalSurface(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * engine.getRenderWidth() / Math.max(rect.width, 1);
+  const y = (event.clientY - rect.top) * engine.getRenderHeight() / Math.max(rect.height, 1);
+  return scene.pick(x, y, isClinicalSurfaceMesh, false, camera);
+}
+function localPointForMesh(mesh, worldPoint) {
+  mesh.computeWorldMatrix(true);
+  const inverse = Matrix.Invert(mesh.getWorldMatrix());
+  return Vector3.TransformCoordinates(worldPoint, inverse);
+}
+function ensureContactMarker(mesh) {
+  if (clinicalSurface.contactMarker && clinicalSurface.contactMarker.parent !== mesh) {
+    clinicalSurface.contactMarker.dispose();
+    clinicalSurface.contactMarker = null;
+  }
+  if (!clinicalSurface.contactMarker) {
+    clinicalSurface.contactMarker = MeshBuilder.CreateSphere('ClinicalSurfaceContactMarker', { diameter: .15, segments: 16 }, scene);
+    clinicalSurface.contactMarker.material = clinicalCavityMaterial;
+    clinicalSurface.contactMarker.isPickable = false;
+  }
+  clinicalSurface.contactMarker.parent = mesh;
+  clinicalSurface.contactMarker.position.set(0,0,0);
+  clinicalSurface.contactMarker.scaling.set(.5,.12,.5);
+  clinicalSurface.contactMarker.setEnabled(true);
+  return clinicalSurface.contactMarker;
+}
+function ensureSurfaceMark(mesh, point, kind) {
+  if (clinicalSurface.surfaceMark && clinicalSurface.surfaceMark.parent !== mesh) {
+    clinicalSurface.surfaceMark.dispose();
+    clinicalSurface.surfaceMark = null;
+  }
+  if (!clinicalSurface.surfaceMark) {
+    clinicalSurface.surfaceMark = MeshBuilder.CreateSphere('ClinicalDynamicSurfaceMark', { diameter: 1, segments: 20 }, scene);
+    clinicalSurface.surfaceMark.isPickable = false;
+  }
+  const mark = clinicalSurface.surfaceMark;
+  mark.parent = mesh;
+  mark.position.copyFrom(localPointForMesh(mesh, point));
+  mark.material = kind === 'soft-tissue' ? clinicalTissueMarkMaterial
+    : kind === 'debridement' ? clinicalDebrisMaterial : clinicalCavityMaterial;
+  mark.setEnabled(true);
+  mark.scaling.set(.045,.012,.045);
+  return mark;
+}
+function deformGingivaMesh(mesh, worldPoint, force) {
+  if (!mesh || !clinicalMeshKey(mesh)?.startsWith('gingiva-')) return;
+  try {
+    let record = clinicalSurface.deformations.get(mesh);
+    if (!record) {
+      const original = mesh.getVerticesData(VertexBuffer.PositionKind);
+      if (!original || original.length > 240000) return;
+      mesh.makeGeometryUnique();
+      mesh.setVerticesData(VertexBuffer.PositionKind, original, true, false);
+      record = { original: new Float32Array(original), strength: 0, point: Vector3.Zero(), normal: Vector3.Up(), lastUpdate: 0 };
+      clinicalSurface.deformations.set(mesh, record);
+    }
+    record.point.copyFrom(localPointForMesh(mesh, worldPoint));
+    const normalWorld = clinicalSurface.contactNormal || Vector3.Up();
+    const inverse = Matrix.Invert(mesh.getWorldMatrix());
+    record.normal.copyFrom(Vector3.TransformNormal(normalWorld, inverse).normalize());
+    record.strength = Math.min(.16, force * .055);
+    record.lastUpdate = performance.now();
+    const deformed = new Float32Array(record.original);
+    const radius = .48;
+    for (let i = 0; i < deformed.length; i += 3) {
+      const dx = record.original[i] - record.point.x;
+      const dy = record.original[i+1] - record.point.y;
+      const dz = record.original[i+2] - record.point.z;
+      const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+      if (distance >= radius) continue;
+      const falloff = Math.pow(1 - distance/radius, 2);
+      const amount = record.strength * falloff;
+      deformed[i] += record.normal.x * amount;
+      deformed[i+1] += record.normal.y * amount;
+      deformed[i+2] += record.normal.z * amount;
+    }
+    mesh.updateVerticesData(VertexBuffer.PositionKind, deformed, false, false);
+  } catch (error) {
+    console.debug('Localized gingival deformation skipped for this mesh.', error);
+  }
+}
+function spawnClinicalFluid(point, normal, count = 2) {
+  for (let i = 0; i < count; i++) {
+    if (clinicalSurface.particles.length >= 70) {
+      const old = clinicalSurface.particles.shift();
+      old.mesh.dispose();
+    }
+    const drop = MeshBuilder.CreateSphere('ClinicalFluidParticle', { diameter: .055, segments: 6 }, scene);
+    drop.material = clinicalWaterMaterial;
+    drop.position.copyFrom(point).addInPlace(normal.scale(-.04));
+    drop.isPickable = false;
+    const spread = (i - (count - 1) / 2) * .16;
+    clinicalSurface.particles.push({
+      mesh: drop,
+      velocity: normal.scale(-1.1).add(new Vector3(spread, -.4, -spread)).scale(.7),
+      age: 0
+    });
+  }
+}
+function disposeClinicalParticles() {
+  for (const particle of clinicalSurface.particles) particle.mesh.dispose();
+  clinicalSurface.particles.length = 0;
+  clinicalFluidCount.textContent = '0';
+}
+function updateClinicalSurfaceFromPick(pick) {
+  if (!pick?.hit || !pick.pickedMesh || !isClinicalSurfaceMesh(pick.pickedMesh)) return false;
+  const mesh = pick.pickedMesh;
+  const key = clinicalMeshKey(mesh);
+  const point = pick.pickedPoint.clone();
+  const normal = pick.getNormal(true)?.normalize() || Vector3.Up();
+  if (clinicalSurface.activeStrokeKey && clinicalSurface.activeStrokeKey !== key) return false;
+  if (clinicalSurface.targetKey && clinicalSurface.targetKey !== key) {
+    clinicalSurface.contactTrace = [];
+    clinicalSurface.contactSeconds = 0;
+  }
+  clinicalSurface.targetMesh = mesh;
+  clinicalSurface.targetKey = key;
+  clinicalSurface.contactPoint = point;
+  clinicalSurface.contactNormal = normal;
+  const previous = clinicalSurface.contactTrace[clinicalSurface.contactTrace.length - 1];
+  if (!previous || Vector3.DistanceSquared(previous.point, point) > .035 * .035) {
+    clinicalSurface.contactTrace.push({ point:point.clone(), normal:normal.clone(), key });
+    if (clinicalSurface.contactTrace.length > 18) clinicalSurface.contactTrace.splice(1, 1);
+  }
+  ensureContactMarker(mesh).position.copyFrom(localPointForMesh(mesh, point));
+  const tool = selectedOralInventoryRoot;
+  if (tool) {
+    tool.setEnabled(true);
+    tool.position.copyFrom(point.add(normal.scale(.78)));
+    tool.rotation.set(Math.PI / 2, 0, 0);
+  }
+  isPropAtMouth = true;
+  canvas.classList.add('clinical-contact-armed');
+  clinicalContactState.textContent = 'ملامسة ' + (key.startsWith('tooth-') ? 'السن FDI ' + key.slice(-2) : key.startsWith('gingiva-') ? 'اللثة' : 'عظم الفك');
+  clinicalSimulationFeedback.textContent = 'تم اكتشاف تقاطع شعاع المؤشر مع سطح تشريحي فعلي. استمر بالسحب لرسم مسار تلامس الأداة.';
+  return true;
+}
+function resetClinicalContactState(message = 'تمت إعادة ضبط محرك التلامس.') {
+  clinicalSurface.dragging = false;
+  clinicalSurface.pointerId = null;
+  clinicalSurface.targetMesh = null;
+  clinicalSurface.targetKey = null;
+  clinicalSurface.contactPoint = null;
+  clinicalSurface.contactNormal = null;
+  clinicalSurface.contactSeconds = 0;
+  clinicalSurface.contactTrace = [];
+  clinicalSurface.activeStrokeKey = null;
+  clinicalSurface.depthMm = 0;
+  clinicalSurface.fluidAccumulator = 0;
+  if (clinicalSurface.contactMarker) clinicalSurface.contactMarker.setEnabled(false);
+  if (clinicalSurface.surfaceMark) clinicalSurface.surfaceMark.setEnabled(false);
+  for (const [mesh, record] of clinicalSurface.deformations) {
+    try { mesh.updateVerticesData(VertexBuffer.PositionKind, new Float32Array(record.original), false, false); } catch {}
+  }
+  clinicalSurface.deformations.clear();
+  disposeClinicalParticles();
+  clinicalContactState.textContent = 'لا يوجد تلامس';
+  clinicalContactTime.textContent = '0.00 s';
+  clinicalDepth.textContent = '0.00 mm';
+  clinicalTissueState.textContent = 'مستقرة';
+  clinicalForceBar.style.width = '0%';
+  clinicalSimulationFeedback.textContent = message;
+  canvas.classList.remove('clinical-contact-dragging');
+}
+function updateClinicalTelemetry(force, dt) {
+  const contact = clinicalSurface.dragging && clinicalSurface.targetMesh && clinicalSurface.contactPoint;
+  const id = selectedInventoryItem?.id || '';
+  const key = clinicalSurface.targetKey || '';
+  if (contact) {
+    clinicalSurface.contactSeconds += dt;
+    const rotary = ['high-speed','low-speed','bur-kit'].includes(id);
+    const boneDrill = id === 'surgical-drill' && isClinicalBoneKey(key);
+    const debriding = ['ultrasonic-scaler','gracey-curette','curette','periotome'].includes(id);
+    const endodontic = ['endo-files','endo-spreader'].includes(id);
+    const pressureScale = force / 2;
+    if (((rotary && key.startsWith('tooth-')) || boneDrill) && currentClinicalSpeed() > 0) {
+      const speedScale = currentClinicalSpeed() / 400000;
+      const maxDepth = boneDrill ? 4.5 : 2.4;
+      const depthRate = boneDrill ? .92 : .74;
+      clinicalSurface.depthMm = Math.min(maxDepth, clinicalSurface.depthMm + dt * depthRate * speedScale * pressureScale);
+      const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'cut');
+      const radius = boneDrill ? .08 + clinicalSurface.depthMm * .045 : .04 + clinicalSurface.depthMm * .12;
+      mark.scaling.set(radius, .012 + clinicalSurface.depthMm * .006, radius);
+      clinicalTissueState.textContent = boneDrill
+        ? (clinicalSurface.depthMm > 2.8 ? 'تحذير: عمق عظمي مرتفع' : 'تحضير عظمي تعليمي')
+        : (clinicalSurface.depthMm > 1.6 ? 'تحذير: عمق مرتفع' : 'إزالة سطحية');
+    } else if (debriding && (key.startsWith('tooth-') || key.startsWith('gingiva-'))) {
+      clinicalSurface.depthMm = Math.min(1.1, clinicalSurface.depthMm + dt * .25 * pressureScale);
+      const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'debridement');
+      const radius = .045 + clinicalSurface.depthMm * .1;
+      mark.scaling.set(radius, .014, radius);
+      if (key.startsWith('gingiva-')) deformGingivaMesh(clinicalSurface.targetMesh, clinicalSurface.contactPoint, force);
+      clinicalTissueState.textContent = 'إزالة ترسبات تعليمية';
+    } else if (endodontic && key.startsWith('tooth-')) {
+      clinicalSurface.depthMm = Math.min(8, clinicalSurface.depthMm + dt * .42 * pressureScale);
+      const mark = ensureSurfaceMark(clinicalSurface.targetMesh, clinicalSurface.contactPoint, 'cut');
+      mark.scaling.set(.035, .02 + clinicalSurface.depthMm*.002, .035);
+      clinicalTissueState.textContent = 'تقدم داخل نموذج القناة';
+    } else if (key.startsWith('gingiva-')) {
+      deformGingivaMesh(clinicalSurface.targetMesh, clinicalSurface.contactPoint, force);
+      clinicalTissueState.textContent = force > 1.4 ? 'انضغاط مرتفع' : 'تشوه مرن موضعي';
+    } else {
+      clinicalTissueState.textContent = 'تماس سطحي';
+    }
+    const irrigationTool = ['air-water','endo-irrigation'].includes(id);
+    if (clinicalIrrigationInput?.checked && irrigationTool) {
+      clinicalSurface.fluidAccumulator += dt;
+      while (clinicalSurface.fluidAccumulator > .075) {
+        clinicalSurface.fluidAccumulator -= .075;
+        spawnClinicalFluid(clinicalSurface.contactPoint, clinicalSurface.contactNormal, 2);
+      }
+    }
+    const suctionTool = ['saliva-ejector','high-volume-suction'].includes(id);
+    if (suctionTool && clinicalSurface.particles.length) {
+      const suctionPoint = selectedOralInventoryRoot?.position || clinicalSurface.contactPoint;
+      for (const particle of clinicalSurface.particles) {
+        const delta = suctionPoint.subtract(particle.mesh.position);
+        if (delta.length() > .02) particle.velocity.addInPlace(delta.normalize().scale(dt * 3.2));
+      }
+    }
+    if (rotary && selectedOralInventoryRoot) {
+      const spin = Math.min(45, currentClinicalSpeed() / 400000 * 45);
+      const bur = selectedOralInventoryRoot.getChildMeshes().find(mesh => mesh.name.includes('RotaryBur'));
+      if (bur) bur.rotation.z += dt * spin * 14;
+    }
+  } else if (clinicalSurface.deformations.size) {
+    clinicalTissueState.textContent = 'استعادة مرونة الأنسجة';
+  }
+  clinicalForceBar.style.width = (contact ? Math.min(100, force / 2 * 100) : 0) + '%';
+  clinicalContactTime.textContent = clinicalSurface.contactSeconds.toFixed(2) + ' s';
+  clinicalDepth.textContent = clinicalSurface.depthMm.toFixed(2) + ' mm';
+  clinicalFluidCount.textContent = String(clinicalSurface.particles.length);
+  const now = performance.now();
+  if (now - clinicalSurface.lastUiUpdate > 90) {
+    clinicalSurface.lastUiUpdate = now;
+    if (contact) clinicalContactState.textContent = 'تلامس فعلي · ' + key;
+    else if (!clinicalSurface.dragging) clinicalContactState.textContent = 'لا يوجد تلامس مستمر';
+  }
+}
+function updateClinicalParticles(dt) {
+  const suction = ['saliva-ejector','high-volume-suction'].includes(selectedInventoryItem?.id) &&
+    clinicalSurface.dragging && clinicalSurface.contactPoint;
+  for (let i = clinicalSurface.particles.length - 1; i >= 0; i--) {
+    const particle = clinicalSurface.particles[i];
+    particle.age += dt;
+    particle.velocity.y -= dt * 1.25;
+    particle.mesh.position.addInPlace(particle.velocity.scale(dt));
+    if (suction && selectedOralInventoryRoot) {
+      const toward = selectedOralInventoryRoot.position.subtract(particle.mesh.position);
+      if (toward.length() < .16) particle.age = 5;
+    }
+    if (particle.age > 2.3 || particle.mesh.position.y < -5) {
+      particle.mesh.dispose();
+      clinicalSurface.particles.splice(i, 1);
+    }
+  }
+}
+function restoreSoftTissue(dt) {
+  if (clinicalSurface.dragging) return;
+  for (const [mesh, record] of clinicalSurface.deformations) {
+    record.strength *= Math.exp(-dt * 4.5);
+    if (record.strength < .003) {
+      try { mesh.updateVerticesData(VertexBuffer.PositionKind, new Float32Array(record.original), false, false); } catch {}
+      clinicalSurface.deformations.delete(mesh);
+      continue;
+    }
+    try {
+      const deformed = new Float32Array(record.original);
+      const radius = .48;
+      for (let i=0;i<deformed.length;i+=3) {
+        const dx=record.original[i]-record.point.x, dy=record.original[i+1]-record.point.y, dz=record.original[i+2]-record.point.z;
+        const distance=Math.sqrt(dx*dx+dy*dy+dz*dz);
+        if(distance>=radius)continue;
+        const amount=record.strength*Math.pow(1-distance/radius,2);
+        deformed[i]+=record.normal.x*amount;deformed[i+1]+=record.normal.y*amount;deformed[i+2]+=record.normal.z*amount;
+      }
+      mesh.updateVerticesData(VertexBuffer.PositionKind,deformed,false,false);
+    } catch {}
+  }
+}
+canvas.addEventListener('pointerdown', event => {
+  if (activeExperience !== 'oral-exam' || !isPropAtMouth || !selectedOralInventoryRoot) return;
+  const pick = pickClinicalSurface(event);
+  if (!pick?.hit || !updateClinicalSurfaceFromPick(pick)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  clinicalSurface.dragging = true;
+  clinicalSurface.pointerId = event.pointerId;
+  clinicalSurface.contactSeconds = 0;
+  clinicalSurface.contactTrace = [];
+  clinicalSurface.activeStrokeKey = clinicalSurface.targetKey;
+  canvas.classList.add('clinical-contact-dragging');
+  try { canvas.setPointerCapture(event.pointerId); } catch {}
+}, true);
+canvas.addEventListener('pointermove', event => {
+  if (!clinicalSurface.dragging || event.pointerId !== clinicalSurface.pointerId) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  const pick = pickClinicalSurface(event);
+  if (pick?.hit && updateClinicalSurfaceFromPick(pick)) {
+    clinicalSurface.dragging = true;
+    clinicalSurface.pointerId = event.pointerId;
+  } else {
+    clinicalSurface.targetMesh = null;
+    clinicalSurface.targetKey = null;
+    clinicalSurface.contactPoint = null;
+  }
+}, true);
+function endClinicalPointerDrag(event) {
+  if (!clinicalSurface.dragging || event.pointerId !== clinicalSurface.pointerId) return;
+  clinicalSurface.dragging = false;
+  clinicalSurface.pointerId = null;
+  clinicalSurface.activeStrokeKey = null;
+  canvas.classList.remove('clinical-contact-dragging');
+  clinicalSimulationFeedback.textContent = clinicalSurface.contactSeconds > .1
+    ? 'تم تسجيل تلامس السطح. راجع زمن التلامس والعمق قبل تنفيذ الخطوة.'
+    : 'كان التلامس أقصر من اللازم؛ حرّك الأداة على السطح مدة أطول.';
+}
+canvas.addEventListener('pointerup', endClinicalPointerDrag, true);
+canvas.addEventListener('pointercancel', endClinicalPointerDrag, true);
+canvas.addEventListener('lostpointercapture', endClinicalPointerDrag, true);
+scene.onBeforeRenderObservable.add(() => {
+  const dt = Math.min(.05, Math.max(.001, engine.getDeltaTime() / 1000));
+  updateClinicalTelemetry(currentClinicalForce(), dt);
+  updateClinicalParticles(dt);
+  restoreSoftTissue(dt);
+});
+document.getElementById('clinical-reset-physics')?.addEventListener('click', () => {
+  resetClinicalContactState();
+});
+clinicalSurfaceReady = true;
 document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
-  if (activeExperience !== 'treatment') {
-    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع جلسة العلاج أولًا.';
+  if (activeExperience !== 'treatment' && activeExperience !== 'oral-exam') {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج أولًا.';
+    return;
+  }
+  if (!isPatientMouthOpen) {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح فم المريض أولًا قبل إدخال الأداة.';
+    return;
+  }
+  if (activeExperience === 'oral-exam') {
+    if (moveSelectedOralInventoryToMouth()) {
+      document.getElementById('treatment-interaction-status').textContent =
+        'تتحرك ' + selectedInventoryItem.name + ' نحو السن FDI ' + currentCariesTarget + '. اضغط تنفيذ الإجراء لتطبيق خطوة التدريب.';
+    }
     return;
   }
   const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
   prop.setEnabled(true);
-  animateTreatmentNode(prop, new Vector3(-.25, 1.72, -.47), new Vector3(0, 0, -.22));
+  animateTreatmentNode(prop, new Vector3(-.05, 1.55, -.72), new Vector3(0, 0, -.22));
   isPropAtMouth = true;
   document.getElementById('treatment-interaction-status').textContent =
     'تتحرك ' + selectedInventoryItem.name + ' إلى موضع العمل بسرعة هادئة. الحركة تعليمية ولا تحاكي القوة أو مسارًا سريريًا حقيقيًا.';
 });
 document.getElementById('tool-to-tray')?.addEventListener('click', () => {
+  if (activeExperience === 'oral-exam') {
+    returnSelectedOralInventoryToTray();
+    document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى الصينية ثلاثية الأبعاد.';
+    return;
+  }
   const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
   animateTreatmentNode(prop, new Vector3(-1.58, 1.08, 1.12), new Vector3(0, 0, 0));
   isPropAtMouth = false;
   document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى صينية العمل.';
 });
 document.getElementById('patient-mouth-toggle')?.addEventListener('click', () => {
+  if (activeExperience !== 'oral-exam' && activeExperience !== 'dental-scope' && activeExperience !== 'treatment') {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج للتحكم في الفك.';
+    return;
+  }
+  if (isPatientMouthOpen && isPropAtMouth) {
+    document.getElementById('treatment-interaction-status').textContent = 'أعد الأداة إلى الصينية قبل إغلاق الفم.';
+    return;
+  }
   isPatientMouthOpen = !isPatientMouthOpen;
-  const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
-  animation.setKeys([
-    { frame: 0, value: patientJawPivot.rotation.x },
-    { frame: 54, value: isPatientMouthOpen ? .24 : 0 }
-  ]);
-  const ease = new CubicEase();
-  ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
-  animation.setEasingFunction(ease);
-  scene.beginDirectAnimation(patientJawPivot, [animation], 0, 54, false);
+  if (activeExperience === 'oral-exam' || activeExperience === 'dental-scope') {
+    setDentalJawOpen(isPatientMouthOpen);
+  } else {
+    const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    animation.setKeys([
+      { frame: 0, value: patientJawPivot.rotation.x },
+      { frame: 54, value: isPatientMouthOpen ? .24 : 0 }
+    ]);
+    const ease = new CubicEase();
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    animation.setEasingFunction(ease);
+    scene.beginDirectAnimation(patientJawPivot, [animation], 0, 54, false);
+  }
   document.getElementById('patient-mouth-toggle').textContent = isPatientMouthOpen ? 'إغلاق الفم' : 'فتح الفم';
-  document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم في النموذج التوضيحي.' : 'تم إغلاق الفم في النموذج التوضيحي.';
+  document.getElementById('apply-clinical-action').disabled = !isPatientMouthOpen;
+  document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم.' : 'تم إغلاق الفم.';
 });
 
 // Online AI via OpenRouter (Bring Your Own Key) plus optional local providers.
@@ -2429,7 +4119,7 @@ aiForm?.addEventListener('submit', async event => {
 configureAiProvider();
 updateCaseView();
 setAssetStatus('المشهد البديل جاهز. جارٍ تحميل مكتبة العيادة والتشريح…');
-setTimeout(() => showTreatmentExperience(), 50);
+setTimeout(() => showOralExamExperience(), 50);
 
 document.getElementById('mesh-count').textContent=String(scene.meshes.length);
 const isCompactDevice = window.matchMedia('(max-width: 760px)').matches || (navigator.hardwareConcurrency || 4) <= 4;

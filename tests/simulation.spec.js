@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+async function dragAcrossToothSurface(page) {
+  const canvas = page.locator('#render-canvas');
+  const rect = await canvas.boundingBox();
+  expect(rect).not.toBeNull();
+  const x = rect.x + rect.width / 2;
+  const y = rect.y + rect.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.waitForTimeout(450);
+  await page.mouse.move(x + 12, y + 8, { steps: 5 });
+  await page.waitForTimeout(450);
+  await page.mouse.up();
+  await expect(page.locator('#clinical-contact-time')).not.toHaveText('0.00 s', { timeout: 5000 });
+}
+
 test('online tutor, square responsive workspace, dental models and training work', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -47,9 +62,23 @@ test('online tutor, square responsive workspace, dental models and training work
   });
 
   await page.goto('./');
-  await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة', { timeout: 45000 });
+  await expect(page.locator('#view-oral-exam')).toHaveClass(/selected/);
+  await expect(page.locator('#asset-status')).toContainText('فحص الأسنان جاهز', { timeout: 90000 });
+  await expect(page.locator('#dental-atlas-status')).toContainText('وضع فحص الأسنان جاهز', { timeout: 90000 });
+  await expect(page.locator('.tooth-chip')).toHaveCount(32);
+  await expect(page.locator('#oral-exam-target-label')).toContainText('36');
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('إغلاق الفم');
+  await page.locator('#patient-mouth-toggle').click();
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('فتح الفم');
+  await page.locator('#patient-mouth-toggle').click();
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('إغلاق الفم');
+
+  // The integrated treatment room remains available as a separate mode.
+  await page.locator('#view-treatment').click();
   await expect(page.locator('#view-treatment')).toHaveClass(/selected/);
+  await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة', { timeout: 45000 });
   await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريض', { timeout: 30000 });
+  await expect(page.locator('#patient-model-status')).toHaveAttribute('data-model-visible','true');
   await expect(page.locator('#patient-variant-controls')).toBeVisible();
 
   // The app shell and square 3D canvas must fit the browser without document scrolling.
@@ -94,6 +123,12 @@ test('online tutor, square responsive workspace, dental models and training work
     'models/oral-anatomy.glb',
     'models/ecorche-anatomy.glb',
     'models/dental-scope/manifest.json',
+    'models/dental-tools/instrument-tray.glb',
+    'models/dental-tools/ultrasonic-scaler.glb',
+    'models/dental-tools/curing-light.glb',
+    'models/dental-tools/plaster-study-arch.glb',
+    'models/dental-tools/surgical-forceps.glb',
+    'models/dental-tools/scalpel-set.glb',
     'models/pediatric-dentition/primary-tooth-74.glb'
   ]) {
     const response = await page.request.head(new URL(asset, page.url()).toString());
@@ -136,10 +171,49 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#tool-to-mouth').click();
   await page.locator('#tool-to-tray').click();
 
+  // Hands-on caries workflow: select and start the matching interactive pathway first.
+  await page.locator('#scenario-select').selectOption('restoration');
+  await page.locator('#start-case').click();
+  await page.locator('#reset-caries-case').click();
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'قبضة عالية السرعة' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تمت إزالة الآفة');
+  await page.locator('#inventory-category').selectOption('materials');
+  await page.locator('.inventory-item').filter({ hasText: 'مادة تخريش' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم التخريش');
+  await page.locator('.inventory-item').filter({ hasText: 'نظام لاصق' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم تطبيق اللاصق');
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'أداة وضع الكومبوزيت' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await page.locator('#inventory-category').selectOption('materials');
+  await page.locator('.inventory-item').filter({ hasText: 'راتنج كومبوزيت' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم وضع مادة الترميم');
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'مصباح التصلب الضوئي' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('اكتمل الترميم التعليمي');
+
   await page.locator('#view-anatomy').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل 33 تركيبًا تشريحيًا منفصلًا', { timeout: 45000 });
-  await expect(page.locator('.structure-button')).toHaveCount(33);
-  await page.locator('.structure-button').first().click();
+  await expect(page.locator('#structure-list .structure-button')).toHaveCount(33);
+  await page.locator('#structure-list .structure-button').first().click();
   await expect(page.locator('#selection-name')).not.toBeEmpty();
   await page.locator('#isolate-structure').click();
   await page.locator('#restore-structures').click();
@@ -161,6 +235,11 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#view-dental-atlas').click();
   await expect(page.locator('#dental-atlas-status')).toContainText('الأطلس السني جاهز', { timeout: 60000 });
   await expect(page.locator('.tooth-chip')).toHaveCount(32);
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('فتح الفم');
+  await page.locator('#patient-mouth-toggle').click();
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('إغلاق الفم');
+  await page.locator('#patient-mouth-toggle').click();
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('فتح الفم');
   await page.locator('.tooth-chip').filter({ hasText: '36' }).click();
   await expect(page.locator('#dental-tooth-mesh-status')).toContainText('مجسمات طبقية', { timeout: 60000 });
   await page.locator('[data-tooth-layer="pulp-chamber"]').uncheck();
@@ -179,6 +258,91 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#view-clinic').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة');
   await expect(page.locator('#view-clinic')).toHaveClass(/selected/);
+
+  // The first-class oral exam applies a staged treatment overlay to the selected Dental Scope tooth.
+  await page.locator('#view-oral-exam').click();
+  await expect(page.locator('#dental-atlas-status')).toContainText('وضع فحص الأسنان جاهز', { timeout: 90000 });
+  await page.locator('#inventory-category').selectOption('all');
+  const oralInventoryItems = page.locator('#inventory-list .inventory-item');
+  await expect(oralInventoryItems).toHaveCount(55);
+  for (let i = 0; i < await oralInventoryItems.count(); i += 1) {
+    await oralInventoryItems.nth(i).click();
+    await expect(page.locator('#selection-name')).not.toBeEmpty();
+  }
+  await page.locator('.tooth-chip').filter({ hasText: '36' }).click();
+  await expect(page.locator('#oral-exam-target-label')).toContainText('36');
+  await page.locator('#reset-caries-case').click();
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'قبضة عالية السرعة' }).dragTo(page.locator('#render-canvas'));
+  await expect(page.locator('#treatment-interaction-status')).toContainText('تم سحب قبضة عالية السرعة');
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تمت إزالة الآفة');
+  await expect(page.locator('#caries-procedure-help')).toContainText('تم طرح حجم القاطع', { timeout: 45000 });
+  await page.locator('#inventory-category').selectOption('materials');
+  await page.locator('.inventory-item').filter({ hasText: 'مادة تخريش' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم التخريش');
+  await page.locator('.inventory-item').filter({ hasText: 'نظام لاصق' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم تطبيق اللاصق');
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'أداة وضع الكومبوزيت' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await page.locator('#inventory-category').selectOption('materials');
+  await page.locator('.inventory-item').filter({ hasText: 'راتنج كومبوزيت' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('تم وضع مادة الترميم');
+  await page.locator('#inventory-category').selectOption('restorative');
+  await page.locator('.inventory-item').filter({ hasText: 'مصباح التصلب الضوئي' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('اكتمل الترميم التعليمي');
+
+  // Non-restorative paths now require contact and attach visible outcomes to the selected anatomy.
+  await page.locator('#scenario-select').selectOption('exam');
+  await page.locator('#start-case').click();
+  await page.locator('#inventory-category').selectOption('exam');
+  await page.locator('.inventory-item').filter({ hasText: 'مرآة فحص الأسنان' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('خطوة 1 / 3');
+  await page.locator('.inventory-item').filter({ hasText: 'مسبار استكشافي' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('خطوة 2 / 3');
+
+  // Implant pathway: scan a tooth, then make a CSG preparation on the mandibular bone surface.
+  await page.locator('#scenario-select').selectOption('implant');
+  await page.locator('#start-case').click();
+  await page.locator('.tooth-chip').filter({ hasText: '36' }).click();
+  await page.locator('#inventory-category').selectOption('prostho');
+  await page.locator('.inventory-item').filter({ hasText: 'ماسح داخل الفم' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('خطوة 1 / 4');
+  await page.locator('#inventory-category').selectOption('surgery');
+  await page.locator('.inventory-item').filter({ hasText: 'قبضة جراحية تعليمية للزرعات' }).click();
+  await page.locator('#tool-to-mouth').click();
+  await page.locator('#dental-structure-search').fill('mandible-body');
+  await page.locator('#dental-structure-list .dental-structure-button[data-key="mandible-body"]').click();
+  await page.waitForTimeout(180);
+  await dragAcrossToothSurface(page);
+  await page.locator('#apply-clinical-action').click();
+  await expect(page.locator('#caries-stage-label')).toContainText('خطوة 2 / 4');
+  await expect(page.locator('#caries-procedure-help')).toContainText('تم تعديل هندسة السطح فعليًا بعملية طرح Boolean', { timeout: 45000 });
 
   // Mobile workspace: fixed viewport, square stage, and independent off-canvas drawers.
   await page.setViewportSize({ width: 390, height: 844 });

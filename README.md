@@ -4,8 +4,15 @@ Arabic-first 3D dental education prototype built with Vite and Babylon.js.
 
 ## Current modules
 
+### Focused oral examination workspace
+- The first workspace is "فحص الأسنان", opening the detailed Dental Scope oral anatomy with the lower jaw articulated open, 32 permanent teeth and FDI tooth selection.
+- The searchable inventory contains 55 individually selectable 3D study models across examination, restorative, endodontic, surgical, periodontal, prosthodontic, implant, orthodontic, trauma, paediatric and PPE groups. Six additional CC0 GLB props are bundled: instrument tray, ultrasonic scaler, curing light, plaster arch, surgical forceps and a scalpel set.
+- The articulated lower jaw opens and closes at a hinge. FDI tooth selection focuses the camera and targets actions to the selected Dental Scope tooth mesh.
+- A surface-contact engine uses pointer-ray intersection against the visible tooth/gingiva mesh. Tool actions require a sustained contact gesture; rotary speed and user-entered nominal force drive a teaching wear-depth value. Gingival mesh vertices deform locally and recover, irrigation emits moving particles, and suction attracts particles. This is an approximate visual/interaction model, not physical force sensing or validated tissue mechanics.
+- Guided action sequences now attach 3D outcome objects for examination, endodontic concepts, hygiene, extraction assessment, periodontal care, prosthodontics, implant planning, orthodontics, trauma and paediatric prevention. The restoration pathway has a staged caries/material overlay and requires surface contact before advancing.
+
 ### Integrated chairside encounter
-- Default experience combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
+- A separate treatment-room mode combines the clinic scene, a patient lying in the dental chair, dentist and assistant stand-ins, and a shared instrument tray.
 - Male and female CC0 MakeHuman-derived GLB patient figures can be selected. The source has a reduced 57-bone rig, but this application currently uses a fixed horizontal pose, not clinically reviewed skeletal animations.
 - The mouth can be opened or closed by the user. A selected instrument or material prop can be moved slowly between tray and mouth by explicit user action.
 - Camera orbit/front/side/top views and a separate clinic-only scene remain available.
@@ -67,9 +74,12 @@ The address is live only when the latest workflow build, browser tests and Pages
 ## Known limitations
 - The imported patient is displayed in a fixed horizontal pose. There is no validated animation library, breathing, facial animation, lip/tongue rig or patient response system.
 - Dentist and assistant are procedural geometric stand-ins, not photorealistic or fully rigged characters.
-- Instrument/material props are simplified. There is no force feedback, haptics, collision/contact simulation, bur cutting, tissue deformation, irrigation physics, fluid suction simulation or validated instrument calibration.
-- The imported clinic pack is static. Some chair controls are available only in the procedural fallback and do not actuate the static imported equipment.
-- The 12 pathways are explanatory checklists, not exhaustive coverage of every disease or rare case, full procedure walkthroughs or validated scoring.
+- The 55 procedural inventory models are simplified study props. Four imported CC0 GLBs are static source meshes but can be selected/moved as 3D scene objects. Surface contact, user-entered force/speed, localized gingival vertex deformation, irrigation particles and suction are interactive approximations; they are not calibrated physics or validated clinical instruments.
+- Rotary bur and implant-site preparation attempt swept-path CSG2 / Manifold Boolean subtraction on the selected tooth or jaw-bone mesh. Successful operations replace the actual geometry and are resettable; meshes that are open or unsuitable for Manifold use a visible fallback mark. This is genuine mesh editing, but not a calibrated tissue-cutting model.
+- Surface contact is detected by ray intersection and a pointer stroke. User-entered nominal force and RPM influence approximate wear progress; they are not sensor measurements or haptic feedback. Gingival vertex deformation, irrigation particles and suction attraction are visual approximations, not finite-element tissue mechanics or computational fluid dynamics.
+- The six imported CC0 GLBs (tray, scaler, curing light, plaster arch, forceps and scalpel set) are real source meshes but are not all rigged instruments. The 55 procedural props are simplified geometries. No validated force/torque response, device calibration, material chemistry, sterilisation, collision-safe path planning or automated skill scoring is implemented.
+- The imported clinic pack exposes its native GLB animation groups in a play/stop panel. Only the animation channels actually present in the source asset can be played; the chair controls are not yet mapped to a clinically calibrated actuator model.
+- The 12 pathways provide guided action sequences and selected 3D outcomes; they are not full biomechanical/surgical simulations for every condition or rare case. Extraction remains a simplified visual state, and root-canal/implant/orthodontic outcomes are conceptual. Patient-specific anatomy, tissue material properties, haptics, validation studies and specialist review remain necessary before any clinical or competency use.
 - Some anatomy structures are schematic/estimated and require dental-specialist review.
 - The default cloud assistant uses whichever OpenRouter model is selected at runtime; it is not a fine-tuned dental foundation model or diagnostic model. PALL-Text is an optional dental-domain model, but it is English-first and is not clinically validated.
 - GitHub Pages is static hosting. Online AI uses the learner's personal OpenRouter key (Bring Your Own Key); no shared provider secret or institution-managed backend is embedded in the site. Optional local AI requires Ollama or vLLM.
