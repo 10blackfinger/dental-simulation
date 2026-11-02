@@ -185,7 +185,8 @@ export function createPathologyRenderer(scene) {
     const worldNormal = rawNormal.scale(1 / normalScale);
     const tangentVectors = tangentAxes.map(axis => {
       const raw = Vector3.TransformNormal(unitAxis(axis), anchorWorld);
-      return { direction: raw.normalize(), scale: Math.max(raw.length(), 1e-6) };
+      const scale = Math.max(raw.length(), 1e-6);
+      return { direction: raw.scale(1 / scale), scale };
     });
     const radii = tangentAxes.map((axis, index) =>
       Math.max(frame.extent[axis] * factor * tangentVectors[index].scale, 0.004)
@@ -214,6 +215,7 @@ export function createPathologyRenderer(scene) {
       const inverseTarget = targetWorld.clone();
       inverseTarget.invert();
 
+      let meshChangedVertices = 0;
       for (let i = 0; i < positions.length; i += 3) {
         const localVertex = new Vector3(positions[i], positions[i + 1], positions[i + 2]);
         const worldVertex = Vector3.TransformCoordinates(localVertex, targetWorld);
@@ -245,9 +247,10 @@ export function createPathologyRenderer(scene) {
         positions[i + 1] += localDelta.y;
         positions[i + 2] += localDelta.z;
         changedVertices++;
+        meshChangedVertices++;
       }
 
-      if (!changedVertices) continue;
+      if (!meshChangedVertices) continue;
       mesh.setVerticesData('position', positions, true);
       const nextNormals = new Float32Array(positions.length);
       VertexData.ComputeNormals(positions, indices, nextNormals);
