@@ -3281,7 +3281,7 @@ let isPropAtMouth = false;
 // a sensor reading from real dental equipment.
 const clinicalSurface = {
   dragging: false, pointerId: null, targetMesh: null, targetKey: null,
-  contactPoint: null, contactNormal: null, contactSeconds: 0, contactTrace: [],
+  contactPoint: null, contactNormal: null, contactSeconds: 0, contactTrace: [], activeStrokeKey: null,
   depthMm: 0, lastUiUpdate: 0, fluidAccumulator: 0, particles: [],
   surfaceMark: null, contactMarker: null, deformations: new Map(),
   lastMessageAt: 0
@@ -3451,6 +3451,7 @@ function updateClinicalSurfaceFromPick(pick) {
   const key = clinicalMeshKey(mesh);
   const point = pick.pickedPoint.clone();
   const normal = pick.getNormal(true)?.normalize() || Vector3.Up();
+  if (clinicalSurface.activeStrokeKey && clinicalSurface.activeStrokeKey !== key) return false;
   if (clinicalSurface.targetKey && clinicalSurface.targetKey !== key) {
     clinicalSurface.contactTrace = [];
     clinicalSurface.contactSeconds = 0;
@@ -3486,6 +3487,7 @@ function resetClinicalContactState(message = 'تمت إعادة ضبط محرك 
   clinicalSurface.contactNormal = null;
   clinicalSurface.contactSeconds = 0;
   clinicalSurface.contactTrace = [];
+  clinicalSurface.activeStrokeKey = null;
   clinicalSurface.depthMm = 0;
   clinicalSurface.fluidAccumulator = 0;
   if (clinicalSurface.contactMarker) clinicalSurface.contactMarker.setEnabled(false);
@@ -3624,6 +3626,7 @@ canvas.addEventListener('pointerdown', event => {
   clinicalSurface.pointerId = event.pointerId;
   clinicalSurface.contactSeconds = 0;
   clinicalSurface.contactTrace = [];
+  clinicalSurface.activeStrokeKey = clinicalSurface.targetKey;
   canvas.classList.add('clinical-contact-dragging');
   try { canvas.setPointerCapture(event.pointerId); } catch {}
 }, true);
@@ -3645,6 +3648,7 @@ function endClinicalPointerDrag(event) {
   if (!clinicalSurface.dragging || event.pointerId !== clinicalSurface.pointerId) return;
   clinicalSurface.dragging = false;
   clinicalSurface.pointerId = null;
+  clinicalSurface.activeStrokeKey = null;
   canvas.classList.remove('clinical-contact-dragging');
   clinicalSimulationFeedback.textContent = clinicalSurface.contactSeconds > .1
     ? 'تم تسجيل تلامس السطح. راجع زمن التلامس والعمق قبل تنفيذ الخطوة.'
