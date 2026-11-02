@@ -1870,6 +1870,44 @@ function getOralInventoryRoot(item = selectedInventoryItem) {
   if (!oralInventoryModels.has(item.id)) oralInventoryModels.set(item.id, buildOralInventoryModel(item));
   return oralInventoryModels.get(item.id);
 }
+let selectedOralInventoryId = null;
+function selectOralInventoryVisual(item) {
+  if (selectedOralInventoryRoot) {
+    const previousWasProcedural = oralInventoryModels.get(selectedOralInventoryId) === selectedOralInventoryRoot;
+    if (previousWasProcedural) selectedOralInventoryRoot.setEnabled(false);
+    else if (oralScenePropPositions.has(selectedOralInventoryId)) {
+      selectedOralInventoryRoot.position.copyFrom(oralScenePropPositions.get(selectedOralInventoryId));
+    }
+  }
+  const root = getOralInventoryRoot(item);
+  const external = root === oralSceneProps.get(item.id);
+  if (external && oralScenePropPositions.has(item.id)) root.position.copyFrom(oralScenePropPositions.get(item.id));
+  else if (!external) root.position.copyFrom(oralInventoryTrayPosition);
+  root.setEnabled(true);
+  root.rotation.set(0, 0, 0);
+  root.metadata = { title:item.name, detail:item.detail, inventoryId:item.id };
+  selectedOralInventoryRoot = root;
+  selectedOralInventoryId = item.id;
+  return root;
+}
+function moveSelectedOralInventoryToMouth(item = selectedInventoryItem) {
+  const root = selectedOralInventoryRoot || selectOralInventoryVisual(item);
+  if (!root) return false;
+  const destination = getOralExamTargetPoint(currentCariesTarget).add(new Vector3(0, 0.22, 0.65));
+  root.setEnabled(true);
+  animateTreatmentNode(root, destination, new Vector3(0, 0, -0.18));
+  isPropAtMouth = true;
+  return true;
+}
+function returnSelectedOralInventoryToTray() {
+  if (!selectedOralInventoryRoot) {
+    isPropAtMouth = false;
+    return;
+  }
+  const position = oralScenePropPositions.get(selectedOralInventoryId) || oralInventoryTrayPosition;
+  animateTreatmentNode(selectedOralInventoryRoot, position.clone(), new Vector3(0, 0, 0));
+  isPropAtMouth = false;
+}
 function getOralExamTargetPoint(fdi = currentCariesTarget) {
   const bounds = dentalManifest?.meshes?.['tooth-' + fdi]?.bounds;
   if (!bounds) return new Vector3(0, 0.5, 0);
@@ -2573,11 +2611,17 @@ function selectInventoryItem(item) {
     inventoryDetail.append(title, purpose, note);
   }
   const isMaterial = item.type === 'material';
-  activeInstrumentRoot.setEnabled(!isMaterial);
-  activeMaterialRoot.setEnabled(isMaterial);
-  activeInstrumentRoot.metadata = { treatmentLabel: item.name, detail: item.detail };
+  if (activeExperience === 'oral-exam') {
+    activeInstrumentRoot.setEnabled(false);
+    activeMaterialRoot.setEnabled(false);
+    selectOralInventoryVisual(item);
+  } else {
+    activeInstrumentRoot.setEnabled(!isMaterial);
+    activeMaterialRoot.setEnabled(isMaterial);
+    activeInstrumentRoot.metadata = { treatmentLabel: item.name, detail: item.detail };
+  }
   document.getElementById('treatment-interaction-status').textContent =
-    'تم اختيار ' + item.name + '. اضغط تحريك الأداة للفم لنقل المجسم بهدوء، أو إرجاعه للصينية.';
+    'تم اختيار ' + item.name + '. اسحب المجسم إلى مربع العمل أو استخدم زر تحريك الأداة للفم.';
   document.getElementById('selection-name').textContent = item.name;
   document.getElementById('selection-description').textContent = item.detail;
   inventoryList?.querySelectorAll('.inventory-item').forEach(button => {
