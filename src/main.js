@@ -1873,6 +1873,7 @@ function getOralInventoryRoot(item = selectedInventoryItem) {
 let selectedOralInventoryId = null;
 function selectOralInventoryVisual(item) {
   if (selectedOralInventoryRoot) {
+    isPropAtMouth = false;
     const previousWasProcedural = oralInventoryModels.get(selectedOralInventoryId) === selectedOralInventoryRoot;
     if (previousWasProcedural) selectedOralInventoryRoot.setEnabled(false);
     else if (oralScenePropPositions.has(selectedOralInventoryId)) {
@@ -2778,8 +2779,17 @@ canvas.addEventListener('drop', event => {
   const item = dentalInventory.find(entry => entry.id === id);
   if (!item) return;
   selectInventoryItem(item);
+  if (activeExperience === 'oral-exam') {
+    if (!isPatientMouthOpen) {
+      document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر؛ افتح الفم أولًا ثم اسحبه مرة أخرى إلى مساحة العمل.';
+      return;
+    }
+    moveSelectedOralInventoryToMouth(item);
+    document.getElementById('treatment-interaction-status').textContent = 'تم سحب ' + item.name + ' إلى السن FDI ' + currentCariesTarget + '. اضغط تنفيذ الإجراء بالأداة / المادة المختارة.';
+    return;
+  }
   if (activeExperience !== 'treatment') {
-    document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر. انتقل إلى جلسة العلاج لإدخاله إلى الفم.';
+    document.getElementById('treatment-interaction-status').textContent = 'تم اختيار العنصر. افتح وضع فحص الأسنان أو جلسة العلاج لإدخاله إلى الفم.';
     return;
   }
   if (!isPatientMouthOpen) {
@@ -2825,12 +2835,19 @@ function animateTreatmentNode(node, destination, rotation) {
 let isPatientMouthOpen = true;
 let isPropAtMouth = false;
 document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
-  if (activeExperience !== 'treatment') {
-    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع جلسة العلاج أولًا.';
+  if (activeExperience !== 'treatment' && activeExperience !== 'oral-exam') {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج أولًا.';
     return;
   }
   if (!isPatientMouthOpen) {
     document.getElementById('treatment-interaction-status').textContent = 'افتح فم المريض أولًا قبل إدخال الأداة.';
+    return;
+  }
+  if (activeExperience === 'oral-exam') {
+    if (moveSelectedOralInventoryToMouth()) {
+      document.getElementById('treatment-interaction-status').textContent =
+        'تتحرك ' + selectedInventoryItem.name + ' نحو السن FDI ' + currentCariesTarget + '. اضغط تنفيذ الإجراء لتطبيق خطوة التدريب.';
+    }
     return;
   }
   const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
@@ -2841,29 +2858,42 @@ document.getElementById('tool-to-mouth')?.addEventListener('click', () => {
     'تتحرك ' + selectedInventoryItem.name + ' إلى موضع العمل بسرعة هادئة. الحركة تعليمية ولا تحاكي القوة أو مسارًا سريريًا حقيقيًا.';
 });
 document.getElementById('tool-to-tray')?.addEventListener('click', () => {
+  if (activeExperience === 'oral-exam') {
+    returnSelectedOralInventoryToTray();
+    document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى الصينية ثلاثية الأبعاد.';
+    return;
+  }
   const prop = selectedInventoryItem.type === 'material' ? activeMaterialRoot : activeInstrumentRoot;
   animateTreatmentNode(prop, new Vector3(-1.58, 1.08, 1.12), new Vector3(0, 0, 0));
   isPropAtMouth = false;
   document.getElementById('treatment-interaction-status').textContent = 'تم إرجاع ' + selectedInventoryItem.name + ' إلى صينية العمل.';
 });
 document.getElementById('patient-mouth-toggle')?.addEventListener('click', () => {
+  if (activeExperience !== 'oral-exam' && activeExperience !== 'treatment') {
+    document.getElementById('treatment-interaction-status').textContent = 'افتح وضع فحص الأسنان أو جلسة العلاج للتحكم في الفك.';
+    return;
+  }
   if (isPatientMouthOpen && isPropAtMouth) {
     document.getElementById('treatment-interaction-status').textContent = 'أعد الأداة إلى الصينية قبل إغلاق الفم.';
     return;
   }
   isPatientMouthOpen = !isPatientMouthOpen;
-  const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
-  animation.setKeys([
-    { frame: 0, value: patientJawPivot.rotation.x },
-    { frame: 54, value: isPatientMouthOpen ? .24 : 0 }
-  ]);
-  const ease = new CubicEase();
-  ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
-  animation.setEasingFunction(ease);
-  scene.beginDirectAnimation(patientJawPivot, [animation], 0, 54, false);
+  if (activeExperience === 'oral-exam') {
+    setDentalJawOpen(isPatientMouthOpen);
+  } else {
+    const animation = new Animation('PatientJawOpenClose', 'rotation.x', 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    animation.setKeys([
+      { frame: 0, value: patientJawPivot.rotation.x },
+      { frame: 54, value: isPatientMouthOpen ? .24 : 0 }
+    ]);
+    const ease = new CubicEase();
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+    animation.setEasingFunction(ease);
+    scene.beginDirectAnimation(patientJawPivot, [animation], 0, 54, false);
+  }
   document.getElementById('patient-mouth-toggle').textContent = isPatientMouthOpen ? 'إغلاق الفم' : 'فتح الفم';
   document.getElementById('apply-clinical-action').disabled = !isPatientMouthOpen;
-  document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم في النموذج التوضيحي.' : 'تم إغلاق الفم في النموذج التوضيحي.';
+  document.getElementById('treatment-interaction-status').textContent = isPatientMouthOpen ? 'تم فتح الفم.' : 'تم إغلاق الفم.';
 });
 
 // Online AI via OpenRouter (Bring Your Own Key) plus optional local providers.
