@@ -184,7 +184,13 @@ export const DENTAL_PATHOLOGIES=rows.map(([id,name,category,visual,summary,sympt
  return {
   id,name,category,visual,summary,symptoms,signs,radiographic,layers,
   target,allowAllTeeth:target==='tooth' && MULTI_TOOTH_PATHOLOGIES.has(id),
-  caution,
+  caution: [
+   caution,
+   target==='oral-soft' ? 'حدود النموذج: اللسان والخدود وأرضية الفم والشفتان غير موجودة في ملف التشريح؛ لذلك تظهر هذه الآفة على سطح اللثة/الحنك كموضع بديل تعليمي، ولا تمثل موضعها التشريحي الحقيقي.' : '',
+   target==='bone' ? 'الآفة تغيّر سطح مجسم العظم لإظهار نمطها بصورة تعليمية؛ لا تمثل حدودًا نسيجية أو مقطع CBCT تشخيصيًا ولا يمكن تأكيد نوع الآفة من الشكل وحده.' : '',
+   (visual==='implant-mucositis'||visual==='implantitis') ? 'لا يتضمن النموذج مجسم زرعة سنية أو دعامة أو تاجًا فوق زرعة؛ التغير المعروض يمثل استجابة الأنسجة المحيطة فقط.' : ''
+  ].filter(Boolean).join(' '),
+  simulationScope: target==='tooth' ? 'tooth-mesh' : target==='bone' ? 'bone-surface-model' : 'soft-tissue-proxy',
   stages:names.map((stage,index)=>({
    id:'stage-'+(index+1),name:stage,progression:[0.25,0.6,1][index],
    description:stageNotes[category][index]
