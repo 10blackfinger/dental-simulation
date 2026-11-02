@@ -167,6 +167,7 @@ export function createPathologyRenderer(scene) {
   const workingPositions = new Map();
   const originalVisibility = new Map();
   const generatedMeshes = new Set();
+  const unhandledVisuals = new Set();
 
   function material(key, alpha = 1, emissive = 0) {
     const cacheKey = key + ':' + alpha + ':' + emissive;
@@ -581,6 +582,11 @@ export function createPathologyRenderer(scene) {
       const record = records[mesh.name];
       return mesh.name === sourceId || record?.tooth === sourceId;
     });
+  }
+
+  function markUnhandledVisual(root, visual) {
+    unhandledVisuals.add(visual);
+    if (root) root.metadata = { ...(root.metadata || {}), unhandledVisual: true };
   }
 
   function makeRoot(anchor, name, state) {
@@ -1400,6 +1406,7 @@ export function createPathologyRenderer(scene) {
         }
         break;
       default:
+        markUnhandledVisual(root, visual);
         spherePatch(root, frame, 'cariesRim', 0.13, 0.04);
     }
   }
@@ -1545,6 +1552,7 @@ export function createPathologyRenderer(scene) {
       spherePatch(root, frame, 'boneDensity', growth * 1.8, 0.28, 0.48, 0.008);
       clusteredDots(root, frame, 'boneDensity', 18 + severity * 2, growth * 1.18);
     } else {
+      markUnhandledVisual(root, visual);
       deformSurface(anchor, [anchor], frame, {
         mode: 'raise', profile: 'lobulated', factor: growth,
         depthRatio: 0.08, surfaceBandRatio: 0.65, normalCheck: false
@@ -1641,6 +1649,7 @@ export function createPathologyRenderer(scene) {
       spherePatch(root, frame, 'gingiva', 0.29 + progression * 0.06, 0.16, 0.78, 0.008);
       localDeform('raise', 'lobulated', 0.24 + progression * 0.04, 0.18 + severity * 0.02, 0.08);
     } else {
+      markUnhandledVisual(root, visual);
       spherePatch(root, frame, 'gingiva', 0.24 + severity * 0.025, 0.08, 0.72, 0.006);
     }
   }
@@ -1664,12 +1673,17 @@ export function createPathologyRenderer(scene) {
 
   function render(cases, context) {
     resetVisuals();
+    unhandledVisuals.clear();
     for (const state of cases) applyCase(state, context);
-    return { effects: effectRoots.length };
+    return {
+      effects: effectRoots.length,
+      unhandledVisuals: [...unhandledVisuals]
+    };
   }
 
   function clear() {
     resetVisuals();
+    unhandledVisuals.clear();
   }
 
   return { render, clear };
