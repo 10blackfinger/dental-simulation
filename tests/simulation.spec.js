@@ -78,6 +78,7 @@ test('online tutor, square responsive workspace, dental models and training work
   await expect(page.locator('#view-treatment')).toHaveClass(/selected/);
   await expect(page.locator('#asset-status')).toContainText('تم تحميل مشهد العيادة', { timeout: 45000 });
   await expect(page.locator('#patient-model-status')).toContainText('تم تحميل المريض', { timeout: 30000 });
+  await expect(page.locator('#patient-model-status')).toHaveAttribute('data-model-visible','true');
   await expect(page.locator('#patient-variant-controls')).toBeVisible();
 
   // The app shell and square 3D canvas must fit the browser without document scrolling.
