@@ -186,8 +186,8 @@ test('online tutor, square responsive workspace, dental models and training work
 
   await page.locator('#view-anatomy').click();
   await expect(page.locator('#asset-status')).toContainText('تم تحميل 33 تركيبًا تشريحيًا منفصلًا', { timeout: 45000 });
-  await expect(page.locator('.structure-button')).toHaveCount(33);
-  await page.locator('.structure-button').first().click();
+  await expect(page.locator('#structure-list .structure-button')).toHaveCount(33);
+  await page.locator('#structure-list .structure-button').first().click();
   await expect(page.locator('#selection-name')).not.toBeEmpty();
   await page.locator('#isolate-structure').click();
   await page.locator('#restore-structures').click();
