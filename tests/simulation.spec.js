@@ -236,6 +236,13 @@ test('online tutor, square responsive workspace, dental models and training work
   // The first-class oral exam applies a staged treatment overlay to the selected Dental Scope tooth.
   await page.locator('#view-oral-exam').click();
   await expect(page.locator('#dental-atlas-status')).toContainText('وضع فحص الأسنان جاهز', { timeout: 90000 });
+  await page.locator('#inventory-category').selectOption('all');
+  const oralInventoryItems = page.locator('#inventory-list .inventory-item');
+  await expect(oralInventoryItems).toHaveCount(49);
+  for (let i = 0; i < await oralInventoryItems.count(); i += 1) {
+    await oralInventoryItems.nth(i).click();
+    await expect(page.locator('#selection-name')).not.toBeEmpty();
+  }
   await page.locator('.tooth-chip').filter({ hasText: '36' }).click();
   await expect(page.locator('#oral-exam-target-label')).toContainText('36');
   await page.locator('#reset-caries-case').click();
