@@ -1756,6 +1756,7 @@ function buildOralInventoryModel(item) {
         : item.id === 'calcium-silicate' ? 'white'
         : item.id === 'endodontic-sealer' ? 'glass'
         : item.id === 'impression-silicone' ? 'gum'
+        : item.id === 'fluoride-varnish' ? 'accent'
         : 'white';
       if (['etchant', 'adhesive'].includes(item.id)) {
         const barrel = cylinder('MaterialSyringe_' + item.id, 0.72, 0.2, [0,0,0], bodyColor, root, 20);
@@ -1835,6 +1836,27 @@ function buildOralInventoryModel(item) {
         rod('CuringBody',0.86,0.28,0.12,'tealDark');
         rod('CuringNeck',0.28,0.13,-0.42,'metal');
         ball('CuringLens',0.24,0,0,-0.61,'glass',[1,0.55,1]);
+        break;
+      case 'surgical-drill':
+        rod('SurgicalDrillBody',0.92,0.28,0.12,'tealDark');
+        rod('SurgicalDrillNeck',0.36,0.15,-0.42,'metal');
+        taper('SurgicalDrillBit',0.48,0.1,-0.78,'metal');
+        ball('SurgicalDrillBearing',0.2,0,0,-0.45,'white');
+        break;
+      case 'implant-fixture-kit':
+        rod('ImplantFixtureCore',0.8,0.25,0,'metal');
+        for(let i=0;i<5;i++) rod('ImplantThread_'+i,0.035,0.34,-0.3+i*.14,'metal');
+        rod('ImplantAbutment',0.28,0.17,-0.54,'tealDark');
+        break;
+      case 'ortho-bracket-kit':
+        for(let i=-1;i<=1;i++) {
+          panel('OrthoBracketBase_'+i,[0.22,0.15,0.12],[i*.25,0,0],'metal');
+          rod('OrthoBracketSlot_'+i,0.18,0.045,0,'tealDark').position.x=i*.25;
+        }
+        break;
+      case 'orthodontic-wire':
+      case 'splint-wire':
+        tube('OrthoWireArc',[[0,0,.45],[.25,.06,.25],[.5,.08,0],[.25,.06,-.25],[0,0,-.45],[-.25,.06,-.25],[-.5,.08,0],[-.25,.06,.25],[0,0,.45]],.026,item.id==='splint-wire'?'accent':'metal',root);
         break;
       case 'endo-files':
         for(let i=0;i<3;i++) {
@@ -2571,6 +2593,11 @@ const dentalInventory = [
   {id:'intraoral-scanner',name:'ماسح داخل الفم',category:'prostho',type:'tool',keywords:'intraoral scanner digital scan',detail:'يلتقط بيانات رقمية لأسطح الأسنان والنسج الظاهرة.',note:'جودة المسح تعتمد على المجال والرطوبة وخطة المسح والمعايرة.'},
   {id:'shade-guide',name:'دليل اختيار اللون',category:'prostho',type:'tool',keywords:'shade guide color',detail:'مرجع بصري لتسجيل لون الأسنان والتواصل مع المختبر.',note:'الإضاءة والبيئة والشفافية تؤثر في التقييم.'},
   {id:'orthodontic-pliers',name:'كماشات تقويمية',category:'ortho',type:'tool',keywords:'orthodontic pliers bracket wire',detail:'أدوات مخصصة لمناولة الأسلاك والملحقات التقويمية.',note:'كل تصميم له وظيفة محددة؛ يلزم تدريب اختصاصي التقويم.'},
+  {id:'surgical-drill',name:'قبضة جراحية تعليمية للزرعات',category:'surgery',type:'tool',keywords:'implant surgical drill handpiece',detail:'مجسم تدريبي لتوضيح التفاعل ثلاثي الأبعاد مع موضع افتراضي في الفك.',note:'لا يحاكي سرعة جهاز جراحي أو كثافة العظم أو التخطيط الآمن للزرعة.'},
+  {id:'implant-fixture-kit',name:'مجموعة جسم الزرعة والدعامة',category:'surgery',type:'tool',keywords:'implant fixture abutment dental implant',detail:'مجسم تعليمي لجسم الزرعة والدعامة في مسار تقييم التعويض.',note:'أبعاد المجسم وعلاقته بالعظم غير معايرة ولا تصلح لتخطيط مريض.'},
+  {id:'ortho-bracket-kit',name:'مجموعة حاصرات التقويم',category:'ortho',type:'tool',keywords:'orthodontic brackets brace',detail:'مكونات مرئية لتدريب ترتيب الحاصرات وربطها بسلك تقويمي افتراضي.',note:'المواضع والقوى غير محسوبة وفق تشخيص تقويمي حقيقي.'},
+  {id:'orthodontic-wire',name:'سلك تقويم الأسنان',category:'ortho',type:'tool',keywords:'orthodontic archwire',detail:'سلك افتراضي يربط الحاصرات على القوس السني في مشهد التدريب.',note:'لا يحاكي خواص سبائك التقويم أو القوى البيوميكانيكية المقاسة.'},
+  {id:'splint-wire',name:'سلك تثبيت رضوض الأسنان',category:'ortho',type:'tool',keywords:'dental trauma splint wire',detail:'مجسم يوضح مبدأ الربط المرن للأسنان المجاورة في مسار الرضوض.',note:'ليس قالبًا سريريًا أو تعليمات تثبيت معتمدة لإصابة محددة.'},
   {id:'composite-resin',name:'راتنج كومبوزيت',category:'materials',type:'material',keywords:'composite resin restorative',detail:'مادة ترميمية راتنجية ذات خصائص تختلف حسب المنتج واللزوجة والحشوات.',note:'التزم بنشرة الشركة والتوافق اللاصق والتخزين وتاريخ الصلاحية.'},
   {id:'glass-ionomer',name:'إسمنت زجاجي أيوني',category:'materials',type:'material',keywords:'glass ionomer GIC restorative',detail:'مادة ذات استخدامات ترميمية أو قاعدية أو إسمنتية بحسب الصيغة.',note:'لا تفترض أن جميع الأنواع قابلة للتبادل؛ راجع الاستطبابات وتعليمات الشركة.'},
   {id:'etchant',name:'مادة تخريش',category:'materials',type:'material',keywords:'etch phosphoric acid',detail:'مادة لمعالجة السطح ضمن نظم التصاق محددة.',note:'احمِ النسج الرخوة والتزم بتعليمات المادة ولا تعمم زمنًا واحدًا.'},
@@ -2582,6 +2609,7 @@ const dentalInventory = [
   {id:'impression-silicone',name:'سيليكون طبعات',category:'materials',type:'material',keywords:'PVS addition silicone impression',detail:'مادة طبعة مرنة تستخدم في تطبيقات تعويضية مختلفة.',note:'الخلط وزمن العمل والتخزين وفق المنتج المحدد.'},
   {id:'luting-cement',name:'إسمنت تثبيت تعويضي',category:'materials',type:'material',keywords:'resin cement glass ionomer luting',detail:'مواد لتثبيت التعويضات بحسب نوع الترميم والسطح والمادة.',note:'لا يوجد إسمنت واحد مناسب لكل التعويضات؛ اتبع تعليمات الشركة.'},
   {id:'suture-material',name:'خيوط جراحية',category:'materials',type:'material',keywords:'suture silk vicryl nylon',detail:'خيوط جراحية تختلف في الامتصاص والقطر والبنية.',note:'اختيار النوع والحجم والتوقيت ضمن التدريب الجراحي وبروتوكول المنشأة.'},
+  {id:'fluoride-varnish',name:'ورنيش فلورايد تعليمي',category:'materials',type:'material',keywords:'fluoride varnish prevention pediatric',detail:'عبوة افتراضية لتوضيح التغطية الوقائية على سطح السن في مسار الأطفال.',note:'لا تمثل تركيزًا دوائيًا أو جرعة أو قرارًا علاجيًا لطفل بعينه.'},
   {id:'ppe-gloves',name:'قفازات طبية',category:'ppe',type:'material',keywords:'gloves nitrile latex',detail:'حاجز وقائي لليدين ضمن احتياطات مكافحة العدوى.',note:'اختر مادة متوافقة مع الحساسية وسياسة المنشأة، وبدلها بين المهام.'},
   {id:'ppe-mask',name:'كمامة طبية/حماية تنفسية',category:'ppe',type:'material',keywords:'mask respirator',detail:'وسيلة حماية تنفسية تختار وفق نوع الإجراء وتقييم المخاطر.',note:'الملاءمة والاستخدام وفق السياسة الصحية الحالية.'},
   {id:'eye-protection',name:'نظارات واقية ودرع وجه',category:'ppe',type:'material',keywords:'goggles face shield',detail:'حماية العين والوجه من الرذاذ والجزيئات.',note:'نظفها وعقمها أو استبدلها وفق تعليمات الشركة ومكافحة العدوى.'},
