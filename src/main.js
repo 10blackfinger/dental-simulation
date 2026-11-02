@@ -2917,8 +2917,9 @@ function addProcedureVisual(effect) {
   const worldPoint = clinicalSurface.contactPoint;
   if (!mesh || !worldPoint) return;
   const root = new TransformNode('ClinicalProcedure_' + effect + '_' + clinicalProcedureVisuals.length, scene);
-  root.parent = mesh;
-  root.position.copyFrom(localPointForMesh(mesh, worldPoint));
+  const attachToSceneRoot = effect === 'extraction';
+  root.parent = attachToSceneRoot ? dentalScopeRoot : mesh;
+  root.position.copyFrom(attachToSceneRoot ? Vector3.TransformCoordinates(worldPoint, Matrix.Invert(dentalScopeRoot.computeWorldMatrix(true))) : localPointForMesh(mesh, worldPoint));
   root.metadata = { clinicalEffect:effect, targetKey:clinicalSurface.targetKey };
   const addSphere = (name, diameter, position, materialName, scaling = null) => {
     const object = MeshBuilder.CreateSphere(name, { diameter, segments:18 }, scene);
