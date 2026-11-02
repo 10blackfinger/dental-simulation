@@ -339,3 +339,82 @@ button { cursor: pointer; }
   .selection-card { right: 8px; bottom: 8px; padding: 7px 9px; }
   .viewport-footer { font-size: 8px; }
 }
+
+
+/* Dental pathology simulator */
+.pathology-section { display: grid; gap: 8px; }
+.pathology-intro { margin: -3px 0 2px; color: #8196ab; font-size: 9px; line-height: 1.8; }
+.pathology-label { margin-top: 2px; color: #9eb0c3; font-size: 9px; }
+.pathology-select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #30465e;
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: #0e1b2b;
+  color: #e0eaf4;
+  font-size: 10px;
+  outline: none;
+}
+.pathology-select:focus { border-color: #43b8aa; }
+.pathology-info {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #2b435b;
+  border-radius: 8px;
+  background: #101f32;
+}
+.pathology-info > b { color: #e6f3f6; font-size: 10px; line-height: 1.6; }
+.pathology-info > p { margin: 0; color: #91a6ba; font-size: 9px; line-height: 1.8; }
+.pathology-facts { display: grid; gap: 6px; margin: 0; }
+.pathology-facts div { display: grid; gap: 2px; }
+.pathology-facts dt { color: #59c7b8; font-size: 8px; font-weight: 700; }
+.pathology-facts dd { margin: 0; color: #b5c5d5; font-size: 9px; line-height: 1.7; }
+.pathology-caution { padding: 7px; border-right: 2px solid #d5a45a; border-radius: 4px; background: rgba(120, 83, 34, .17); color: #e5c48e !important; }
+.pathology-stage-heading { align-items: center; }
+.pathology-stage-heading .pathology-label { margin: 0; }
+.pathology-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pathology-primary {
+  grid-column: 1 / -1;
+  border: 1px solid #328f87;
+  border-radius: 7px;
+  padding: 10px 8px;
+  background: linear-gradient(135deg, #15524f, #173b48);
+  color: #d3fff4;
+  font-size: 10px;
+  font-weight: 750;
+}
+.pathology-primary:hover { border-color: #5de0cb; background: #1b625c; }
+.pathology-primary:disabled, .pathology-actions .small-action:disabled { opacity: .4; cursor: not-allowed; }
+.active-pathologies { display: grid; gap: 6px; }
+.pathology-empty { margin: 0; padding: 10px 6px; border: 1px dashed #30445b; border-radius: 7px; color: #758ba2; font-size: 9px; text-align: center; }
+.pathology-case {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #3b4c58;
+  border-right: 3px solid #c17a4e;
+  border-radius: 7px;
+  background: #172638;
+}
+.pathology-case strong { color: #f0e6dc; font-size: 9px; line-height: 1.5; }
+.pathology-case small { color: #9caec0; font-size: 8px; line-height: 1.7; }
+.pathology-case-actions { display: flex; gap: 5px; }
+.pathology-case-actions button {
+  flex: 1;
+  border: 1px solid #354b61;
+  border-radius: 5px;
+  padding: 6px 4px;
+  background: #102035;
+  color: #c5d4e3;
+  font-size: 8px;
+}
+.pathology-case-actions button:hover { border-color: #49b7a9; }
+.pathology-disclaimer { margin: 2px 0 0; color: #7e93a8; font-size: 8px; line-height: 1.8; }
+@media (max-width: 760px) {
+  .pathology-section { gap: 6px; }
+  .pathology-info { padding: 7px; }
+  .pathology-facts { gap: 4px; }
+  .pathology-primary { padding: 8px; }
+}
