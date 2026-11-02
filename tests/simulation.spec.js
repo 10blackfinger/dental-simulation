@@ -6,8 +6,15 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 
   await page.goto('/');
   await expect(page.locator('#render-canvas')).toBeVisible();
-  await expect(page.locator('#structure-list .structure-button')).toHaveCount(33);
-  await expect(page.locator('#asset-status')).toContainText(/تم تحميل|تم إنشاء|تعذر تحميل الملف الأصلي/, { timeout: 90000 });
+  await expect(page.locator('#structure-list .structure-button')).toHaveCount(32);
+  await expect(page.locator('#asset-status')).toContainText(/تم تحميل|تم إنشاء|تعذر تحميل/, { timeout: 90000 });
+  await expect(page.locator('#layer-controls .layer-toggle')).toHaveCount(13);
+  const enamelLayer = page.locator('#layer-controls input[data-layer="enamel"]');
+  await expect(enamelLayer).toBeChecked();
+  await enamelLayer.uncheck();
+  await expect(enamelLayer).not.toBeChecked();
+  await enamelLayer.check();
+  await expect(enamelLayer).toBeChecked();
 
   await expect(page.locator('#jaw-angle')).toBeEnabled();
   await expect(page.locator('#jaw-angle-status')).toHaveAttribute('data-joint-ready', 'true');
@@ -29,6 +36,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#structure-list .structure-button')).toHaveCount(4);
   await page.locator('#structure-list .structure-button').first().click();
   await expect(page.locator('#selection-name')).toContainText('القاطع المركزي');
+  await expect(page.locator('#selection-description')).toContainText('CBCT');
 
   await expect(page.locator('#view-treatment')).toHaveCount(0);
   await expect(page.locator('#view-clinic')).toHaveCount(0);
@@ -50,7 +58,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 
 test('the oral anatomy model and catalogue are published', async ({ page }) => {
   await page.goto('/');
-  for (const asset of ['models/oral-anatomy.glb', 'models/anatomy-structures.json']) {
+  for (const asset of ['models/clinical-dentition.glb', 'models/clinical-teeth.json', 'models/environmentSpecular.env', 'models/oral-anatomy.glb', 'models/anatomy-structures.json']) {
     const response = await page.request.get(new URL(asset, page.url()).toString());
     expect(response.ok(), asset + ' should be published').toBeTruthy();
   }

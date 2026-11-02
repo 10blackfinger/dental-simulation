@@ -157,6 +157,28 @@ button { cursor: pointer; }
 .jaw-preset.selected { border-color: #3cb6a8; background: #16413f; color: #c7fbef; }
 .jaw-preset:disabled { opacity: .4; cursor: wait; }
 .jaw-angle-status { margin: 0; color: #8fa6bb; font-size: 9px; line-height: 1.7; }
+.layers-section { display: grid; gap: 8px; }
+.layers-section[hidden] { display: none !important; }
+.layer-intro { margin: -3px 0 2px; color: #8196ab; font-size: 9px; line-height: 1.7; }
+.layer-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.layer-toggle {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #2b4158;
+  border-radius: 7px;
+  padding: 8px 7px;
+  background: #13243a;
+  color: #c4d2e1;
+  font-size: 9px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.layer-toggle:hover { border-color: #3b8f89; background: #173440; }
+.layer-toggle input { width: 13px; height: 13px; flex: 0 0 auto; margin: 0; accent-color: #43bdad; }
+.layer-toggle span { min-width: 0; overflow-wrap: anywhere; }
+.layer-loading { grid-column: 1 / -1; margin: 0; color: #758ba2; font-size: 9px; line-height: 1.7; }
 .text-filter {
   width: 100%;
   border: 1px solid #30465e;

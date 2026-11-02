@@ -16,11 +16,14 @@ import {
 } from '@babylonjs/core';
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
+import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
 
 const canvas = document.getElementById('render-canvas');
 const loadingOverlay = document.getElementById('loading');
 const statusElement = document.getElementById('asset-status');
 const structureListElement = document.getElementById('structure-list');
+const structureCountElement = document.getElementById('structure-count');
+const layerControlsElement = document.getElementById('layer-controls');
 const searchElement = document.getElementById('anatomy-search');
 const isolateButton = document.getElementById('isolate-structure');
 const restoreButton = document.getElementById('restore-structures');
@@ -44,6 +47,9 @@ const engine = new Engine(canvas, true, {
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.035, 0.065, 0.105, 1);
 scene.ambientColor = new Color3(0.32, 0.36, 0.4);
+scene.environmentIntensity = 0.72;
+const environmentUrl = new URL('models/environmentSpecular.env', new URL(import.meta.env.BASE_URL, window.location.href)).href;
+scene.environmentTexture = CubeTexture.CreateFromPrefilteredData(environmentUrl, scene);
 
 const camera = new ArcRotateCamera(
   'DentalAnatomyCamera',
@@ -64,10 +70,16 @@ camera.useNaturalPinchZoom = true;
 camera.pinchDeltaPercentage = 0.012;
 
 const ambient = new HemisphericLight('AnatomyAmbient', new Vector3(0, 1, 0), scene);
-ambient.intensity = 0.82;
+ambient.intensity = 0.92;
 const keyLight = new DirectionalLight('AnatomyKeyLight', new Vector3(-0.45, -1, 0.55), scene);
 keyLight.position = new Vector3(4, 7, -5);
-keyLight.intensity = 1.05;
+keyLight.intensity = 1.12;
+const fillLight = new DirectionalLight('DentalSoftFill', new Vector3(0.65, -0.3, -0.7), scene);
+fillLight.position = new Vector3(-5, 2, 4);
+fillLight.intensity = 0.42;
+const rimLight = new DirectionalLight('DentalRimLight', new Vector3(0.15, -0.55, 0.85), scene);
+rimLight.position = new Vector3(-2, 5, -5);
+rimLight.intensity = 0.58;
 
 const highlight = new HighlightLayer('SelectedAnatomyHighlight', scene);
 highlight.innerGlow = false;
@@ -91,11 +103,96 @@ let anatomyContainer = null;
 let anatomyRoot = null;
 let anatomyMeshes = [];
 let anatomyCatalog = [];
+let clinicalStructureData = null;
+let clinicalRecords = {};
+let clinicalModelActive = false;
+const layerVisibility = new Map();
 let selectedStructureId = null;
 let selectedMeshes = [];
 let allMeshesVisible = true;
 const fallbackRoot = new TransformNode('OralAnatomyFallback', scene);
 fallbackRoot.setEnabled(false);
+
+const LAYER_LABELS = {
+  teeth: 'الأسنان والعاج',
+  mandible: 'عظم الفك السفلي',
+  maxilla: 'عظم الفك العلوي والحنك',
+  gingiva: 'اللثة',
+  enamel: 'طبقة المينا',
+  pulp: 'لب السن وقنوات الجذور',
+  pdl: 'الرباط حول السني',
+  lamina: 'الصفيحة القاسية',
+  prosthetic: 'التركيبات والتيجان',
+  nerves: 'الأعصاب',
+  vessels: 'الشرايين والأوردة',
+  midface: 'منتصف الوجه',
+  ramus: 'فرع الفك السفلي'
+};
+const DEFAULT_FRAME_LAYERS = new Set(['teeth', 'mandible', 'maxilla', 'gingiva', 'enamel', 'prosthetic']);
+const LOWER_NEUROVASCULAR_IDS = new Set([
+  'FMA53243', 'FMA53243B', 'FMA53243T',
+  'FMA49695', 'FMA49695T', 'FMA49699',
+  'TAHU15802', 'TAHU15802M', 'TAHU15803',
+  'FMA75520', 'FMA75521', 'FMA75522'
+]);
+
+function isLayerVisible(layer) {
+  return layerVisibility.has(layer) ? layerVisibility.get(layer) : true;
+}
+
+function applyLayerVisibility() {
+  for (const mesh of anatomyMeshes) {
+    const record = clinicalRecords[mesh.name];
+    mesh.isVisible = !clinicalModelActive || !record || isLayerVisible(record.layer);
+  }
+  if (selectedMeshes.length) {
+    highlight.removeAllMeshes();
+    for (const mesh of selectedMeshes) {
+      if (mesh.isVisible) highlight.addMesh(mesh, Color3.FromHexString('#47d4bd'));
+    }
+  }
+}
+
+function renderLayerControls() {
+  if (!layerControlsElement) return;
+  layerControlsElement.replaceChildren();
+  const layers = clinicalStructureData?.layers;
+  if (!layers || !clinicalModelActive) {
+    layerControlsElement.closest('.layers-section')?.setAttribute('hidden', '');
+    return;
+  }
+  layerControlsElement.closest('.layers-section')?.removeAttribute('hidden');
+  const orderedKeys = Object.keys(LAYER_LABELS).filter(key => layers[key]);
+  for (const [key, config] of Object.entries(layers)) {
+    if (!orderedKeys.includes(key)) orderedKeys.push(key);
+  }
+  for (const key of orderedKeys) {
+    const config = layers[key];
+    if (!config) continue;
+    const label = document.createElement('label');
+    label.className = 'layer-toggle';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = isLayerVisible(key);
+    input.dataset.layer = key;
+    input.addEventListener('change', () => {
+      layerVisibility.set(key, input.checked);
+      applyLayerVisibility();
+      frameMeshes();
+    });
+    const text = document.createElement('span');
+    text.textContent = LAYER_LABELS[key] || config.label || key;
+    label.append(input, text);
+    layerControlsElement.appendChild(label);
+  }
+  if (!layerControlsElement.children.length) {
+    const empty = document.createElement('p');
+    empty.className = 'layer-loading';
+    empty.textContent = 'لا توجد طبقات إضافية متاحة في هذا النموذج.';
+    layerControlsElement.appendChild(empty);
+  }
+}
+
 
 function setStatus(message, state) {
   if (!statusElement) return;
@@ -170,21 +267,46 @@ function worldBoundsForMeshes(meshes) {
 function createImportedJawPivot() {
   if (!anatomyRoot) return false;
 
-  const lowerIds = anatomyCatalog
-    .filter(item => item.id.startsWith('lower-') || item.id === 'mandible')
-    .map(item => item.id);
-  const movingNodes = lowerIds.flatMap(id => meshesForStructure(id));
+  let movingNodes = [];
+  let mandibleMeshes = [];
+  let incisors = [];
+  if (clinicalModelActive) {
+    movingNodes = anatomyMeshes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      if (!record) return false;
+      return record.arch === 'mandibular' ||
+        record.layer === 'mandible' ||
+        record.layer === 'ramus' ||
+        mesh.name === 'FMA59764' ||
+        LOWER_NEUROVASCULAR_IDS.has(mesh.name);
+    });
+    mandibleMeshes = anatomyMeshes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      return record && (record.layer === 'mandible' || record.layer === 'ramus');
+    });
+    incisors = anatomyMeshes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      return record?.layer === 'teeth' &&
+        record.arch === 'mandibular' &&
+        record.position === 1;
+    });
+  } else {
+    const lowerIds = anatomyCatalog
+      .filter(item => item.id.startsWith('lower-') || item.id === 'mandible' || item.id === 'lower-gum')
+      .map(item => item.id);
+    movingNodes = lowerIds.flatMap(id => meshesForStructure(id));
+    mandibleMeshes = meshesForStructure('mandible');
+    incisors = [
+      ...meshesForStructure('lower-left-central-incisor'),
+      ...meshesForStructure('lower-right-central-incisor')
+    ];
+  }
+
   const uniqueNodes = [...new Set(movingNodes)];
   if (!uniqueNodes.length) return false;
-
-  const mandibleMeshes = meshesForStructure('mandible');
   const jawBounds = worldBoundsForMeshes(mandibleMeshes.length ? mandibleMeshes : uniqueNodes);
   if (!jawBounds) return false;
 
-  const incisors = [
-    ...meshesForStructure('lower-left-central-incisor'),
-    ...meshesForStructure('lower-right-central-incisor')
-  ];
   const incisorBounds = worldBoundsForMeshes(incisors);
   const jawCenterZ = (jawBounds.min.z + jawBounds.max.z) / 2;
   const frontZ = incisorBounds
@@ -228,8 +350,11 @@ function setCamera(mode) {
 }
 
 function frameMeshes(meshes) {
-  const candidates = (meshes && meshes.length ? meshes : anatomyMeshes)
-    .filter(mesh => mesh && mesh.getTotalVertices && mesh.getTotalVertices() > 0 && mesh.isEnabled());
+  const sourceMeshes = meshes && meshes.length
+    ? meshes
+    : anatomyMeshes.filter(mesh => mesh.isVisible);
+  const candidates = sourceMeshes
+    .filter(mesh => mesh && mesh.getTotalVertices && mesh.getTotalVertices() > 0 && mesh.isEnabled() && mesh.isVisible);
   if (!candidates.length) return;
   const min = new Vector3(Infinity, Infinity, Infinity);
   const max = new Vector3(-Infinity, -Infinity, -Infinity);
@@ -240,14 +365,15 @@ function frameMeshes(meshes) {
     max.maximizeInPlace(bounds.maximumWorld);
   }
   const center = min.add(max).scale(0.5);
-  const radius = Math.max(max.subtract(min).length() * 0.72, 2.8);
+  const radius = Math.max(max.subtract(min).length() * 0.72, 2.1);
   camera.setTarget(center);
   camera.radius = radius;
-  camera.lowerRadiusLimit = Math.max(1.8, radius * 0.52);
+  camera.lowerRadiusLimit = Math.max(1.1, radius * 0.52);
   camera.upperRadiusLimit = Math.max(10, radius * 2.5);
 }
 
 function groupForStructure(item) {
+  if (item.group) return item.group;
   if (item.id.startsWith('upper-')) return 'الفك العلوي';
   if (item.id.startsWith('lower-')) return 'الفك السفلي';
   if (item.id.includes('gum')) return 'اللثة';
@@ -266,12 +392,14 @@ function renderStructureList(filter) {
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(item);
   }
+  let visibleCount = 0;
   for (const [groupName, items] of groups) {
     const heading = document.createElement('div');
     heading.className = 'anatomy-group-title';
     heading.textContent = groupName;
     structureListElement.appendChild(heading);
     for (const item of items) {
+      visibleCount++;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'structure-button';
@@ -281,17 +409,30 @@ function renderStructureList(filter) {
       structureListElement.appendChild(button);
     }
   }
+  if (structureCountElement) {
+    structureCountElement.textContent = query
+      ? visibleCount + ' نتيجة'
+      : anatomyCatalog.length + ' تركيبًا';
+  }
 }
 
 function meshesForStructure(id) {
-  const direct = anatomyMeshes.filter(mesh => {
-    const name = mesh.name || '';
-    return name === id || name.startsWith(id + '_') || mesh.metadata?.structureId === id;
-  });
-  if (direct.length) return direct;
+  const item = anatomyCatalog.find(record => record.id === id);
+  if (clinicalModelActive) {
+    const sourceId = item?.sourceId || id;
+    return anatomyMeshes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      return mesh.name === sourceId || record?.tooth === sourceId;
+    });
+  }
+  const legacyIds = item?.legacyIds?.length ? item.legacyIds : [id];
   return anatomyMeshes.filter(mesh => {
-    const token = (mesh.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    return token.includes(id.toLowerCase());
+    const name = mesh.name || '';
+    return legacyIds.some(legacyId =>
+      name === legacyId ||
+      name.startsWith(legacyId + '_') ||
+      mesh.metadata?.structureId === legacyId
+    );
   });
 }
 
@@ -309,31 +450,45 @@ function selectStructure(id) {
   selectedMeshes = meshesForStructure(id);
   clearHighlights();
   for (const mesh of selectedMeshes) {
-    mesh.isVisible = true;
-    highlight.addMesh(mesh, Color3.FromHexString('#47d4bd'));
+    if (mesh.isVisible) highlight.addMesh(mesh, Color3.FromHexString('#47d4bd'));
   }
-  setSelection(item.label || id, selectedMeshes.length
-    ? 'تم تحديد التركيب داخل النموذج ثلاثي الأبعاد.'
-    : 'تم تحديد الاسم في الدليل؛ تعذر مطابقة مجسم مستقل له في الملف الحالي.');
+  const provenanceTier = item.clinicalRecord?.provenance?.tier;
+  const provenanceText = {
+    measured: 'هندسة مستخرجة مباشرة من تصوير CBCT.',
+    derived: 'هندسة مشتقة من قياسات التصوير ومراجع تشريحية.',
+    schematic: 'تمثيل تشريحي توضيحي مستند إلى مراجع، وليس ظاهرًا مباشرة في التصوير.'
+  }[provenanceTier] || '';
+  const detail = selectedMeshes.length
+    ? ['تم تحديد التركيب داخل النموذج ثلاثي الأبعاد.', provenanceText].filter(Boolean).join(' ')
+    : 'تم تحديد الاسم في الدليل؛ تعذر مطابقة مجسم مستقل له في الملف الحالي.';
+  setSelection(item.label || id, detail);
   isolateButton.disabled = selectedMeshes.length === 0;
   structureListElement?.querySelectorAll('.structure-button').forEach(button => {
     button.classList.toggle('selected', button.dataset.structure === id);
   });
-  if (selectedMeshes.length) frameMeshes(selectedMeshes);
+  const visibleSelected = selectedMeshes.filter(mesh => mesh.isVisible);
+  if (visibleSelected.length) frameMeshes(visibleSelected);
 }
 
 function isolateSelected() {
   if (!selectedMeshes.length) return;
   const visibleSet = new Set(selectedMeshes);
-  for (const mesh of anatomyMeshes) mesh.isVisible = visibleSet.has(mesh);
+  for (const mesh of anatomyMeshes) {
+    const record = clinicalRecords[mesh.name];
+    const enabled = !clinicalModelActive || !record || isLayerVisible(record.layer);
+    mesh.isVisible = visibleSet.has(mesh) && enabled;
+  }
   allMeshesVisible = false;
 }
 
 function restoreAll() {
-  for (const mesh of anatomyMeshes) mesh.isVisible = true;
+  if (clinicalModelActive) applyLayerVisibility();
+  else for (const mesh of anatomyMeshes) mesh.isVisible = true;
   allMeshesVisible = true;
   if (selectedStructureId) {
-    for (const mesh of selectedMeshes) highlight.addMesh(mesh, Color3.FromHexString('#47d4bd'));
+    for (const mesh of selectedMeshes) {
+      if (mesh.isVisible) highlight.addMesh(mesh, Color3.FromHexString('#47d4bd'));
+    }
   }
   frameMeshes();
 }
@@ -424,6 +579,7 @@ function makeFallbackModel() {
 async function loadCatalog() {
   const baseUrl = new URL(import.meta.env.BASE_URL, window.location.href);
   const catalogUrl = new URL('models/anatomy-structures.json', baseUrl);
+  const clinicalUrl = new URL('models/clinical-teeth.json', baseUrl);
   try {
     const response = await fetch(catalogUrl);
     if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -433,34 +589,33 @@ async function loadCatalog() {
   } catch (error) {
     console.warn('Could not load the anatomy catalogue; using the embedded list.', error);
     anatomyCatalog = [];
-    const toothKinds = [
-      ['central-incisor', 'القاطع المركزي'],
-      ['lateral-incisor', 'القاطع الجانبي'],
-      ['canine', 'الناب'],
-      ['first-premolar', 'الضاحك الأول'],
-      ['second-premolar', 'الضاحك الثاني'],
-      ['first-molar', 'الضرس الأول'],
-      ['second-molar', 'الضرس الثاني']
-    ];
-    for (const arch of ['upper', 'lower']) {
-      for (const side of ['right', 'left']) {
-        for (const [kind, label] of toothKinds) {
-          anatomyCatalog.push({
-            id: arch + '-' + side + '-' + kind,
-            label: label + (arch === 'upper' ? ' — الفك العلوي ' : ' — الفك السفلي ') + (side === 'right' ? 'الأيمن' : 'الأيسر')
-          });
-        }
-      }
-    }
-    anatomyCatalog.push(
-      { id: 'upper-gum', label: 'اللثة العلوية' },
-      { id: 'lower-gum', label: 'اللثة السفلية' },
-      { id: 'right-maxilla', label: 'عظم الفك العلوي الأيمن' },
-      { id: 'left-maxilla', label: 'عظم الفك العلوي الأيسر' },
-      { id: 'mandible', label: 'عظم الفك السفلي' }
-    );
   }
+
+  try {
+    const response = await fetch(clinicalUrl);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const payload = await response.json();
+    if (payload?.source !== 'cbct' || !payload.structures || !payload.layers) {
+      throw new Error('The clinical anatomy metadata is incomplete.');
+    }
+    clinicalStructureData = payload;
+    clinicalRecords = payload.structures;
+    layerVisibility.clear();
+    for (const [key, config] of Object.entries(payload.layers)) {
+      layerVisibility.set(key, Boolean(config.visible));
+    }
+    for (const item of anatomyCatalog) {
+      item.clinicalRecord = clinicalRecords[item.sourceId] || null;
+    }
+  } catch (error) {
+    console.warn('CBCT structure metadata unavailable; legacy anatomy will be used.', error);
+    clinicalStructureData = null;
+    clinicalRecords = {};
+    layerVisibility.clear();
+  }
+
   renderStructureList('');
+  renderLayerControls();
 }
 
 function attachCenteredContainer(container) {
@@ -471,9 +626,16 @@ function attachCenteredContainer(container) {
   if (!renderMeshes.length) throw new Error('The anatomy GLB contains no renderable meshes.');
 
   for (const mesh of renderMeshes) mesh.computeWorldMatrix(true);
+  const framingMeshes = clinicalModelActive
+    ? renderMeshes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      return record && DEFAULT_FRAME_LAYERS.has(record.layer);
+    })
+    : renderMeshes;
+  const boundsMeshes = framingMeshes.length ? framingMeshes : renderMeshes;
   const min = new Vector3(Infinity, Infinity, Infinity);
   const max = new Vector3(-Infinity, -Infinity, -Infinity);
-  for (const mesh of renderMeshes) {
+  for (const mesh of boundsMeshes) {
     const bounds = mesh.getBoundingInfo().boundingBox;
     min.minimizeInPlace(bounds.minimumWorld);
     max.maximizeInPlace(bounds.maximumWorld);
@@ -496,19 +658,43 @@ function attachCenteredContainer(container) {
     mesh.isPickable = true;
     mesh.isVisible = true;
   }
+  if (clinicalModelActive) applyLayerVisibility();
   return anatomyMeshes;
 }
 
 async function loadOralAnatomy() {
   const baseUrl = new URL(import.meta.env.BASE_URL, window.location.href);
   const localRoot = new URL('models/', baseUrl).href;
+
+  if (clinicalStructureData) {
+    try {
+      anatomyContainer = await SceneLoader.LoadAssetContainerAsync(localRoot, 'clinical-dentition.glb', scene);
+      clinicalModelActive = true;
+      attachCenteredContainer(anatomyContainer);
+      renderLayerControls();
+      if (!createImportedJawPivot()) {
+        setStatus('تم تحميل نموذج CBCT، لكن تعذر تهيئة حركة الفك السفلي.', 'warn');
+      } else {
+        setStatus('تم تحميل تشريح الأسنان من تصوير CBCT. يمكنك فحص طبقات السن واللثة والعظم.', 'ok');
+      }
+      frameMeshes();
+      loadingOverlay?.classList.add('hidden');
+      return;
+    } catch (clinicalError) {
+      console.warn('The CBCT-derived model could not be loaded; trying the legacy model.', clinicalError);
+      clinicalModelActive = false;
+      anatomyContainer = null;
+      layerControlsElement?.closest('.layers-section')?.setAttribute('hidden', '');
+    }
+  }
+
   try {
     anatomyContainer = await SceneLoader.LoadAssetContainerAsync(localRoot, 'oral-anatomy.glb', scene);
     attachCenteredContainer(anatomyContainer);
     if (!createImportedJawPivot()) {
-      setStatus('تم تحميل نموذج تشريح الفم، لكن تعذر تهيئة حركة الفك السفلي.', 'warn');
+      setStatus('تم تحميل النموذج الأساسي، لكن تعذر تهيئة حركة الفك السفلي.', 'warn');
     } else {
-      setStatus('تم تحميل نموذج تشريح الفم. يمكنك تغيير زاوية فتح الفك السفلي.', 'ok');
+      setStatus('تم تحميل نموذج تشريح الفم الأساسي. يمكنك تغيير زاوية فتح الفك السفلي.', 'ok');
     }
   } catch (localError) {
     console.warn('Local oral anatomy model unavailable; trying the original source.', localError);
@@ -526,11 +712,13 @@ async function loadOralAnatomy() {
       }
     } catch (remoteError) {
       console.error('Oral anatomy model could not be loaded.', remoteError);
+      clinicalModelActive = false;
       makeFallbackModel();
       anatomyMeshes = fallbackRoot.getChildMeshes(false);
-      setStatus('تعذر تحميل الملف الأصلي؛ تم إنشاء نموذج تشريحي بديل داخل المشهد.', 'warn');
+      setStatus('تعذر تحميل الملفات الخارجية؛ تم إنشاء نموذج تشريحي بديل مبسط داخل المشهد.', 'warn');
     }
   }
+  renderLayerControls();
   frameMeshes();
   loadingOverlay?.classList.add('hidden');
 }
@@ -538,9 +726,26 @@ async function loadOralAnatomy() {
 function findStructureForMesh(mesh) {
   let node = mesh;
   while (node) {
-    const id = node.metadata?.structureId || node.name;
-    const item = anatomyCatalog.find(record => id === record.id || id.startsWith(record.id + '_'));
-    if (item) return item;
+    if (clinicalModelActive) {
+      const record = clinicalRecords[node.name];
+      if (record) {
+        const baseToothId = record.tooth || (record.layer === 'teeth' ? node.name : null);
+        if (baseToothId) {
+          const toothItem = anatomyCatalog.find(item => item.sourceId === baseToothId);
+          if (toothItem) return toothItem;
+        }
+        const directItem = anatomyCatalog.find(item => item.sourceId === node.name);
+        if (directItem) return directItem;
+      }
+    } else {
+      const id = node.metadata?.structureId || node.name;
+      const item = anatomyCatalog.find(record =>
+        id === record.id ||
+        id.startsWith(record.id + '_') ||
+        record.legacyIds?.some(legacyId => id === legacyId || id.startsWith(legacyId + '_'))
+      );
+      if (item) return item;
+    }
     node = node.parent;
   }
   return null;
