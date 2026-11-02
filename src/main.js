@@ -2775,7 +2775,7 @@ const clinicalProcedureFlows = {
     { tool:'glass-ionomer', label:'إظهار كتلة مادة ترميمية افتراضية', effect:'bond', contact:'tooth' }
   ]
 };
-let activeClinicalProcedure = 'restoration';
+let activeClinicalProcedure = 'exam';
 let activeClinicalProcedureIndex = 0;
 const clinicalProcedureVisuals = [];
 const extractedToothKeys = new Set();
