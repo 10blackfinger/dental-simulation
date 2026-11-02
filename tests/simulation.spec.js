@@ -209,6 +209,11 @@ test('online tutor, square responsive workspace, dental models and training work
   await page.locator('#view-dental-atlas').click();
   await expect(page.locator('#dental-atlas-status')).toContainText('الأطلس السني جاهز', { timeout: 60000 });
   await expect(page.locator('.tooth-chip')).toHaveCount(32);
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('فتح الفم');
+  await page.locator('#patient-mouth-toggle').click();
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('إغلاق الفم');
+  await page.locator('#patient-mouth-toggle').click();
+  await expect(page.locator('#patient-mouth-toggle')).toHaveText('فتح الفم');
   await page.locator('.tooth-chip').filter({ hasText: '36' }).click();
   await expect(page.locator('#dental-tooth-mesh-status')).toContainText('مجسمات طبقية', { timeout: 60000 });
   await page.locator('[data-tooth-layer="pulp-chamber"]').uncheck();
