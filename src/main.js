@@ -452,6 +452,14 @@ window.addEventListener('resize', () => {
   requestAnimationFrame(() => frameMeshes());
 });
 
-await loadCatalog();
-await loadOralAnatomy();
-setCamera('orbit');
+async function initializeWorkspace() {
+  await loadCatalog();
+  await loadOralAnatomy();
+  setCamera('orbit');
+}
+
+initializeWorkspace().catch(error => {
+  console.error('Workspace initialization failed.', error);
+  setStatus('حدث خطأ أثناء تجهيز مساحة العمل. أعد تحميل الصفحة للمحاولة مجددًا.', 'warn');
+  loadingOverlay?.classList.add('hidden');
+});
