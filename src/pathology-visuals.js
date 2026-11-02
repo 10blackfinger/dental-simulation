@@ -45,7 +45,11 @@ const PALETTE = {
   candidiasis: '#f4eee0',
   leukoplakia: '#ece7d9',
   cancer: '#8d2638',
-  herpes: '#efad9c'
+  herpes: '#efad9c',
+  boneCyst: '#e3c7a0',
+  boneTumor: '#8f5c58',
+  alveolarBone: '#a89479',
+  polyp: '#d94f64'
 };
 
 export function createPathologyRenderer(scene) {
@@ -332,6 +336,10 @@ export function createPathologyRenderer(scene) {
         if (pulp) setTint(pulp, 'necrosis', 0.95);
         addApicalLesion(root, surfaceFrame(base || enamel, tooth, 'apical'), state, 'apical');
         break;
+      case 'pulp-polyp':
+        if (pulp) setTint(pulp, 'polyp', 0.95);
+        spherePatch(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'polyp', 0.13 + progression * 0.05, 0.045, 0.96, 0.012);
+        break;
       case 'pulp-calcification':
         if (pulp) {
           setTint(pulp, 'boneDensity', 0.4);
@@ -361,6 +369,15 @@ export function createPathologyRenderer(scene) {
         spherePatch(root, surfaceFrame(pulp || base, tooth, 'apical'), 'rootCaries', 0.12 + progression * 0.08, 0.12, 0.9);
         if (pulp) setTint(pulp, 'abscess', 0.65);
         break;
+      case 'hypercementosis':
+        spherePatch(root, surfaceFrame(base || enamel, tooth, 'apical'), 'boneDensity', 0.14 + progression * 0.04, 0.17, 1, 0.008);
+        break;
+      case 'taurodontism':
+        if (pulp) {
+          setTint(pulp, 'pulp', 0.55);
+          spherePatch(root, surfaceFrame(pulp, tooth, 'apical'), 'pulp', 0.16 + progression * 0.05, 0.18, 0.9);
+        }
+        break;
       case 'root-resorption':
       case 'vertical-root-fracture':
         {
@@ -378,6 +395,13 @@ export function createPathologyRenderer(scene) {
       case 'calculus':
         clusteredDots(root, surfaceFrame(enamel || base, tooth, 'cervical'), 'calculus', 10 + severity * 4, 0.22 + progression * 0.08);
         spherePatch(root, surfaceFrame(enamel || base, tooth, 'cervical'), 'calculus', 0.12 + progression * 0.08, 0.11);
+        break;
+      case 'pericoronitis':
+        {
+          const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+          spherePatch(root, cervical, 'gingiva', 0.24 + progression * 0.06, 0.26, 0.95, 0.008);
+          spherePatch(root, cervical, 'pus', 0.07 + severity * 0.012, 0.07, 0.9, 0.014);
+        }
         break;
       case 'gingivitis':
       case 'necrotizing-gingivitis':
@@ -476,6 +500,52 @@ export function createPathologyRenderer(scene) {
     }
   }
 
+  function renderBoneCase(state, context) {
+    const target = state.targetValue === 'mandible' ? 'mandible' : 'maxilla';
+    const sourceId = target === 'mandible' ? SOURCE.mandible : SOURCE.maxilla;
+    const layer = target === 'mandible' ? 'mandible' : 'maxilla';
+    const anchor = sourceMesh(context.meshes, context.records, sourceId, layer);
+    const bounds = getBounds(anchor);
+    if (!anchor || !bounds) return;
+    const root = makeRoot(anchor, 'PathologyBone_' + state.condition.id + '_' + state.caseId, state);
+    const point = bounds.center.clone();
+    point.z = bounds.max.z - bounds.extent.z * 0.025;
+    point.x += (target === 'mandible' ? 0.16 : -0.12) * bounds.extent.x;
+    const frame = {
+      point,
+      normal: new Vector3(0, 0, 1),
+      extent: bounds.extent,
+      min: bounds.min,
+      max: bounds.max,
+      center: bounds.center
+    };
+    const visual = state.condition.visual;
+    const growth = 0.065 + state.severity * 0.018 + state.stage.progression * 0.06;
+    if (visual === 'dentigerous-cyst' || visual === 'odontogenic-keratocyst') {
+      spherePatch(root, frame, 'boneCyst', growth * 1.3, 0.16, 0.92, 0.008);
+      spherePatch(root, frame, 'ulcer', growth * 0.92, 0.12, 0.88, 0.012);
+      clusteredDots(root, frame, 'boneCyst', 8 + state.severity * 2, growth);
+    } else if (visual === 'ameloblastoma') {
+      spherePatch(root, frame, 'boneTumor', growth * 1.65, 0.22, 0.92, 0.012);
+      for (let i = 0; i < 4 + state.severity; i++) {
+        const f = {
+          ...frame,
+          point: frame.point.add(new Vector3(
+            Math.cos(i * Math.PI / 3) * bounds.extent.x * growth * 1.6,
+            Math.sin(i * Math.PI / 3) * bounds.extent.y * growth * 1.4,
+            0.015
+          ))
+        };
+        spherePatch(root, f, 'boneCyst', growth * 0.55, 0.16, 0.9, 0.01);
+      }
+    } else if (visual === 'odontoma') {
+      spherePatch(root, frame, 'boneDensity', growth * 1.5, 0.2, 1, 0.012);
+      clusteredDots(root, frame, 'boneDensity', 10 + state.severity * 3, growth * 1.5);
+    } else {
+      spherePatch(root, frame, 'boneCyst', growth, 0.12, 0.88, 0.006);
+    }
+  }
+
   function renderSoftTissueCase(state, context) {
     const { meshes, records } = context;
     const target = state.targetValue || 'gum-upper';
@@ -521,6 +591,12 @@ export function createPathologyRenderer(scene) {
     } else if (visual === 'noma') {
       spherePatch(root, frame, 'gingivaDark', 0.23 + severity * 0.05, 0.23, 0.95);
       spherePatch(root, frame, 'fracture', 0.13 + progression * 0.04, 0.15, 0.96, 0.012);
+    } else if (visual === 'alveolar-osteitis') {
+      spherePatch(root, frame, 'alveolarBone', 0.18 + severity * 0.025, 0.035, 1, 0.006);
+      spherePatch(root, frame, 'fracture', 0.09 + progression * 0.035, 0.02, 0.94, 0.012);
+      clusteredDots(root, frame, 'boneCyst', 8 + severity, 0.12);
+    } else if (visual === 'gingival-enlargement') {
+      spherePatch(root, frame, 'gingiva', 0.3 + progression * 0.08, 0.38, 0.9, 0.008);
     } else {
       spherePatch(root, frame, 'gingiva', 0.26 + severity * 0.04, 0.26, 0.92);
     }
@@ -530,6 +606,10 @@ export function createPathologyRenderer(scene) {
     const condition = state.condition;
     if (condition.target === 'oral-soft') {
       renderSoftTissueCase(state, context);
+      return;
+    }
+    if (condition.target === 'bone') {
+      renderBoneCase(state, context);
       return;
     }
     const targets = state.toothSourceIds || (state.toothSourceId ? [state.toothSourceId] : []);
