@@ -70,6 +70,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 
 test('pathology catalogue and disease details load in the browser', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#asset-status')).toContainText(/تم تحميل|تم إنشاء|تعذر تحميل/, { timeout: 90000 });
   await expect(page.locator('#pathology-category option')).toHaveCount(9);
   await expect(page.locator('#pathology-condition option')).toHaveCount(108);
   await expect(page.locator('#apply-pathology')).toBeEnabled();
@@ -94,6 +95,17 @@ test('pathology catalogue and disease details load in the browser', async ({ pag
   await page.locator('#pathology-category').selectOption('endodontic');
   await page.locator('#pathology-condition').selectOption('external-cervical-resorption');
   await expect(page.locator('#pathology-name')).toContainText('امتصاص جذري خارجي عنقي');
+
+  await page.locator('#pathology-condition').selectOption('deep-caries');
+  await triggerPathologyApply(page);
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
+  await expect(page.locator('#pathology-count')).toContainText('1 حالة نشطة');
+  await expect(page.locator('#render-canvas')).toHaveAttribute('data-active-pathologies', '1');
+  await page.locator('[data-pathology-advance]').first().click();
+  await expect(page.locator('#active-pathologies .pathology-case small')).toContainText(/شدة المظهر/);
+  await page.locator('[data-pathology-remove]').first().click();
+  await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(0);
+  await expect(page.locator('#render-canvas')).toHaveAttribute('data-active-pathologies', '0');
 });
 
 test('the oral anatomy model and catalogue are published', async ({ page }) => {
