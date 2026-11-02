@@ -596,6 +596,30 @@ export function createPathologyRenderer(scene) {
     line.isPickable = false;
   }
 
+  function addLongitudinalCrack(root, frame, key = 'crack', width = 0.006) {
+    if (!root || !frame) return;
+    const axis = new Vector3(0, 1, 0);
+    const across = Vector3.Cross(frame.normal, axis).normalize();
+    const extent = Math.max(frame.extent.y * 0.34, 0.025);
+    const path = [];
+    for (let i = 0; i <= 8; i++) {
+      const t = i / 8 - 0.5;
+      const zigzag = Math.sin(i * 1.7) * Math.min(extent * 0.035, 0.004);
+      path.push(
+        frame.point
+          .add(axis.scale(t * extent * 2))
+          .add(across.scale(zigzag))
+          .add(frame.normal.scale(0.004))
+      );
+    }
+    const line = MeshBuilder.CreateTube('PathologyLongitudinalFracture', {
+      path, radius: width, tessellation: 6
+    }, scene);
+    line.parent = root;
+    line.material = material(key);
+    line.isPickable = false;
+  }
+
   function addCavity(root, frame, severity, progression, key = 'cariesCore', options = {}) {
     if (!frame) return;
     const size = (options.size ?? 0.075) + severity * 0.012 + progression * 0.055;
@@ -891,9 +915,11 @@ export function createPathologyRenderer(scene) {
           const rootFrame = surfaceFrame(base || enamel, tooth,
             visual === 'external-cervical-resorption' || visual === 'cervical-resorption' ? 'cervical' : 'apical');
           if (visual === 'vertical-root-fracture') {
-            addCrack(root, rootFrame, 'crack', 0.012);
+            addLongitudinalCrack(root, rootFrame, 'crack', 0.006 + severity * 0.001);
             deformToothSurface(parts, records, sourceId, base || enamel, rootFrame, {
-              factor: 0.1 + progression * 0.06, depthRatio: 0.1 + severity * 0.035
+              layers: ['teeth'], profile: 'groove',
+              factor: 0.11 + progression * 0.06, depthRatio: 0.08 + severity * 0.025,
+              surfaceBandRatio: 0.54
             });
           } else {
             spherePatch(root, rootFrame, 'rootCaries', 0.13 + progression * 0.06, 0.025, 0.92);
@@ -980,52 +1006,111 @@ export function createPathologyRenderer(scene) {
       case 'periodontal-abscess':
       case 'periodontitis':
       case 'endo-perio':
-      case 'gingival-enlargement':
       case 'mucogingival-defect':
       case 'traumatic-occlusal-injury':
       case 'occlusal-trauma':
         {
           const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
-          const gingivalKey = visual === 'necrotizing-gingivitis' || visual === 'necrotizing-periodontitis'
-            ? 'gingivaDark' : visual === 'periodontal-abscess' ? 'abscess' : 'gingiva';
-          spherePatch(root, cervical, gingivalKey, 0.16 + progression * 0.08, 0.16 + severity * 0.025, 0.9);
-          if (visual === 'periodontal-abscess') spherePatch(root, cervical, 'pus', 0.065 + progression * 0.03, 0.04, 1, 0.01);
-          if (visual === 'necrotizing-gingivitis' || visual === 'necrotizing-periodontitis') clusteredDots(root, cervical, 'ulcer', 8 + severity, 0.12);
-          if (visual === 'periodontitis' || visual === 'necrotizing-periodontitis' || visual === 'endo-perio') {
-            const boneFrame = surfaceFrame(base || enamel, tooth, 'apical');
-            spherePatch(root, boneFrame, 'boneLoss', 0.18 + progression * 0.1, 0.03, 0.85);
-            tintLayer(parts, records, sourceId, 'pdl', 'gingivaDark', 0.35 + progression * 0.2);
-            if (progression > 0.8) moveTooth(parts, tooth, new Vector3(0, 0, 0.012 * severity));
+          const rootAxis = new Vector3(0, tooth.arch === 'maxillary' ? 1 : -1, 0);
+
+          if (visual === 'traumatic-occlusal-injury' || visual === 'occlusal-trauma') {
+            // Occlusal overload is expressed in the periodontal ligament and
+            // supporting bone, not as an invented fracture line on the crown.
+            tintLayer(parts, records, sourceId, 'pdl', 'abscess', 0.42 + progression * 0.16);
+            if (bone) modifyAlveolarBoneAtTooth(context, tooth, base || enamel, cervical, {
+              mode: 'raise', profile: 'smooth', factor: 0.12,
+              depthRatio: 0.035 + severity * 0.006, tint: 'boneDensity', tintStrength: 0.22
+            });
+            break;
           }
-          if (visual === 'mucogingival-defect') {
-            const recessionFrame = surfaceFrame(enamel || base, tooth, 'cervical');
-            deformToothSurface(parts, records, sourceId, enamel || base, recessionFrame, {
-              factor: 0.1 + progression * 0.06, depthRatio: 0.045
+
+          const necrotizing = visual === 'necrotizing-gingivitis' || visual === 'necrotizing-periodontitis';
+          const abscess = visual === 'periodontal-abscess';
+          const gingivalColor = necrotizing ? 'gingivaDark' : 'gingiva';
+          const swelling = visual === 'gingivitis' || abscess || necrotizing;
+          if (swelling) {
+            modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
+              mode: 'raise', profile: 'lobulated',
+              factor: 0.17 + progression * 0.07,
+              depthRatio: (necrotizing ? 0.04 : 0.075) + severity * 0.009,
+              tint: gingivalColor, tintStrength: necrotizing ? 0.7 : 0.56
+            });
+            spherePatch(root, cervical, gingivalColor, 0.14 + progression * 0.055, 0.11, 0.62, 0.007);
+          }
+          if (abscess) {
+            spherePatch(root, cervical, 'pus', 0.055 + progression * 0.025, 0.025, 0.96, 0.014);
+            clusteredDots(root, cervical, 'pus', 4 + severity, 0.08);
+          }
+          if (necrotizing) {
+            // Interdental papillae become cratered and covered by a grey-yellow
+            // pseudomembrane; the gingival proxy carries the local tissue loss.
+            modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
+              mode: 'loss', profile: 'crater', factor: 0.13 + progression * 0.04,
+              depthRatio: 0.12 + severity * 0.015, tint: 'gingivaDark', tintStrength: 0.5
+            });
+            spherePatch(root, cervical, 'ulcer', 0.12 + progression * 0.03, 0.03, 0.96, 0.012);
+            clusteredDots(root, cervical, 'ulcer', 5 + severity, 0.1);
+          }
+          if (visual === 'periodontitis' || visual === 'necrotizing-periodontitis' || visual === 'endo-perio') {
+            const stageFactor = visual === 'periodontitis' ? progression : Math.min(1, progression * 1.12);
+            modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
+              mode: 'raise', profile: 'smooth', factor: 0.16 + stageFactor * 0.08,
+              depthRatio: 0.035 + stageFactor * 0.035,
+              directionVector: rootAxis, tint: 'gingiva', tintStrength: 0.32
+            });
+            modifyAlveolarBoneAtTooth(context, tooth, base || enamel, cervical, {
+              mode: 'loss', profile: 'wedge', factor: 0.18 + stageFactor * 0.08,
+              depthRatio: 0.09 + stageFactor * 0.16, irregularity: 0.08,
+              tint: 'boneLoss', tintStrength: 0.24
+            });
+            tintLayer(parts, records, sourceId, 'pdl', 'gingivaDark', 0.25 + stageFactor * 0.32);
+          }
+          if (visual === 'endo-perio') {
+            const apical = surfaceFrame(base || enamel, tooth, 'apical');
+            addApicalLesion(root, apical, state, 'apical');
+            modifyAlveolarBoneAtTooth(context, tooth, base || enamel, apical, {
+              mode: 'loss', profile: 'crater', factor: 0.13 + progression * 0.08,
+              depthRatio: 0.07 + progression * 0.08
             });
           }
-          if (visual === 'traumatic-occlusal-injury' || visual === 'occlusal-trauma') {
-            tintLayer(parts, records, sourceId, 'pdl', 'abscess', 0.48);
-            addCrack(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'wear', 0.004);
+          if (visual === 'mucogingival-defect') {
+            modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
+              mode: 'raise', profile: 'smooth', factor: 0.18,
+              depthRatio: 0.16 + progression * 0.08,
+              directionVector: rootAxis
+            });
+            deformToothSurface(parts, records, sourceId, enamel || base, cervical, {
+              layers: ['enamel'], factor: 0.11 + progression * 0.06,
+              depthRatio: 0.04, profile: 'crater'
+            });
           }
-          if (visual === 'gingival-enlargement') spherePatch(root, cervical, 'gingiva', 0.23 + progression * 0.06, 0.26, 0.72);
         }
         break;
-      case 'endo-perio':
-        {
-          const apical = surfaceFrame(base || enamel, tooth, 'apical');
-          spherePatch(root, apical, 'apical', 0.14 + progression * 0.08, 0.06, 0.8);
-          const lateral = surfaceFrame(base || enamel, tooth, 'cervical');
-          spherePatch(root, lateral, 'boneLoss', 0.16 + progression * 0.1, 0.08, 0.82);
-          tintLayer(parts, records, sourceId, 'pdl', 'gingivaDark', 0.55);
-        }
+      case 'recession': {
+        const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+        const rootAxis = new Vector3(0, tooth.arch === 'maxillary' ? 1 : -1, 0);
+        modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
+          mode: 'raise', profile: 'smooth', factor: 0.2,
+          depthRatio: 0.14 + progression * 0.12,
+          directionVector: rootAxis, tint: 'gingiva', tintStrength: 0.18
+        });
+        deformToothSurface(parts, records, sourceId, enamel || base, cervical, {
+          layers: ['enamel'], profile: 'crater',
+          factor: 0.16 + progression * 0.05, depthRatio: 0.04
+        });
+        spherePatch(root, cervical, 'dentin', 0.13 + progression * 0.06, 0.018, 0.82, 0.003);
         break;
-      case 'recession':
-        spherePatch(root, surfaceFrame(enamel || base, tooth, 'cervical'), 'dentin', 0.18 + progression * 0.08, 0.04, 0.95);
-        addCrack(root, surfaceFrame(enamel || base, tooth, 'cervical'), 'rootCaries', 0.004);
+      }
+      case 'furcation': {
+        const furcationFrame = surfaceFrame(base || enamel, tooth, 'lingual');
+        modifyAlveolarBoneAtTooth(context, tooth, base || enamel, furcationFrame, {
+          mode: 'loss', profile: 'wedge', factor: 0.21 + progression * 0.08,
+          depthRatio: 0.15 + progression * 0.12, irregularity: 0.1,
+          tint: 'boneLoss', tintStrength: 0.24
+        });
+        spherePatch(root, furcationFrame, 'boneLoss', 0.13 + progression * 0.08, 0.035, 0.85, 0.004);
         break;
-      case 'furcation':
-        spherePatch(root, surfaceFrame(base || enamel, tooth, 'cervical'), 'boneLoss', 0.14 + progression * 0.1, 0.07, 0.85);
-        break;
+      }
       case 'erosion':
       case 'attrition':
       case 'abrasion':
@@ -1034,16 +1119,31 @@ export function createPathologyRenderer(scene) {
         {
           const targetSurface = visual === 'erosion' || visual === 'attrition' ? 'occlusal' : 'cervical';
           const wearFrame = surfaceFrame(enamel || base, tooth, targetSurface);
-          const key = visual === 'hypersensitivity' ? 'hypersensitivity' : visual === 'erosion' || visual === 'attrition' ? 'dentin' : 'wear';
-          spherePatch(root, wearFrame, key, 0.16 + progression * 0.12, 0.035, 0.96, 0.002);
+          const key = visual === 'hypersensitivity' ? 'hypersensitivity' :
+            visual === 'erosion' || visual === 'attrition' ? 'dentin' : 'wear';
+          spherePatch(root, wearFrame, key,
+            visual === 'attrition' ? 0.3 : 0.16 + progression * 0.12,
+            0.018, visual === 'hypersensitivity' ? 0.62 : 0.9, 0.003);
           if (visual !== 'hypersensitivity') {
             deformToothSurface(parts, records, sourceId, enamel || base, wearFrame, {
-              factor: visual === 'attrition' ? 0.3 : 0.18 + progression * 0.08,
-              depthRatio: visual === 'attrition' ? 0.1 + progression * 0.13 : 0.08 + progression * 0.09,
-              surfaceBandRatio: 0.46
+              layers: visual === 'abrasion' || visual === 'abfraction' ? ['enamel', 'teeth'] : ['enamel', 'teeth'],
+              factor: visual === 'attrition' ? 0.34 : visual === 'erosion' ? 0.26 : 0.17 + progression * 0.07,
+              depthRatio: visual === 'attrition' ? 0.13 + progression * 0.12 :
+                visual === 'erosion' ? 0.055 + progression * 0.07 : 0.075 + progression * 0.09,
+              surfaceBandRatio: 0.5,
+              profile: visual === 'abrasion' ? 'groove' : visual === 'abfraction' ? 'wedge' : 'crater',
+              irregularity: visual === 'erosion' ? 0.04 : visual === 'abfraction' ? 0.14 : 0.08
             });
           }
-          if (visual === 'abrasion' || visual === 'abfraction') addCrack(root, wearFrame, 'wear', 0.007);
+          if (visual === 'abrasion' || visual === 'abfraction') {
+            addCrack(root, wearFrame, 'wear', 0.004);
+          }
+          if (visual === 'erosion') {
+            const lingual = surfaceFrame(enamel || base, tooth, 'lingual');
+            deformToothSurface(parts, records, sourceId, enamel || base, lingual, {
+              factor: 0.18, depthRatio: 0.045, profile: 'crater', irregularity: 0.035
+            });
+          }
         }
         break;
       case 'crack':
@@ -1121,11 +1221,53 @@ export function createPathologyRenderer(scene) {
       case 'enamel-pearl':
         {
           const key = visual === 'discoloration' || visual === 'dentinogenesis-imperfecta' ? 'dentin' : 'enamelDefect';
-          const count = visual === 'fluorosis' || visual === 'amelogenesis-imperfecta' ? 12 : visual === 'mih' ? 7 : 4;
-          clusteredDots(root, frame, key, count + severity * 2, 0.22 + progression * 0.07);
-          if (visual === 'dens-invaginatus') spherePatch(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'crack', 0.07, 0.04);
-          if (visual === 'dens-evaginatus') spherePatch(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'enamelDefect', 0.1, 0.18);
-          if (visual === 'dentinogenesis-imperfecta' && base) setTint(base, 'dentin', 0.72);
+          const count = visual === 'fluorosis' ? 5 : visual === 'amelogenesis-imperfecta' ? 14 : visual === 'mih' ? 5 : 4;
+          if (visual === 'enamel-hypoplasia') {
+            addSurfaceStriae(root, frame, 3 + severity, 'enamelDefect', 0.0028);
+            deformToothSurface(parts, records, sourceId, enamel || base, frame, {
+              layers: ['enamel'], profile: 'groove', factor: 0.26,
+              depthRatio: 0.035 + progression * 0.02, surfaceBandRatio: 0.48
+            });
+          } else if (visual === 'mih') {
+            spherePatch(root, frame, 'enamelDefect', 0.19 + progression * 0.04, 0.014, 0.82);
+            spherePatch(root, frame, 'dentin', 0.095 + progression * 0.025, 0.01, 0.54, 0.004);
+          } else if (visual === 'fluorosis') {
+            addSurfaceStriae(root, frame, 5 + severity, 'chalk', 0.002);
+            spherePatch(root, frame, 'chalk', 0.2 + progression * 0.05, 0.008, 0.38);
+          } else if (visual === 'amelogenesis-imperfecta') {
+            if (enamel) setTint(enamel, 'enamelDefect', 0.42 + progression * 0.18);
+            clusteredDots(root, frame, key, count + severity * 2, 0.3);
+            deformToothSurface(parts, records, sourceId, enamel || base, frame, {
+              layers: ['enamel'], profile: 'lobulated', factor: 0.34,
+              depthRatio: 0.025 + progression * 0.025, surfaceBandRatio: 0.62,
+              irregularity: 0.1
+            });
+          } else {
+            clusteredDots(root, frame, key, count + severity * 2, 0.22 + progression * 0.07);
+          }
+          if (visual === 'dens-invaginatus') {
+            const invagination = surfaceFrame(enamel || base, tooth, 'incisal');
+            deformToothSurface(parts, records, sourceId, enamel || base, invagination, {
+              layers: ['enamel', 'teeth'], profile: 'crater', factor: 0.12,
+              depthRatio: 0.18 + progression * 0.08, irregularity: 0.06
+            });
+            spherePatch(root, invagination, 'crack', 0.055, 0.026, 0.9, 0.004);
+          }
+          if (visual === 'dens-evaginatus') {
+            const cusp = surfaceFrame(enamel || base, tooth, 'occlusal');
+            spherePatch(root, cusp, 'enamelDefect', 0.075, 0.13, 0.96, 0.014);
+            deformToothSurface(parts, records, sourceId, enamel || base, cusp, {
+              layers: ['teeth', 'enamel'], mode: 'raise', profile: 'lobulated',
+              factor: 0.11, depthRatio: 0.18 + progression * 0.05
+            });
+          }
+          if (visual === 'dentinogenesis-imperfecta' && base) {
+            setTint(base, 'dentin', 0.72);
+            if (enamel) setTint(enamel, 'dentin', 0.2);
+          }
+          if (visual === 'discoloration' && enamel) {
+            setTint(enamel, 'dentin', 0.28 + severity * 0.08);
+          }
           if (visual === 'microdontia') changeToothScale(parts, 0.84 - progression * 0.08, base || enamel);
           if (visual === 'macrodontia') changeToothScale(parts, 1.08 + progression * 0.1, base || enamel);
           if (visual === 'fusion') {
