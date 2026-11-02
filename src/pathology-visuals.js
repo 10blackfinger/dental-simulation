@@ -461,6 +461,81 @@ export function createPathologyRenderer(scene) {
     }
   }
 
+  // Locate the nearest point on the segmented gingival surface to the tooth
+  // cervical frame, then deform a compact patch around that point. This handles
+  // small segmentation gaps between the tooth and gingiva without moving the
+  // entire gum arch or requiring the two meshes to intersect perfectly.
+  function deformGingivaNearestToTooth(gum, anchor, frame, options = {}) {
+    const source = workingPositions.get(gum) || gum.getVerticesData('position');
+    const indices = gum.getIndices();
+    if (!source || !indices?.length) return 0;
+
+    anchor.computeWorldMatrix(true);
+    gum.computeWorldMatrix(true);
+    const anchorWorld = anchor.getWorldMatrix();
+    const gumWorld = gum.getWorldMatrix();
+    const inverseGumWorld = gumWorld.clone();
+    inverseGumWorld.invert();
+
+    const targetWorld = Vector3.TransformCoordinates(frame.point, anchorWorld);
+    const surfaceNormal = Vector3.TransformNormal(frame.normal, anchorWorld).normalize();
+    let nearestIndex = -1;
+    let nearestDistanceSquared = Infinity;
+    let nearestWorld = null;
+
+    for (let i = 0; i < source.length; i += 3) {
+      const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+      const world = Vector3.TransformCoordinates(local, gumWorld);
+      const distanceSquared = Vector3.DistanceSquared(world, targetWorld);
+      if (distanceSquared < nearestDistanceSquared) {
+        nearestDistanceSquared = distanceSquared;
+        nearestIndex = i;
+        nearestWorld = world;
+      }
+    }
+    if (nearestIndex < 0 || !nearestWorld) return 0;
+
+    const toothBox = anchor.getBoundingInfo().boundingBox;
+    const toothExtent = toothBox.extendSizeWorld.scale(2);
+    const smallAxis = Math.max(Math.min(toothExtent.x, toothExtent.y, toothExtent.z), 0.04);
+    const factor = Math.max(0.12, Math.min(0.42, options.factor ?? 0.2));
+    const radius = Math.max(smallAxis * factor, 0.045);
+    const surfaceBand = Math.max(radius * (options.surfaceBandRatio ?? 0.58), 0.025);
+    const depth = radius * Math.max(0.015, Math.min(0.35, options.depthRatio ?? 0.08));
+    const pushDirection = options.directionVector
+      ? options.directionVector.clone().normalize()
+      : surfaceNormal;
+    const sign = options.mode === 'loss' ? -1 : 1;
+    const positions = Float32Array.from(source);
+    let changedVertices = 0;
+
+    for (let i = 0; i < positions.length; i += 3) {
+      const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+      const world = Vector3.TransformCoordinates(local, gumWorld);
+      const delta = world.subtract(nearestWorld);
+      const axial = Vector3.Dot(delta, surfaceNormal);
+      const radial = delta.subtract(surfaceNormal.scale(axial));
+      const radialDistance = radial.length();
+      if (radialDistance >= radius || Math.abs(axial) >= surfaceBand) continue;
+
+      const radialFalloff = Math.pow(1 - Math.pow(radialDistance / radius, 2), 2);
+      const axialFalloff = Math.max(0, 1 - Math.abs(axial) / surfaceBand);
+      const falloff = radialFalloff * axialFalloff;
+      if (falloff <= 0.02) continue;
+
+      const worldDelta = pushDirection.scale(sign * depth * falloff);
+      const localDelta = Vector3.TransformNormal(worldDelta, inverseGumWorld);
+      positions[i] += localDelta.x;
+      positions[i + 1] += localDelta.y;
+      positions[i + 2] += localDelta.z;
+      changedVertices++;
+    }
+
+    if (!changedVertices) return 0;
+    updateMeshGeometry(gum, positions);
+    return changedVertices;
+  }
+
   function getGingivaMesh(context, tooth) {
     const sourceId = tooth.arch === 'mandibular' ? SOURCE.lowerGum : SOURCE.upperGum;
     return sourceMesh(context.meshes, context.records, sourceId, 'gingiva');
@@ -477,11 +552,20 @@ export function createPathologyRenderer(scene) {
     if (!gum || !anchor || !frame) return 0;
     if (options.tint) setTint(gum, options.tint, options.tintStrength ?? 0.5);
     const { tint, tintStrength, ...shape } = options;
-    return deformSurface(anchor, [gum], frame, {
+    const surfaceChanges = deformSurface(anchor, [gum], frame, {
       factor: 0.2,
       depthRatio: 0.08,
       surfaceBandRatio: 0.5,
       normalCheck: false,
+      ...shape
+    });
+    if (surfaceChanges > 0) return surfaceChanges;
+    // Fallback to the nearest measured gingival surface point when the tooth
+    // and gum segmentations have a small gap at the CEJ.
+    return deformGingivaNearestToTooth(gum, anchor, frame, {
+      factor: 0.24,
+      depthRatio: 0.1,
+      surfaceBandRatio: 0.72,
       ...shape
     });
   }
