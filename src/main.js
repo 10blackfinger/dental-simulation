@@ -3207,6 +3207,20 @@ async function performClinicalAction() {
     status.textContent = booleanWearApplied ? 'تم تعديل هندسة السن بعملية طرح ثلاثية الأبعاد.' : 'تم تسجيل أثر تحضير بديل على السن.';
     return;
   }
+  if (oralMode && ['high-speed','bur-kit'].includes(id) && cariesTrainingStage === 'cavity') {
+    try {
+      const deeperPass = await applyDentalBooleanWear(.20);
+      updateOralCariesVisual();
+      clinicalSimulationFeedback.textContent = deeperPass
+        ? 'تم تنفيذ تمريرة إضافية وطرح حجم جديد من سطح السن. راقب قيمة العمق ولا تتجاوز حدود التدريب الافتراضية.'
+        : 'تعذر طرح حجم إضافي من الشبكة الحالية؛ بقي أثر التحضير السابق محفوظًا.';
+      status.textContent = deeperPass ? 'تمت تمريرة حفر إضافية على هندسة السن.' : 'تعذر تنفيذ التمريرة الإضافية.';
+    } catch (error) {
+      console.warn('Additional Boolean preparation pass failed.', error);
+      clinicalSimulationFeedback.textContent = 'تعذر تنفيذ تمريرة هندسية إضافية على هذا السطح.';
+    }
+    return;
+  }
   if (id === 'etchant' && cariesTrainingStage === 'cavity') {
     cariesTrainingStage = 'etched';
     updateOralCariesVisual();
