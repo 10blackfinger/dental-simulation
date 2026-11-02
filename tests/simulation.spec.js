@@ -277,6 +277,7 @@ test('online tutor, square responsive workspace, dental models and training work
   await dragAcrossToothSurface(page);
   await page.locator('#apply-clinical-action').click();
   await expect(page.locator('#caries-stage-label')).toContainText('تمت إزالة الآفة');
+  await expect(page.locator('#caries-procedure-help')).toContainText('تم طرح حجم القاطع', { timeout: 45000 });
   await page.locator('#inventory-category').selectOption('materials');
   await page.locator('.inventory-item').filter({ hasText: 'مادة تخريش' }).click();
   await page.locator('#tool-to-mouth').click();
