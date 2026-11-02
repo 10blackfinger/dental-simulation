@@ -48,8 +48,8 @@ const assets = [
     file: 'environmentSpecular.env',
     url: 'https://assets.babylonjs.com/environments/environmentSpecular.env',
     format: 'env',
-    license: 'Babylon.js sample environment asset',
-    source: 'Babylon.js official environment sample',
+    license: 'CC0 (Babylon.js Asset Librarian)',
+    source: 'Babylon.js official environment asset library',
     expectedMinBytes: 20000
   }
 ];
