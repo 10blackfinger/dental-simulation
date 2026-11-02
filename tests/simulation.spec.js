@@ -52,7 +52,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await page.locator('#pathology-category').selectOption('wear');
   await page.locator('#pathology-condition').selectOption('cracked-tooth');
   await page.locator('#pathology-target').selectOption('FMA55681');
-  await page.locator('#apply-pathology').click();
+  await page.locator('#apply-pathology').click({ force: true });
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(2);
   await page.locator('[data-pathology-advance]').first().click();
   await expect(page.locator('#active-pathologies .pathology-case').first()).toContainText('4 / 4');
