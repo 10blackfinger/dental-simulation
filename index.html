@@ -4,269 +4,83 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#101827" />
-  <meta name="description" content="منصة تعليمية تفاعلية لمحاكاة عيادة الأسنان ثلاثية الأبعاد" />
-  <title>Dental Simulation | محاكاة طب الأسنان</title>
+  <meta name="description" content="مساحة عمل ثلاثية الأبعاد لتعلم تشريح الفم والأسنان." />
+  <title>Dental Simulation | مختبر الأسنان</title>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Dental Simulation">
         <span class="brand-icon">DS</span>
-        <span><b>Dental Simulation</b><small>مختبر التدريب الافتراضي</small></span>
+        <span class="brand-copy">
+          <b>Dental Simulation</b>
+          <small>مختبر الأسنان الافتراضي</small>
+        </span>
       </a>
-      <div class="topbar-right">
-        <span class="live-state"><i></i> المشهد جاهز</span>
-        <button id="mobile-open-library" class="button button-quiet mobile-panel-button" type="button" aria-controls="sidebar-left" aria-expanded="false">المكتبة والمساعد</button>
-        <button id="mobile-open-controls" class="button button-quiet mobile-panel-button" type="button" aria-controls="sidebar-right" aria-expanded="false">التحكم</button>
-        <button id="reset-camera" class="button button-quiet">إعادة ضبط الكاميرا</button>
+      <div class="topbar-actions">
+        <span class="workspace-label">مساحة التشريح ثلاثي الأبعاد</span>
+        <button id="reset-camera" class="button button-quiet" type="button">إعادة ضبط الكاميرا</button>
       </div>
     </header>
 
     <main class="layout">
-      <aside id="sidebar-right" class="sidebar sidebar-right">
-        <div class="section-title"><span class="eyebrow">مساحة العمل</span><h1>عيادة الأسنان</h1><p>نموذج أولي تفاعلي ثلاثي الأبعاد</p></div>
-        <section class="control-section asset-section">
-          <h2>المشاهد والمجسمات</h2>
-          <div class="asset-switch">
-            <button id="view-treatment" class="asset-switch-button selected" type="button"><b>جلسة علاج متكاملة</b><small>مريض مستلقٍ + طبيب ومساعد</small></button>
-            <button id="view-clinic" class="asset-switch-button" type="button"><b>العيادة الكاملة</b><small>54 مجسمًا — CC0</small></button>
-            <button id="view-anatomy" class="asset-switch-button" type="button"><b>تشريح الفم</b><small>33 تركيبًا تشريحيًا</small></button>
-            <button id="view-people" class="asset-switch-button" type="button"><b>الشخصيات</b><small>طبيب ومريض ومساعد</small></button>
-            <button id="view-dental-atlas" class="asset-switch-button" type="button"><b>الأطلس السني المتقدم</b><small>32 سنًا + أعصاب + مفاصل</small></button>
-            <button id="view-pediatric" class="asset-switch-button" type="button"><b>أطلس الأسنان اللبنية</b><small>10 نماذج من جامعة دندي — CC BY</small></button>
-            <button id="view-body" class="asset-switch-button" type="button"><b>التشريح الكامل</b><small>634 تركيبًا — عظام وعضلات</small></button>
-          </div>
-          <p id="asset-status" class="asset-status" role="status">تحميل مكتبة المجسمات عند بدء التشغيل…</p>
-          <small class="asset-license-note">مصادر المجسمات وتراخيصها موثقة داخل المشروع.</small>
-          <small class="asset-license-note">الشخصيات مجسمات تعليمية أولية وليست نماذج بشرية واقعية أو متحركة.</small>
-          <section id="patient-variant-controls" class="patient-variant-controls" hidden>
-            <h2>نموذج المريض</h2>
-            <div class="patient-variant-buttons">
-              <button id="patient-male" class="patient-variant-button selected" type="button">مريض</button>
-              <button id="patient-female" class="patient-variant-button" type="button">مريضة</button>
-            </div>
-            <p id="patient-model-status" class="asset-license-note" role="status">تحميل نموذج المريض…</p>
-            <small class="asset-license-note">مجسمات CC0 من MakeHuman / OSCE Sim، ثابتة دون تحريك سريري. النموذج الإجرائي البديل متاح عند تعذر التحميل.</small>
-          </section>
+      <aside class="sidebar" aria-label="مستكشف تشريح الفم">
+        <section class="section-title">
+          <span class="eyebrow">المساحة الأساسية</span>
+          <h1>تشريح الفم</h1>
+          <p>استكشاف بصري للفكين والأسنان والتراكيب المحيطة.</p>
         </section>
+
         <section class="control-section">
           <h2>زوايا الكاميرا</h2>
-          <div class="segmented">
-            <button class="camera-button selected" data-camera="orbit">حرة</button>
-            <button class="camera-button" data-camera="front">أمامية</button>
-            <button class="camera-button" data-camera="side">جانبية</button>
-            <button class="camera-button" data-camera="top">علوية</button>
+          <div class="segmented" role="group" aria-label="زوايا الكاميرا">
+            <button class="camera-button selected" data-camera="orbit" type="button">حرة</button>
+            <button class="camera-button" data-camera="front" type="button">أمامية</button>
+            <button class="camera-button" data-camera="side" type="button">جانبية</button>
+            <button class="camera-button" data-camera="top" type="button">علوية</button>
           </div>
         </section>
-        <section class="control-section">
-          <h2>إظهار وإخفاء</h2>
-          <label class="switch-row"><span>الغرفة والأثاث</span><input type="checkbox" id="toggle-room" checked><i></i></label>
-          <label class="switch-row"><span>وحدة الأسنان</span><input type="checkbox" id="toggle-unit" checked><i></i></label>
-          <label class="switch-row"><span>الفك والأسنان</span><input type="checkbox" id="toggle-jaw" checked><i></i></label>
-          <label class="switch-row"><span>أدوات الطبيب</span><input type="checkbox" id="toggle-tools" checked><i></i></label>
-        </section>
-        <section id="anatomy-section" class="control-section anatomy-section" hidden>
-          <h2>مستكشف التراكيب التشريحية</h2>
-          <input id="anatomy-search" class="text-filter" type="search" placeholder="ابحث عن تركيب تشريحي…" aria-label="ابحث في التراكيب التشريحية">
+
+        <section class="control-section anatomy-section">
+          <div class="section-heading">
+            <h2>مستكشف التراكيب</h2>
+            <span class="count-label">33 تركيبًا</span>
+          </div>
+          <input id="anatomy-search" class="text-filter" type="search" placeholder="ابحث عن سن أو تركيب…" aria-label="ابحث في التراكيب التشريحية">
           <div id="structure-list" class="structure-list"></div>
           <div class="button-row">
-            <button id="isolate-structure" class="small-action" type="button">عزل المحدد</button>
+            <button id="isolate-structure" class="small-action" type="button" disabled>عزل المحدد</button>
             <button id="restore-structures" class="small-action" type="button">إظهار الكل</button>
           </div>
-          <p class="asset-license-note">المصدر الحالي يضم 28 سنًا دائمًا، ولا يشمل ضروس العقل أو الأسنان اللبنية أو الأعصاب والأوعية.</p>
+          <p class="asset-note">النموذج تعليمي بصري، ولا يُستخدم كمرجع تشخيصي أو لاتخاذ قرار علاجي.</p>
+          <p id="asset-status" class="asset-status" role="status">جارٍ تجهيز نموذج تشريح الفم…</p>
         </section>
-        <section id="dental-atlas-section" class="control-section dental-atlas-section" hidden>
-          <h2>الأطلس السني التفصيلي</h2>
-          <p class="asset-license-note">415 تركيبًا في دليل الأطلس، و32 نموذج سنّ منفصلًا مع طبقات داخلية وقنوات جذرية، إلى جانب اللثة وعظام الفك ومفصل الفك والأعصاب والأوعية والجيوب الفكية.</p>
-          <div id="dental-atlas-status" class="case-progress" role="status">تحميل مكتبة التشريح السني…</div>
-          <div class="body-layer-controls">
-            <label class="switch-row"><span>العظام والجمجمة والعضلات</span><input id="dental-context-toggle" type="checkbox" checked><i></i></label>
-            <label class="switch-row"><span>الأعصاب والأوعية</span><input id="dental-nerve-toggle" type="checkbox" checked><i></i></label>
-            <label class="switch-row"><span>اللثة</span><input id="dental-gum-toggle" type="checkbox" checked><i></i></label>
-            <label class="switch-row"><span>تيجان الأسنان في الفك</span><input id="dental-shell-toggle" type="checkbox" checked><i></i></label>
-          </div>
-          <h3 class="mini-heading">اختيار السن بنظام FDI</h3>
-          <input id="dental-tooth-search" class="text-filter" type="search" placeholder="ابحث برقم السن أو اسمه…" aria-label="البحث عن سن">
-          <div id="dental-tooth-grid" class="dental-tooth-grid"></div>
-          <div id="dental-tooth-detail-panel" hidden>
-            <div class="selected-tooth-heading"><b id="dental-selected-tooth-name">السن المحدد</b><button id="dental-tooth-back" class="small-action" type="button">العودة إلى الفك الكامل</button></div>
-            <p class="asset-license-note">الطبقات الداخلية في هذا النموذج تقريبية ومشتقة من سطح السن وليست قياسات نسيجية أو خطة علاجية.</p>
-            <div class="tissue-grid">
-              <label><input type="checkbox" data-tooth-layer="enamel" checked> المينا</label>
-              <label><input type="checkbox" data-tooth-layer="dentin-coronal" checked> عاج التاج</label>
-              <label><input type="checkbox" data-tooth-layer="dentin-radicular" checked> عاج الجذر</label>
-              <label><input type="checkbox" data-tooth-layer="cementum" checked> الملاط</label>
-              <label><input type="checkbox" data-tooth-layer="pdl" checked> الرباط حول السني</label>
-              <label><input type="checkbox" data-tooth-layer="pulp-chamber" checked> حجرة اللب</label>
-              <label><input type="checkbox" data-tooth-layer="canal" checked> القنوات الجذرية</label>
-            </div>
-            <div id="dental-tooth-mesh-status" class="case-progress">اختر سنًا لتحميل طبقاته الداخلية.</div>
-          </div>
-          <h3 class="mini-heading">مستكشف تراكيب الفم</h3>
-          <input id="dental-structure-search" class="text-filter" type="search" placeholder="ابحث مثل: nerve أو sinus أو mandible…" aria-label="البحث في تراكيب الفم">
-          <div id="dental-structure-list" class="structure-list dental-structure-list"></div>
-          <div class="button-row">
-            <button id="dental-isolate-structure" class="small-action" type="button">عزل المحدد</button>
-            <button id="dental-restore-structures" class="small-action" type="button">إظهار الكل</button>
-          </div>
-          <p class="asset-license-note">المصدر BodyParts3D 3.0 (DBCLS) بترخيص CC BY-SA 2.1 Japan. طبقات الأعصاب والأوعية مستمدة جزئيًا من Z-Anatomy بترخيص CC BY-SA 4.0. الإسناد الكامل وحدود الأجزاء التخطيطية موثقة في ASSET_CREDITS.md.</p>
-        </section>
-        <section id="pediatric-section" class="control-section pediatric-section" hidden>
-          <h2>مكتبة الأسنان اللبنية</h2>
-          <p class="asset-license-note">نماذج أسنان لبنية مفردة من جامعة دندي. المجموعة المتاحة هنا عشرة نماذج للجانب الأيسر العلوي والسفلي، وليست فكًا لبنيًا كاملًا أو نموذجًا للأسنان المختلطة.</p>
-          <input id="pediatric-tooth-search" class="text-filter" type="search" placeholder="ابحث برقم FDI أو نوع السن…" aria-label="البحث في الأسنان اللبنية">
-          <div id="pediatric-tooth-grid" class="pediatric-tooth-grid"></div>
-          <div id="pediatric-atlas-status" class="case-progress" role="status">تحميل مكتبة الأسنان اللبنية…</div>
-          <div id="pediatric-tooth-detail" class="inventory-detail">اختر سنًا لبنيًا لعرضه منفصلًا داخل المشهد ثلاثي الأبعاد.</div>
-          <p class="asset-license-note">الموديلات © University of Dundee, School of Dentistry — CC BY 4.0. راجع ملف الاعتمادات لمعرفة المصدر والتعديلات.</p>
-        </section>
-        <section id="body-section" class="control-section body-section" hidden>
-          <h2>مستكشف الجسم البشري</h2>
-          <p class="asset-license-note">634 تركيبًا: الهيكل العظمي والعضلات العميقة والسطحية. اضغط على أي تركيب لعرضه وعزله.</p>
-          <input id="body-search" class="text-filter" type="search" placeholder="ابحث بالاسم الإنجليزي..." aria-label="ابحث في التراكيب التشريحية الكاملة">
-          <div class="body-layer-controls">
-            <label class="switch-row"><span>العظام والغضاريف والأسنان</span><input id="body-layer-skeleton" type="checkbox" checked><i></i></label>
-            <label class="switch-row"><span>العضلات العميقة</span><input id="body-layer-deep" type="checkbox" checked><i></i></label>
-            <label class="switch-row"><span>العضلات السطحية</span><input id="body-layer-superficial" type="checkbox" checked><i></i></label>
-          </div>
-          <label class="field-label" for="body-opacity">شفافية العضلات السطحية</label>
-          <input id="body-opacity" class="range-filter" type="range" min="10" max="100" value="100">
-          <div id="body-mesh-map-status" class="case-progress">تهيئة دليل التراكيب…</div>
-          <div id="body-structure-list" class="structure-list body-structure-list"></div>
-          <div class="button-row">
-            <button id="body-isolate" class="small-action" type="button">عزل المحدد</button>
-            <button id="body-restore" class="small-action" type="button">إظهار الكل</button>
-          </div>
-          <p class="asset-license-note">النموذج لرجل بالغ واحد؛ لا يشمل الأعضاء الداخلية أو الأوعية أو الأعصاب أو الجلد أو الأربطة، وليس مرجعًا تشخيصيًا.</p>
-        </section>
-        <section class="control-section">
-          <h2>أدوات التدريب</h2>
-          <div class="tool-list">
-            <button class="tool-button active" data-tool="select"><span>↖</span><span><b>تحديد العناصر</b><small>اختيار مجسم من المشهد</small></span></button>
-            <button class="tool-button" data-tool="mirror"><span>◉</span><span><b>مرآة الفحص</b><small>إظهار أداة فحص توضيحية</small></span></button>
-            <button class="tool-button" data-tool="probe"><span>⌁</span><span><b>مسبار الأسنان</b><small>إظهار أداة الفحص الدقيقة</small></span></button>
-          </div>
-        </section>
-        <div class="sidebar-note"><b>ملاحظة تعليمية</b><p>المجسمات الحالية أولية ومولّدة برمجيًا لأغراض تجربة التفاعل. لا تستخدم لاتخاذ قرارات علاجية.</p></div>
       </aside>
 
       <section class="viewport" aria-label="المشهد ثلاثي الأبعاد">
-        <canvas id="render-canvas"></canvas>
-        <div class="viewport-top"><span class="scene-tag"><i></i> DENTAL CLINIC / 3D</span><span class="hint">اسحب للدوران · عجلة الفأرة للتقريب</span></div>
-        <div id="selection-card" class="selection-card"><span class="selection-kicker">العنصر المحدد</span><b id="selection-name">عيادة الأسنان</b><small id="selection-description">اختر أي مجسم داخل المشهد لعرض اسمه.</small></div>
-        <div class="viewport-bottom"><span>وضع العرض: تعليمي</span><span id="fps-counter">3D Engine</span></div>
-        <div id="loading" class="loading-overlay"><div class="loader"></div><b>جارٍ تجهيز العيادة ثلاثية الأبعاد</b><small>إنشاء المجسمات والإضاءة</small></div>
+        <div class="viewport-heading">
+          <span class="scene-tag"><i></i> DENTAL ANATOMY / 3D</span>
+          <span class="hint">اسحب للتدوير · عجلة الفأرة للتقريب</span>
+        </div>
+        <div class="stage-frame">
+          <canvas id="render-canvas" aria-label="مجسم ثلاثي الأبعاد للفكين والأسنان"></canvas>
+          <div id="selection-card" class="selection-card">
+            <span class="selection-kicker">العنصر المحدد</span>
+            <b id="selection-name">تشريح الفم</b>
+            <small id="selection-description">اختر سنًا أو تركيبًا من القائمة أو من المجسم.</small>
+          </div>
+          <div id="loading" class="loading-overlay">
+            <div class="loader"></div>
+            <b>جارٍ تجهيز نموذج الفم</b>
+            <small>تحميل النموذج ثلاثي الأبعاد</small>
+          </div>
+        </div>
+        <div class="viewport-footer">
+          <span>التفاعل ثلاثي الأبعاد متاح داخل مساحة العمل</span>
+          <span>Dental Simulation</span>
+        </div>
       </section>
-
-      <aside id="sidebar-left" class="sidebar sidebar-left">
-        <div class="section-title"><span class="eyebrow">لوحة التحكم</span><h2>مكونات العيادة</h2><p>تحكم سريع في التجهيزات</p></div>
-        <section class="control-section">
-          <h2>وحدة الأسنان</h2>
-          <button id="chair-up" class="action-row"><span class="action-icon">↑</span><span><b>رفع الكرسي</b><small>تغيير ارتفاع المقعد</small></span><span class="chevron">‹</span></button>
-          <button id="chair-down" class="action-row"><span class="action-icon">↓</span><span><b>خفض الكرسي</b><small>إرجاع المقعد لأسفل</small></span><span class="chevron">‹</span></button>
-          <button id="lamp-toggle" class="action-row"><span class="action-icon">✧</span><span><b>مصباح الفحص</b><small id="lamp-state">الإضاءة تعمل</small></span><span class="chevron">‹</span></button>
-        </section>
-        <section class="control-section treatment-interaction-section" id="treatment-interaction-section">
-          <h2>التفاعل داخل جلسة العلاج</h2>
-          <div class="treatment-actions">
-            <button id="patient-mouth-toggle" class="small-action" type="button">إغلاق الفم</button>
-            <button id="tool-to-mouth" class="small-action primary-action" type="button">تحريك الأداة للفم</button>
-            <button id="tool-to-tray" class="small-action" type="button">إرجاع الأداة للصينية</button>
-          </div>
-          <div id="treatment-interaction-status" class="case-feedback" aria-live="polite">اختر أداة من قائمة الأدوات والمواد، ثم حرّكها عند الحاجة فقط.</div>
-          <p class="asset-license-note">الحركة مرتبطة بأوامرك فقط، بسرعات انتقال هادئة. مواضع المجسمات تقريبية وتحتاج معايرة بصرية على بيئة الجهاز الفعلية.</p>
-        </section>
-        <section class="control-section inventory-section" id="inventory-section">
-          <h2>مكتبة الأدوات والمواد</h2>
-          <input id="inventory-search" class="text-filter" type="search" placeholder="ابحث عن أداة أو مادة…" aria-label="البحث في الأدوات والمواد">
-          <select id="inventory-category" class="scenario-select" aria-label="تصفية الأدوات والمواد">
-            <option value="all">كل الأدوات والمواد</option>
-            <option value="exam">الفحص والتشخيص</option>
-            <option value="restorative">الترميم والحشو</option>
-            <option value="endo">علاج الجذور</option>
-            <option value="surgery">الجراحة والخلع</option>
-            <option value="perio">اللثة والوقاية</option>
-            <option value="prostho">التركيبات والتعويضات</option>
-            <option value="ortho">تقويم الأسنان</option>
-            <option value="materials">مواد ومستهلكات</option>
-            <option value="ppe">الوقاية ومكافحة العدوى</option>
-          </select>
-          <div id="inventory-list" class="inventory-list"></div>
-          <div id="inventory-detail" class="inventory-detail" aria-live="polite">اختر عنصرًا لعرض وظيفته وملاحظات استخدامه التعليمية.</div>
-        </section>
-        <section class="control-section training-section">
-          <h2>تدريب إجرائي تعليمي</h2>
-          <label class="field-label" for="scenario-select">اختر سيناريو التدريب</label>
-          <select id="scenario-select" class="scenario-select">
-            <option value="exam">فحص سريري أولي</option>
-            <option value="restoration">خطوات ترميم تعليمي</option>
-            <option value="endo">مبادئ علاج الجذور</option>
-            <option value="hygiene">إزالة اللويحة والتوعية</option>
-            <option value="extraction">خلع الأسنان</option>
-            <option value="periodontal">علاج أمراض اللثة</option>
-            <option value="prostho">تحضير وتركيب تاج</option>
-            <option value="implant">تقييم حالة زراعة</option>
-            <option value="ortho">تقييم تقويمي</option>
-            <option value="trauma">إصابات الأسنان</option>
-            <option value="emergency">تقييم حالة طارئة</option>
-            <option value="pediatric">تقييم أسنان الأطفال والأسنان اللبنية</option>
-          </select>
-          <div id="case-description" class="case-description">تسلسل تعليمي لفحص المريض وتنظيم الملاحظات قبل وضع خطة العلاج.</div>
-          <div class="progress-track"><span id="case-progress-bar"></span></div>
-          <div id="case-progress" class="case-progress">لم يبدأ التدريب</div>
-          <div class="button-row">
-            <button id="start-case" class="small-action primary-action" type="button">ابدأ التدريب</button>
-            <button id="next-step" class="small-action" type="button" disabled>الخطوة التالية</button>
-          </div>
-          <div id="case-feedback" class="case-feedback" aria-live="polite">التدريب محاكاة تعليمية ولا يمثل بروتوكول علاج معتمدًا.</div>
-          <div id="case-source-links" class="case-source-links">مراجع علمية: ADA · AAE · EFP · IADT · SDCEP</div>
-          <button id="export-report" class="report-button" type="button">تصدير تقرير التدريب JSON</button>
-        </section>
-        <section class="control-section ai-assistant-section" id="ai-assistant-section">
-          <h2>مساعد طب الأسنان السحابي</h2>
-          <p class="asset-license-note">اتصال مباشر عبر الإنترنت بخدمة OpenRouter ونماذج متعددة. تحتاج إلى مفتاح API شخصي؛ اكتب المفتاح في هذه الجلسة فقط، ولن يُحفظ في الموقع أو يُرفع إلى GitHub. رسالتك ستُرسل إلى مزود النموذج الذي تختاره، لذلك لا تُدخل أسماء مرضى أو صورًا أو أي بيانات تعريفية.</p>
-          <label class="field-label" for="ai-provider">مصدر الذكاء الاصطناعي</label>
-          <select id="ai-provider" class="scenario-select">
-            <option value="openrouter">OpenRouter — ذكاء اصطناعي سحابي عبر الإنترنت</option>
-            <option value="ollama">Ollama — نموذج محلي اختياري</option>
-            <option value="openai-compatible">PALL-Text عبر vLLM — نموذج سني محلي اختياري</option>
-          </select>
-          <div id="ai-online-settings">
-            <label class="field-label" for="ai-api-key">مفتاح OpenRouter الشخصي</label>
-            <input id="ai-api-key" class="text-filter" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="الصق مفتاح sk-or-v1-…" aria-label="مفتاح OpenRouter الشخصي">
-            <p class="asset-license-note">أنشئ مفتاحًا من <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">صفحة مفاتيح OpenRouter</a>. لا تضع المفتاح في أي ملف برمجي أو رسالة عامة.</p>
-          </div>
-          <label class="field-label" for="ai-model">النموذج</label>
-          <select id="ai-model" class="scenario-select">
-            <option value="openrouter/free">الموجّه المجاني — يختار نموذجًا مجانيًا متاحًا</option>
-          </select>
-          <div id="ai-local-settings" hidden>
-            <label class="field-label" for="ai-endpoint">عنوان خادم النموذج المحلي</label>
-            <input id="ai-endpoint" class="text-filter" type="url" value="http://localhost:11434" aria-label="عنوان خادم النموذج المحلي">
-          </div>
-          <div class="button-row"><button id="ai-connect" class="small-action primary-action" type="button">اختبار الاتصال</button><button id="ai-clear-key" class="small-action" type="button">مسح المفتاح</button><span id="ai-status" class="ai-status">أدخل مفتاحك للاتصال</span></div>
-          <div id="ai-messages" class="ai-messages" aria-live="polite"><div class="ai-message assistant">أدخل مفتاح OpenRouter ثم اضغط «اختبار الاتصال». يمكنك اختيار الموجّه المجاني أو نموذج مجاني محدد.</div></div>
-          <form id="ai-form" class="ai-form">
-            <textarea id="ai-question" rows="2" placeholder="اكتب سؤالك العلمي في طب الأسنان…" aria-label="سؤال لمساعد طب الأسنان"></textarea>
-            <button id="ai-send" class="small-action primary-action" type="submit">إرسال السؤال</button>
-          </form>
-          <details class="ai-setup">
-            <summary>عن الاتصال السحابي والخصوصية</summary>
-            <p>تُرسل الأسئلة إلى OpenRouter ثم إلى مزود النموذج المطلوب عبر اتصال HTTPS. الموجّه المجاني لا يضمن نموذجًا واحدًا ثابتًا، وقد تتغير النماذج والحدود والتوافر. خدمة الاستخدام المجاني محدودة الحصة والسرعة.</p>
-            <p>مفتاح الخدمة محفوظ في ذاكرة الصفحة فقط، ويُمسح عند تحديثها أو عند الضغط على «مسح المفتاح». إذا كان الاستخدام لمؤسسة أو لعدد كبير من الطلاب، فالأفضل لاحقًا وضع وسيط API آمن على خادم تتحكم فيه المؤسسة مع حدود استخدام ومراقبة وتسجيل موافقات الخصوصية.</p>
-            <p>المساعد للتعليم ومراجعة المعلومات وليس للتشخيص أو وصف العلاج. راجع الأدلة الأصلية والمشرف المختص، ولا ترسل أي سجل طبي حقيقي.</p>
-          </details>
-        </section>
-        <section class="control-section">
-          <h2>حالة المشهد</h2>
-          <div class="stat-row"><span>المجسمات الأساسية</span><b id="mesh-count">—</b></div>
-          <div class="stat-row"><span>نظام الإضاءة</span><b class="good">نشط</b></div>
-          <div class="stat-row"><span>التفاعل</span><b class="good">جاهز</b></div>
-        </section>
-        <div class="sidebar-note"><b>طريقة الاستخدام</b><p>استخدم الماوس لتدوير الكاميرا والتقريب. اضغط على المجسمات لتحديدها، أو استخدم أزرار الكاميرا للتحرك بين الزوايا.</p></div>
-      </aside>
     </main>
-    <footer class="footer"><span>Dental Simulation Prototype</span><span>تعليم ومحاكاة بصرية — ليس برنامجًا للاستخدام السريري</span></footer>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>
