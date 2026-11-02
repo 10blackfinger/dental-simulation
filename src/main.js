@@ -3066,7 +3066,7 @@ function addProcedureVisual(effect) {
   }
   clinicalProcedureVisuals.push(root);
 }
-function performGuidedClinicalProcedure() {
+async function performGuidedClinicalProcedure() {
   const flow = clinicalProcedureFlows[activeClinicalProcedure] || [];
   const step = flow[activeClinicalProcedureIndex];
   if (!step) {
@@ -3178,7 +3178,7 @@ async function performClinicalAction() {
     }
     const selectedScenario = document.getElementById('scenario-select')?.value || 'restoration';
     if (selectedScenario !== 'restoration') {
-      performGuidedClinicalProcedure();
+      await performGuidedClinicalProcedure();
       return;
     }
     if (['high-speed','bur-kit'].includes(id) && clinicalSurface.depthMm < .04) {
