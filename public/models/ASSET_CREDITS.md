@@ -131,3 +131,13 @@ The following additional static 3D props are downloaded by `scripts/fetch-assets
 - **Plaster lower-arch study model:** [3DAssets.dev asset 34397](https://3dassets.dev/assets/34397) — [GLB](https://cdn.3dassets.dev/assets/34397/v1/model.glb), 24,768 bytes; CC0 1.0 Universal. A separate teaching/display object, not a replacement for the Dental Scope clinical anatomy mesh.
 
 The 3DAssets.dev models are low-polygon static props. The associated catalogue reports CC0 1.0 Universal for these entries; the download script checks exact file sizes and GLB magic bytes. Keep this attribution record with redistributed copies even though CC0 does not require attribution.
+
+
+## 9. Surgical instruments (CC0 1.0 Universal)
+
+Two additional source GLB models are downloaded by `scripts/fetch-assets.mjs` into `public/models/dental-tools/`:
+
+- **Forceps set:** [Innerscene Free Parts Library — Forceps](https://www.innerscene.com/tools/library/3d-parts/forceps-0697e09f) — CC0 1.0 Universal. The source description lists Adson tissue forceps, dressing forceps and a haemostat. [Direct GLB](https://files.innerscene.com/library/forceps-0697e09f/23a4b04dccffb1867b5e/forceps.glb).
+- **Scalpel set:** [Innerscene Free Parts Library — Scalpel set](https://www.innerscene.com/tools/library/3d-parts/scalpel-set-31709647) — CC0 1.0 Universal. The source description lists No. 10, 11, 15 and 20 blades. [Direct GLB](https://files.innerscene.com/library/scalpel-set-31709647/50ebfbee69cd692b267c/scalpel-set.glb).
+
+These are display geometries with no clinical fitness-for-use claim. The GLB objects can be selected and moved as scene objects; this does not provide blade exchange, calibrated force, articulated haemostat locking or sterilisation validation.
