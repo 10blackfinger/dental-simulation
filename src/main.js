@@ -653,6 +653,8 @@ const highlight = new HighlightLayer('SelectedStructure', scene);
 let clinicAssetRoot = null;
 let anatomyAssetRoot = null;
 let clinicContainer = null;
+let clinicAnimationGroups = [];
+let activeClinicAnimationButton = null;
 let anatomyContainer = null;
 let selectedAnatomyId = null;
 
@@ -746,6 +748,71 @@ function attachCenteredContainer(container, nodeName, desiredSpan) {
   return { group, meshes: renderMeshes, size: size.scale(scale) };
 }
 
+function renderClinicAnimationControls() {
+  const list = document.getElementById('clinic-animation-list');
+  const status = document.getElementById('clinic-animation-status');
+  if (!list || !status) return;
+  list.replaceChildren();
+  clinicAnimationGroups = (clinicContainer?.animationGroups || []);
+  if (!clinicAnimationGroups.length) {
+    status.textContent = 'ملف GLB الحالي لا يحتوي على مجموعات حركة مدمجة قابلة للتشغيل.';
+    return;
+  }
+  status.textContent = 'تم اكتشاف ' + clinicAnimationGroups.length + ' مجموعة حركة مدمجة في أصل العيادة.';
+  clinicAnimationGroups.forEach((group,index) => {
+    const row = document.createElement('div');
+    row.className = 'clinic-animation-row';
+    const meta = document.createElement('div');
+    meta.className = 'clinic-animation-meta';
+    const name = document.createElement('b');
+    name.textContent = group.name || ('Animation ' + (index + 1));
+    const targets = [...new Set((group.targetedAnimations || []).map(item => item.animationTarget?.name).filter(Boolean))];
+    const detail = document.createElement('small');
+    detail.textContent = targets.length
+      ? targets.slice(0,3).join(' · ') + (targets.length > 3 ? ' +' + (targets.length - 3) : '')
+      : 'مسار حركة مدمج';
+    meta.append(name,detail);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'small-action clinic-animation-play';
+    button.textContent = 'تشغيل';
+    button.setAttribute('aria-label','تشغيل ' + (group.name || ('الحركة ' + (index + 1))));
+    button.addEventListener('click',() => {
+      try {
+        if (group.isPlaying) {
+          group.stop();
+          button.textContent = 'تشغيل';
+          button.classList.remove('active');
+          return;
+        }
+        group.stop();
+        group.start(false,1);
+        button.textContent = 'إعادة التشغيل';
+        button.classList.add('active');
+        group.onAnimationGroupEndObservable.addOnce(() => {
+          button.textContent = 'تشغيل';
+          button.classList.remove('active');
+        });
+      } catch (error) {
+        console.error('Unable to play clinic animation group.',group.name,error);
+        status.textContent = 'تعذر تشغيل الحركة: ' + (group.name || (index + 1));
+      }
+    });
+    row.append(meta,button);
+    list.appendChild(row);
+  });
+}
+function stopAllClinicAnimations() {
+  for (const group of clinicAnimationGroups) {
+    try { group.stop(); } catch (error) { console.debug('Unable to stop animation group.',error); }
+  }
+  document.querySelectorAll('.clinic-animation-play').forEach(button => {
+    button.textContent = 'تشغيل';
+    button.classList.remove('active');
+  });
+}
+document.getElementById('clinic-animation-stop')?.addEventListener('click',stopAllClinicAnimations);
+
 async function ensureClinicModel() {
   if (clinicAssetRoot) return;
   setAssetStatus('جارٍ تحميل نموذج العيادة المتكامل…');
@@ -757,6 +824,7 @@ async function ensureClinicModel() {
     );
     const mounted = attachCenteredContainer(clinicContainer, 'ExternalClinicPack', 8.4);
     clinicAssetRoot = mounted.group;
+    renderClinicAnimationControls();
     root.setEnabled(false);
     clinicAssetRoot.setEnabled(true);
     setProceduralControlsEnabled(false, 'clinic');
@@ -765,6 +833,9 @@ async function ensureClinicModel() {
     setAssetStatus('تم تحميل مشهد العيادة: 54 أصلًا ثلاثي الأبعاد، غرفة علاج وتجهيزات ومناطق مساندة.', 'ok');
   } catch (error) {
     console.error('Clinic asset load failed', error);
+    clinicAnimationGroups = [];
+    const animationStatus = document.getElementById('clinic-animation-status');
+    if (animationStatus) animationStatus.textContent = 'تعذر تحميل حركات GLB؛ استخدم العيادة البديلة.';
     root.setEnabled(true);
     setProceduralControlsEnabled(true, 'clinic');
     setAssetStatus('تعذر تحميل الحزمة الخارجية؛ تم تشغيل العيادة البديلة المولّدة داخل المشروع.', 'warn');
