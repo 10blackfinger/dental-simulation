@@ -105,6 +105,7 @@ test('pathology catalogue and disease details load in the browser', async ({ pag
   await page.locator('#pathology-condition').selectOption('external-cervical-resorption');
   await expect(page.locator('#pathology-name')).toContainText('امتصاص جذري خارجي عنقي');
 
+  await page.locator('#pathology-category').selectOption('caries');
   await page.locator('#pathology-condition').selectOption('deep-caries');
   await triggerPathologyApply(page);
   await expect(page.locator('#active-pathologies .pathology-case')).toHaveCount(1);
