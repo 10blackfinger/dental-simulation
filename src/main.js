@@ -1900,7 +1900,7 @@ function buildOralInventoryModel(item) {
   return root;
 }
 function getOralInventoryRoot(item = selectedInventoryItem) {
-  const externalId = item.id === 'ultrasonic-scaler' ? 'ultrasonic-scaler' : item.id === 'curing-light' ? 'curing-light' : null;
+  const externalId = ['ultrasonic-scaler','curing-light','extraction-forceps','scalpel'].includes(item.id) ? item.id : null;
   if (externalId && oralSceneProps.has(externalId)) return oralSceneProps.get(externalId);
   if (!oralInventoryModels.has(item.id)) oralInventoryModels.set(item.id, buildOralInventoryModel(item));
   return oralInventoryModels.get(item.id);
@@ -1962,10 +1962,12 @@ async function ensureOralSceneProps() {
       { id:'instrument-tray', file:'dental-tools/instrument-tray.glb', url:'https://cdn.3dassets.dev/assets/34383/v1/', size:7.2, position:[7.4,-1.5,2.1], rotation:[0,-0.25,0] },
       { id:'ultrasonic-scaler', file:'dental-tools/ultrasonic-scaler.glb', url:'https://cdn.3dassets.dev/assets/34384/v1/', size:5.6, position:[-7.2,-1.2,2.5], rotation:[0,0.3,0] },
       { id:'curing-light', file:'dental-tools/curing-light.glb', url:'https://cdn.3dassets.dev/assets/34385/v1/', size:5.0, position:[6.8,1.7,1.4], rotation:[0,-0.5,0] },
-      { id:'plaster-study-arch', file:'dental-tools/plaster-study-arch.glb', url:'https://cdn.3dassets.dev/assets/34397/v1/', size:5.6, position:[-7.3,1.7,0.4], rotation:[0,0.2,0] }
+      { id:'plaster-study-arch', file:'dental-tools/plaster-study-arch.glb', url:'https://cdn.3dassets.dev/assets/34397/v1/', size:5.6, position:[-7.3,1.7,0.4], rotation:[0,0.2,0] },
+      { id:'extraction-forceps', file:'dental-tools/surgical-forceps.glb', url:'https://files.innerscene.com/library/forceps-0697e09f/23a4b04dccffb1867b5e/', remoteFile:'forceps.glb', size:1.6, position:[7.2,-1.2,3.2], rotation:[0,0.15,0] },
+      { id:'scalpel', file:'dental-tools/scalpel-set.glb', url:'https://files.innerscene.com/library/scalpel-set-31709647/50ebfbee69cd692b267c/', remoteFile:'scalpel-set.glb', size:1.8, position:[-7.2,-1.2,3.2], rotation:[0,-0.15,0] }
     ];
     const results = await Promise.allSettled(definitions.map(async def => {
-      const container = await loadContainer(def.file, def.url, 'model.glb');
+      const container = await loadContainer(def.file, def.url, def.remoteFile || 'model.glb');
       const mounted = attachCenteredContainer(container, 'OralSceneProp_' + def.id, def.size);
       mounted.group.parent = dentalScopeRoot;
       mounted.group.position.addInPlace(new Vector3(...def.position));
