@@ -19,6 +19,7 @@ import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
 import { PATHOLOGY_CATEGORIES, DENTAL_PATHOLOGIES } from './pathology-catalog.js';
 import { createPathologyRenderer } from './pathology-visuals.js';
+import { collectMandibularMeshes } from './jaw-motion.js';
 
 const canvas = document.getElementById('render-canvas');
 const loadingOverlay = document.getElementById('loading');
@@ -57,6 +58,7 @@ const pathologyCountElement = document.getElementById('pathology-count');
 let mandiblePivot = null;
 let targetJawAngleRadians = 0;
 let jawRotationSign = -1;
+let jawMotionProbeMesh = null;
 
 if (!canvas) throw new Error('3D canvas is missing.');
 
@@ -675,15 +677,7 @@ function createImportedJawPivot() {
   let mandibleMeshes = [];
   let incisors = [];
   if (clinicalModelActive) {
-    movingNodes = anatomyMeshes.filter(mesh => {
-      const record = clinicalRecords[mesh.name];
-      if (!record) return false;
-      return record.arch === 'mandibular' ||
-        record.layer === 'mandible' ||
-        record.layer === 'ramus' ||
-        mesh.name === 'FMA59764' ||
-        LOWER_NEUROVASCULAR_IDS.has(mesh.name);
-    });
+    movingNodes = collectMandibularMeshes(anatomyMeshes, clinicalRecords, LOWER_NEUROVASCULAR_IDS);
     mandibleMeshes = anatomyMeshes.filter(mesh => {
       const record = clinicalRecords[mesh.name];
       return record && (record.layer === 'mandible' || record.layer === 'ramus');
@@ -708,6 +702,33 @@ function createImportedJawPivot() {
 
   const uniqueNodes = [...new Set(movingNodes)];
   if (!uniqueNodes.length) return false;
+
+  // Track the visible enamel of a lower tooth where available. This is also a
+  // browser-test probe: it proves the rendered crown follows the rotating jaw,
+  // rather than only proving that the pivot angle changed.
+  jawMotionProbeMesh = uniqueNodes.find(mesh => {
+    const record = clinicalRecords[mesh.name];
+    return record?.layer === 'enamel' &&
+      record.tooth &&
+      clinicalRecords[record.tooth]?.arch === 'mandibular';
+  }) || uniqueNodes.find(mesh => {
+    const record = clinicalRecords[mesh.name];
+    return record?.layer === 'teeth' && record.arch === 'mandibular';
+  }) || null;
+
+  if (jawAngleStatus && clinicalModelActive) {
+    const lowerToothMeshes = uniqueNodes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      return record?.layer === 'teeth' && record.arch === 'mandibular';
+    });
+    const attachedToothMeshes = uniqueNodes.filter(mesh => {
+      const record = clinicalRecords[mesh.name];
+      return Boolean(record?.tooth && clinicalRecords[record.tooth]?.arch === 'mandibular');
+    });
+    jawAngleStatus.dataset.lowerToothMeshes = String(lowerToothMeshes.length);
+    jawAngleStatus.dataset.attachedToothMeshes = String(attachedToothMeshes.length);
+    jawAngleStatus.dataset.movingMeshCount = String(uniqueNodes.length);
+  }
   const jawBounds = worldBoundsForMeshes(mandibleMeshes.length ? mandibleMeshes : uniqueNodes);
   if (!jawBounds) return false;
 
@@ -1211,6 +1232,12 @@ engine.runRenderLoop(() => {
     if (jawAngleStatus) {
       const currentAngle = mandiblePivot.rotation.x * jawRotationSign * 180 / Math.PI;
       jawAngleStatus.dataset.currentAngle = currentAngle.toFixed(2);
+      if (jawMotionProbeMesh) {
+        jawMotionProbeMesh.computeWorldMatrix(true);
+        const position = jawMotionProbeMesh.getAbsolutePosition();
+        jawAngleStatus.dataset.jawProbePosition =
+          [position.x, position.y, position.z].map(value => value.toFixed(5)).join(',');
+      }
     }
   }
   if (!testRenderMode) scene.render();
