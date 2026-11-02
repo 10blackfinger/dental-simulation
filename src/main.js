@@ -16,6 +16,7 @@ import {
 } from '@babylonjs/core';
 import { HighlightLayer } from '@babylonjs/core/Layers/highlightLayer';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
+import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
 
 const canvas = document.getElementById('render-canvas');
 const loadingOverlay = document.getElementById('loading');
@@ -46,6 +47,9 @@ const engine = new Engine(canvas, true, {
 const scene = new Scene(engine);
 scene.clearColor = new Color4(0.035, 0.065, 0.105, 1);
 scene.ambientColor = new Color3(0.32, 0.36, 0.4);
+scene.environmentIntensity = 0.72;
+const environmentUrl = new URL('models/environmentSpecular.env', new URL(import.meta.env.BASE_URL, window.location.href)).href;
+scene.environmentTexture = CubeTexture.CreateFromPrefilteredData(environmentUrl, scene);
 
 const camera = new ArcRotateCamera(
   'DentalAnatomyCamera',
