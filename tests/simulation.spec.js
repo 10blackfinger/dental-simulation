@@ -10,9 +10,11 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#asset-status')).toContainText(/تم تحميل|تم إنشاء|تعذر تحميل الملف الأصلي/, { timeout: 90000 });
 
   await expect(page.locator('#jaw-angle')).toBeEnabled();
+  await expect(page.locator('#jaw-angle-status')).toHaveAttribute('data-joint-ready', 'true');
   await page.locator('[data-jaw-angle="30"]').click();
   await expect(page.locator('#jaw-angle')).toHaveValue('30');
   await expect(page.locator('#jaw-angle-value')).toHaveText('30°');
+  await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle'))).toBeGreaterThan(29);
   await page.locator('#jaw-angle').evaluate(input => {
     input.value = '17';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -21,6 +23,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await page.locator('[data-jaw-angle="0"]').click();
   await expect(page.locator('#jaw-angle')).toHaveValue('0');
   await expect(page.locator('#jaw-angle-value')).toHaveText('0°');
+  await expect.poll(async () => Math.abs(Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle')))).toBeLessThan(1);
 
   await page.locator('#anatomy-search').fill('القاطع المركزي');
   await expect(page.locator('#structure-list .structure-button')).toHaveCount(4);
