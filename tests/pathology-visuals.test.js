@@ -71,8 +71,8 @@ test('jaw cysts render on jaw bone rather than on a tooth', () => {
   const result = f.renderer.render([
     state('3', 'dentigerous-cyst', 'dentigerous-cyst', 'bone')
   ], f.context);
-  assert.equal(result.effects, 3, 'cyst shell and clustered deposits should be generated');
-  assert.equal(f.scene.meshes.filter(mesh => mesh.name.startsWith('Pathology')).length, 13);
+  assert.equal(result.effects, 1, 'the jaw lesion should be represented by one pathology case');
+  assert.equal(f.scene.meshes.filter(mesh => mesh.name.startsWith('Pathology')).length, 16);
   f.renderer.clear();
   f.engine.dispose();
 });
