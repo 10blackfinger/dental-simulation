@@ -1602,6 +1602,7 @@ function recordsForTooth(item){return item.records||[];}
 function restoreDentalWholeMouth() {
   dentalSelectedFdi=null;
   dentalSelectedToothDetails=null;
+  dentalIsolatedKey=null;
   for(const item of dentalToothDetails.values())item.root.setEnabled(false);
   document.getElementById('dental-tooth-detail-panel').hidden=true;
   for(const [key,meshes] of dentalMeshByKey)if(/^tooth-\d{2}$/.test(key))for(const mesh of meshes)mesh.isVisible=true;
@@ -2076,6 +2077,7 @@ async function showOralExamExperience() {
   applyDentalBaseVisibility();
   isPatientMouthOpen = true;
   isPropAtMouth = false;
+  dentalIsolatedKey = null;
   selectedOralInventoryRoot?.setEnabled(false);
   selectedOralInventoryRoot = null;
   scene.stopAnimation(dentalLowerJawPivot);
