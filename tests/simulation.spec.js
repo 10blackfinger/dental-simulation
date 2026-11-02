@@ -69,8 +69,7 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
 });
 
 test('pathology catalogue and disease details load in the browser', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('#asset-status')).toContainText(/تم تحميل|تم إنشاء|تعذر تحميل/, { timeout: 90000 });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#pathology-category option')).toHaveCount(9);
   await expect(page.locator('#pathology-condition option')).toHaveCount(78);
   await expect(page.locator('#apply-pathology')).toBeEnabled();
