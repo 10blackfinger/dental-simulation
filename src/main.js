@@ -902,6 +902,9 @@ async function showTreatmentExperience() {
   bodyPanel.hidden = true;
   dentalAtlasPanel.hidden = true;
   activeExperience = 'treatment';
+  isPropAtMouth = false;
+  selectedOralInventoryRoot?.setEnabled(false);
+  selectedOralInventoryRoot = null;
   isPatientMouthOpen = true;
   patientJawPivot.rotation.x = .24;
   document.getElementById('patient-mouth-toggle').textContent = 'إغلاق الفم';
@@ -2005,6 +2008,9 @@ async function showDentalAtlasExperience() {
   for(const id of ['view-oral-exam','view-treatment','view-clinic','view-anatomy','view-people','view-body','view-dental-atlas','view-pediatric']) {
     document.getElementById(id)?.classList.toggle('selected',id==='view-dental-atlas');
   }
+  isPropAtMouth = false;
+  selectedOralInventoryRoot?.setEnabled(false);
+  selectedOralInventoryRoot = null;
   dentalAtlasPanel.hidden=false;
   bodyPanel.hidden=true;
   anatomyPanel.hidden=true;
@@ -2072,6 +2078,7 @@ async function showOralExamExperience() {
   isPropAtMouth = false;
   selectedOralInventoryRoot?.setEnabled(false);
   selectedOralInventoryRoot = null;
+  scene.stopAnimation(dentalLowerJawPivot);
   dentalLowerJawPivot.rotation.x = dentalJawOpenAngle;
   document.getElementById('patient-mouth-toggle').textContent = 'إغلاق الفم';
   document.getElementById('apply-clinical-action').disabled = false;
