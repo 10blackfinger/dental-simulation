@@ -81,6 +81,20 @@ const assets = [
     source: '3DAssets.dev — plaster lower-arch study model; published asset 34397',
     expectedBytes: 24768,
     expectedMinBytes: 24768
+  },
+  {
+    file: 'dental-tools/surgical-forceps.glb',
+    url: 'https://files.innerscene.com/library/forceps-0697e09f/23a4b04dccffb1867b5e/forceps.glb',
+    license: 'CC0 1.0 Universal',
+    source: 'Innerscene Free Parts Library — Forceps (Adson tissue forceps, dressing forceps and haemostat), model added 2026-10-29',
+    expectedMinBytes: 4000000
+  },
+  {
+    file: 'dental-tools/scalpel-set.glb',
+    url: 'https://files.innerscene.com/library/scalpel-set-31709647/50ebfbee69cd692b267c/scalpel-set.glb',
+    license: 'CC0 1.0 Universal',
+    source: 'Innerscene Free Parts Library — Scalpel set (No. 10, 11, 15 and 20 blades), model added 2026-10-29',
+    expectedMinBytes: 4500000
   }
 ];
 
