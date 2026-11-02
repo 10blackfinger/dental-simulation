@@ -158,7 +158,7 @@ async function prepareClinicalModel() {
     // rather than requiring a remote Meshopt decoder at run time.
     const builderPath = join(checkout, 'tools', 'build-assets.mjs');
     const builder = await readFile(builderPath, 'utf8');
-    const compressionBlock = /  await MeshoptEncoder\\.ready;\\s+const io = new NodeIO\\(\\)\\s+\\.registerExtensions\\(\\[EXTMeshoptCompression, KHRMeshQuantization\\]\\)\\s+\\.registerDependencies\\(\\{ 'meshopt\\.encoder': MeshoptEncoder \\}\\);\\s+  await doc\\.transform\\(meshopt\\(\\{ encoder: MeshoptEncoder, level: 'high', quantizationVolume: 'mesh' \\}\\)\\);/;
+    const compressionBlock = /  await MeshoptEncoder\.ready;\s+const io = new NodeIO\(\)\s+\.registerExtensions\(\[EXTMeshoptCompression, KHRMeshQuantization\]\)\s+\.registerDependencies\(\{ 'meshopt\.encoder': MeshoptEncoder \}\);\s+  await doc\.transform\(meshopt\(\{ encoder: MeshoptEncoder, level: 'high', quantizationVolume: 'mesh' \}\)\);/;
     if (!builder.includes('DENTAL_SIMULATION_STANDARD_GLTF')) {
       const standardBuilder = builder.replace(
         compressionBlock,
