@@ -159,6 +159,7 @@ async function prepareClinicalModel() {
     const builderPath = join(checkout, 'tools', 'build-assets.mjs');
     const builder = await readFile(builderPath, 'utf8');
     const compressionBlock = /  await MeshoptEncoder\.ready;\s+const io = new NodeIO\(\)\s+\.registerExtensions\(\[EXTMeshoptCompression, KHRMeshQuantization\]\)\s+\.registerDependencies\(\{ 'meshopt\.encoder': MeshoptEncoder \}\);\s+  await doc\.transform\(meshopt\(\{ encoder: MeshoptEncoder, level: 'high', quantizationVolume: 'mesh' \}\)\);/;
+    let builderPatched = false;
     if (!builder.includes('DENTAL_SIMULATION_STANDARD_GLTF')) {
       const standardBuilder = builder.replace(
         compressionBlock,
@@ -168,9 +169,10 @@ async function prepareClinicalModel() {
         throw new Error('Could not safely adapt the pinned GLB builder for standard glTF output.');
       }
       await writeFile(builderPath, standardBuilder);
+      builderPatched = true;
     }
 
-    if (!await isValid(sourceModel, { format: 'glb', expectedMinBytes: 1000000 }) ||
+    if (builderPatched || !await isValid(sourceModel, { format: 'glb', expectedMinBytes: 1000000 }) ||
         !await exists(sourceMetadata)) {
       console.log('[assets] building the CBCT-derived tooth, gingiva and internal anatomy meshes');
       await execFileAsync('node', ['tools/build-assets.mjs'], {
