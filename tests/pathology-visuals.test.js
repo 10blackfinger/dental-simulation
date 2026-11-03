@@ -227,6 +227,8 @@ test('all 108 catalogue diagnoses execute a dedicated visual route without gener
 
 test('tooth lesions are anchored to the measured external crown surface', () => {
   const f = createFixture();
+  const originalTooth = Float32Array.from(f.tooth.getVerticesData('position'));
+  const originalEnamel = Float32Array.from(f.outerSurface.getVerticesData('position'));
   f.renderer.render([
     state('9', 'deep-caries', 'deep-caries', 'tooth', { severity: 3 })
   ], f.context);
@@ -246,9 +248,9 @@ test('tooth lesions are anchored to the measured external crown surface', () => 
     'the marker must touch the true buccal contour, not float inside the bounding box'
   );
 
-  const before = Float32Array.from(f.tooth.getVerticesData('position'));
   f.renderer.clear();
-  assert.deepEqual(Array.from(f.tooth.getVerticesData('position')), Array.from(before));
+  assert.deepEqual(Array.from(f.tooth.getVerticesData('position')), Array.from(originalTooth));
+  assert.deepEqual(Array.from(f.outerSurface.getVerticesData('position')), Array.from(originalEnamel));
   f.engine.dispose();
 });
 
