@@ -93,63 +93,70 @@ export function estimateClosedJawCorrection(pairs, hinge, options = {}) {
     };
   }
 
-  // Closing is the opposite of the user's positive opening direction. Which
-  // sign that means in model space depends on whether the anterior arch is +Z
-  // or -Z, so search both sides and retain the side that reduces the gap.
-  const candidates = [
-    { low: -maxCorrectionRadians, high: 0 },
-    { low: 0, high: maxCorrectionRadians }
+  // Search both rotation directions. The anterior arch can face +Z or -Z,
+  // so a correct closing correction may be negative OR positive around X.
+  let bestAngle = 0;
+  let bestResidual = initialGap;
+  let bestScore = Math.abs(initialGap - targetGap);
+  const ranges = [
+    [-maxCorrectionRadians, 0],
+    [0, maxCorrectionRadians]
   ];
-  let best = { angleRadians: 0, residualGap: initialGap, score: Math.abs(initialGap - targetGap) };
 
-  for (const range of candidates) {
-    const lowGap = gapAt(range.low);
-    const highGap = gapAt(range.high);
-    if (!Number.isFinite(lowGap) || !Number.isFinite(highGap)) continue;
-    const closesTowardLow = Math.abs(lowGap - targetGap) < Math.abs(highGap - targetGap);
-    if (!closesTowardLow) continue;
+  for (const [startAngle, endAngle] of ranges) {
+    const startGap = gapAt(startAngle);
+    const endGap = gapAt(endAngle);
+    if (!Number.isFinite(startGap) || !Number.isFinite(endGap)) continue;
 
-    let low = range.low;
-    let high = range.high;
-    for (let iteration = 0; iteration < 40; iteration++) {
-      const mid = (low + high) / 2;
-      const gap = gapAt(mid);
-      if (!Number.isFinite(gap)) break;
-      if (Math.abs(gap - targetGap) < 1e-5) {
-        low = mid;
-        high = mid;
-        break;
+    if ((startGap - targetGap) * (endGap - targetGap) <= 0) {
+      let low = startAngle;
+      let high = endAngle;
+      let lowGap = startGap;
+      for (let iteration = 0; iteration < 40; iteration++) {
+        const mid = (low + high) / 2;
+        const midGap = gapAt(mid);
+        if (!Number.isFinite(midGap)) break;
+        if (Math.abs(midGap - targetGap) < 1e-5) {
+          low = mid;
+          high = mid;
+          break;
+        }
+        if ((lowGap - targetGap) * (midGap - targetGap) <= 0) {
+          high = mid;
+        } else {
+          low = mid;
+          lowGap = midGap;
+        }
       }
-      if (Math.abs(lowGap - targetGap) < Math.abs(highGap - targetGap)) {
-        // This interval is expected to cross the target. Keep the half that
-        // still contains the sign change.
-        if ((lowGap - targetGap) * (gap - targetGap) <= 0) high = mid;
-        else low = mid;
-      } else {
-        break;
+      const candidateAngle = (low + high) / 2;
+      const candidateGap = gapAt(candidateAngle);
+      const candidateScore = Math.abs(candidateGap - targetGap);
+      if (candidateScore < bestScore ||
+          (Math.abs(candidateScore - bestScore) < 1e-7 && Math.abs(candidateAngle) < Math.abs(bestAngle))) {
+        bestAngle = candidateAngle;
+        bestResidual = candidateGap;
+        bestScore = candidateScore;
       }
-    }
-    const angleRadians = (low + high) / 2;
-    const residualGap = gapAt(angleRadians);
-    const score = Math.abs(residualGap - targetGap);
-    if (score < best.score) best = { angleRadians, residualGap, score };
-  }
-
-  // If neither side crosses the target, use the endpoint that most reduces
-  // the gap. The diagnostics make incomplete anatomical fits visible to tests.
-  if (best.angleRadians === 0) {
-    for (const range of candidates) {
-      const residualGap = gapAt(range.low);
-      const score = Math.abs(residualGap - targetGap);
-      if (score < best.score) best = { angleRadians: range.low, residualGap, score };
+    } else {
+      // The measured gap may exceed the safe correction range. Keep the
+      // endpoint which reduces it most, rather than silently reporting zero.
+      for (const candidateAngle of [startAngle, endAngle]) {
+        const candidateGap = gapAt(candidateAngle);
+        const candidateScore = Math.abs(candidateGap - targetGap);
+        if (candidateScore < bestScore) {
+          bestAngle = candidateAngle;
+          bestResidual = candidateGap;
+          bestScore = candidateScore;
+        }
+      }
     }
   }
 
   return {
-    angleRadians: best.angleRadians,
+    angleRadians: bestAngle,
     pairCount: validPairs.length,
     initialGap,
-    residualGap: best.residualGap,
+    residualGap: bestResidual,
     calibrated: true
   };
 }
