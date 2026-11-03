@@ -210,6 +210,15 @@ test('all 108 catalogue diagnoses execute a dedicated visual route without gener
     };
     const result = f.renderer.render([state], f.context);
     assert.deepEqual(result.unhandledVisuals, [], condition.id + ' should not use a generic fallback visual');
+    assert.ok(result.effects > 0, condition.id + ' should create a visible pathology effect');
+    if (condition.target === 'tooth') {
+      const root = f.scene.transformNodes.find(node =>
+        node.metadata?.pathologyId === condition.id
+      );
+      assert.ok(root, condition.id + ' should create a tooth pathology root');
+      assert.equal(root.parent, f.outerSurface,
+        condition.id + ' should be anchored to the selected tooth outer surface');
+    }
     f.renderer.clear();
   }
   f.engine.dispose();
