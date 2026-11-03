@@ -573,9 +573,58 @@ export function createPathologyRenderer(scene) {
   function modifyAlveolarBoneAtTooth(context, tooth, anchor, frame, options = {}) {
     const bone = getJawBoneMesh(context, tooth);
     if (!bone || !anchor || !frame) return 0;
+    const source = workingPositions.get(bone) || bone.getVerticesData('position');
+    if (!source?.length) return 0;
+
+    anchor.computeWorldMatrix(true);
+    bone.computeWorldMatrix(true);
+    const anchorWorld = anchor.getWorldMatrix();
+    const boneWorld = bone.getWorldMatrix();
+    const inverseAnchorWorld = anchorWorld.clone();
+    inverseAnchorWorld.invert();
+    const toothSurfaceWorld = Vector3.TransformCoordinates(frame.point, anchorWorld);
+    const outwardWorld = Vector3.TransformNormal(frame.normal, anchorWorld).normalize();
+
+    // The cortical plate is not coincident with the tooth surface. A fixed
+    // 0.045-unit offset commonly remains inside the tooth/socket gap and edits
+    // no bone vertices at all. Find the nearest measured cortical vertex to the
+    // selected root/cervical site, then deform a small patch at that bone point.
+    let nearestDistanceSquared = Infinity;
+    let nearestBonePoint = null;
+    for (let i = 0; i < source.length; i += 3) {
+      const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+      const world = Vector3.TransformCoordinates(local, boneWorld);
+      const delta = world.subtract(toothSurfaceWorld);
+      const projection = Vector3.Dot(delta, outwardWorld);
+      // Prefer the bone on the same side of the tooth as the selected surface;
+      // a slightly wider allowance tolerates imperfectly segmented sockets.
+      if (projection < -0.08) continue;
+      const distanceSquared = Vector3.DistanceSquared(world, toothSurfaceWorld);
+      if (distanceSquared < nearestDistanceSquared) {
+        nearestDistanceSquared = distanceSquared;
+        nearestBonePoint = world;
+      }
+    }
+
+    // If the surface-normal side had no samples, fall back to the globally
+    // nearest point rather than leaving a disease with no alveolar response.
+    if (!nearestBonePoint) {
+      for (let i = 0; i < source.length; i += 3) {
+        const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+        const world = Vector3.TransformCoordinates(local, boneWorld);
+        const distanceSquared = Vector3.DistanceSquared(world, toothSurfaceWorld);
+        if (distanceSquared < nearestDistanceSquared) {
+          nearestDistanceSquared = distanceSquared;
+          nearestBonePoint = world;
+        }
+      }
+    }
+    if (!nearestBonePoint) return 0;
+
     const boneFrame = {
       ...frame,
-      point: frame.point.add(frame.normal.scale(0.045)),
+      point: Vector3.TransformCoordinates(nearestBonePoint, inverseAnchorWorld),
+      normal: frame.normal.clone(),
       extent: frame.extent.clone()
     };
     if (options.tint) setTint(bone, options.tint, options.tintStrength ?? 0.28);
