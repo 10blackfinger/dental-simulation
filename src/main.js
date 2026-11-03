@@ -19,7 +19,7 @@ import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
 import { PATHOLOGY_CATEGORIES, DENTAL_PATHOLOGIES } from './pathology-catalog.js';
 import { createPathologyRenderer } from './pathology-visuals.js';
-import { collectMandibularMeshes } from './jaw-motion.js';
+import { collectMandibularMeshes, estimateClosedJawCorrection } from './jaw-motion.js';
 
 const canvas = document.getElementById('render-canvas');
 const loadingOverlay = document.getElementById('loading');
@@ -59,6 +59,8 @@ let mandiblePivot = null;
 let targetJawAngleRadians = 0;
 let jawRotationSign = -1;
 let jawMotionProbeMesh = null;
+let closedJawCorrectionDegrees = 0;
+let jawOcclusionCalibration = null;
 
 if (!canvas) throw new Error('3D canvas is missing.');
 
@@ -616,7 +618,7 @@ function updateJawAngle(degrees) {
   const angle = Math.max(0, Math.min(40, Math.round(Number(degrees) || 0)));
   if (jawAngleInput) jawAngleInput.value = String(angle);
   if (jawAngleValue) jawAngleValue.textContent = angle + '°';
-  targetJawAngleRadians = jawRotationSign * angle * Math.PI / 180;
+  targetJawAngleRadians = jawRotationSign * (angle + closedJawCorrectionDegrees) * Math.PI / 180;
   if (jawAngleValue) jawAngleValue.dataset.targetAngle = String(angle);
 
   for (const button of jawPresetButtons) {
@@ -631,7 +633,7 @@ function updateJawAngle(degrees) {
   }
 }
 
-function registerJawPivot(pivot, movingNodes, rotationSign) {
+function registerJawPivot(pivot, movingNodes, rotationSign, closedCorrectionDegrees = 0, occlusion = null) {
   const nodes = [...new Set(movingNodes)].filter(Boolean);
   if (!pivot || !nodes.length) {
     if (jawAngleStatus) jawAngleStatus.textContent = 'تعذر تحديد أجزاء الفك السفلي القابلة للحركة.';
@@ -647,11 +649,25 @@ function registerJawPivot(pivot, movingNodes, rotationSign) {
 
   mandiblePivot = pivot;
   jawRotationSign = rotationSign;
-  if (jawAngleStatus) jawAngleStatus.dataset.jointReady = 'true';
+  closedJawCorrectionDegrees = Number.isFinite(closedCorrectionDegrees) ? closedCorrectionDegrees : 0;
+  jawOcclusionCalibration = occlusion;
+  if (jawAngleStatus) {
+    jawAngleStatus.dataset.jointReady = 'true';
+    jawAngleStatus.dataset.closedCorrectionDegrees = closedJawCorrectionDegrees.toFixed(3);
+    jawAngleStatus.dataset.occlusionPairs = String(occlusion?.pairCount || 0);
+    jawAngleStatus.dataset.occlusionInitialGap = Number.isFinite(occlusion?.initialGap)
+      ? occlusion.initialGap.toFixed(5) : '';
+    jawAngleStatus.dataset.occlusionGap = Number.isFinite(occlusion?.residualGap)
+      ? occlusion.residualGap.toFixed(5) : '';
+  }
   updateJawAngle(Number(jawAngleInput?.value || 0));
   if (jawAngleInput) jawAngleInput.disabled = false;
   for (const button of jawPresetButtons) button.disabled = false;
-  if (jawAngleStatus) jawAngleStatus.textContent = 'حرّك المؤشر لتغيير زاوية فتح الفك السفلي.';
+  if (jawAngleStatus) {
+    jawAngleStatus.textContent = occlusion?.pairCount
+      ? 'تمت معايرة وضع الإغلاق من ' + occlusion.pairCount + ' زوجًا من الأسنان. حرّك المؤشر للفتح.'
+      : 'تعذر قياس تلامس الأسنان؛ الحركة تبدأ من وضع التصوير الأصلي.';
+  }
   return true;
 }
 
@@ -668,6 +684,83 @@ function worldBoundsForMeshes(meshes) {
     count++;
   }
   return count ? { min, max } : null;
+}
+
+function getOcclusalPoint(mesh, arch) {
+  const positions = mesh?.getVerticesData?.('position');
+  if (!positions?.length) return null;
+  mesh.computeWorldMatrix(true);
+  const world = mesh.getWorldMatrix();
+  let extremeY = arch === 'maxillary' ? Infinity : -Infinity;
+  const worldPoints = [];
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const point = Vector3.TransformCoordinates(
+      new Vector3(positions[i], positions[i + 1], positions[i + 2]),
+      world
+    );
+    worldPoints.push(point);
+    if (arch === 'maxillary') extremeY = Math.min(extremeY, point.y);
+    else extremeY = Math.max(extremeY, point.y);
+  }
+
+  if (!Number.isFinite(extremeY)) return null;
+  const yExtent = Math.max(...worldPoints.map(point => point.y)) -
+    Math.min(...worldPoints.map(point => point.y));
+  const tolerance = Math.max(yExtent * 0.025, 0.0015);
+  const samples = worldPoints.filter(point => arch === 'maxillary'
+    ? point.y <= extremeY + tolerance
+    : point.y >= extremeY - tolerance);
+  if (!samples.length) return null;
+
+  const average = samples.reduce((sum, point) => sum.addInPlace(point), Vector3.Zero());
+  return average.scaleInPlace(1 / samples.length);
+}
+
+function collectOpposingOcclusalPairs(meshes) {
+  const surfaces = new Map();
+  const toothFallbacks = new Map();
+
+  for (const mesh of meshes) {
+    const record = clinicalRecords[mesh.name];
+    if (!record?.arch || !record?.side || !Number.isFinite(Number(record.position))) continue;
+    const toothId = record.layer === 'teeth' ? mesh.name : record.tooth;
+    if (!toothId) continue;
+    const key = toothId;
+    const entry = {
+      mesh,
+      arch: record.arch,
+      side: record.side,
+      position: Number(record.position)
+    };
+
+    if (record.layer === 'teeth') toothFallbacks.set(key, entry);
+    else if (record.layer === 'enamel' || record.layer === 'prosthetic') {
+      // Enamel is the true outer surface for natural crowns; prosthetic crowns
+      // replace it on the two restored teeth in this scan.
+      surfaces.set(key, entry);
+    }
+  }
+
+  const upper = new Map();
+  const lower = new Map();
+  for (const [toothId, entry] of toothFallbacks) {
+    if (!surfaces.has(toothId)) surfaces.set(toothId, entry);
+  }
+
+  for (const entry of surfaces.values()) {
+    const point = getOcclusalPoint(entry.mesh, entry.arch);
+    if (!point) continue;
+    const key = entry.side + ':' + entry.position;
+    (entry.arch === 'maxillary' ? upper : lower).set(key, point);
+  }
+
+  const pairs = [];
+  for (const [key, upperPoint] of upper) {
+    const lowerPoint = lower.get(key);
+    if (lowerPoint) pairs.push({ upper: upperPoint, lower: lowerPoint });
+  }
+  return pairs;
 }
 
 function createImportedJawPivot() {
@@ -754,7 +847,15 @@ function createImportedJawPivot() {
   pivot.rotation.setAll(0);
   pivot.computeWorldMatrix(true);
 
-  return registerJawPivot(pivot, uniqueNodes, frontIsMinZ ? -1 : 1);
+  const rotationSign = frontIsMinZ ? -1 : 1;
+  const occlusionPairs = collectOpposingOcclusalPairs(anatomyMeshes);
+  const occlusion = estimateClosedJawCorrection(occlusionPairs, hingeWorld, {
+    targetGap: 0.0025,
+    maxCorrectionDegrees: 25
+  });
+  const uiCorrectionDegrees = occlusion.angleRadians * rotationSign * 180 / Math.PI;
+
+  return registerJawPivot(pivot, uniqueNodes, rotationSign, uiCorrectionDegrees, occlusion);
 }
 
 function setCamera(mode) {
@@ -1230,8 +1331,10 @@ engine.runRenderLoop(() => {
     mandiblePivot.rotation.x += difference * (1 - Math.exp(-deltaMs / 115));
     if (Math.abs(difference) < 0.0005) mandiblePivot.rotation.x = targetJawAngleRadians;
     if (jawAngleStatus) {
-      const currentAngle = mandiblePivot.rotation.x * jawRotationSign * 180 / Math.PI;
+      const modelAngle = mandiblePivot.rotation.x * jawRotationSign * 180 / Math.PI;
+      const currentAngle = modelAngle - closedJawCorrectionDegrees;
       jawAngleStatus.dataset.currentAngle = currentAngle.toFixed(2);
+      jawAngleStatus.dataset.modelAngle = modelAngle.toFixed(2);
       if (jawMotionProbeMesh) {
         jawMotionProbeMesh.computeWorldMatrix(true);
         const position = jawMotionProbeMesh.getAbsolutePosition();
