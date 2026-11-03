@@ -403,7 +403,7 @@ export function createPathologyRenderer(scene) {
   }
 
   function deformToothSurface(parts, records, sourceId, anchor, frame, options = {}) {
-    const layers = options.layers || ['teeth', 'enamel'];
+    const layers = options.layers || ['teeth', 'enamel', 'prosthetic'];
     const targets = parts.filter(mesh => layers.includes(records[mesh.name]?.layer));
     const { layers: _layers, ...deformation } = options;
     return deformSurface(anchor, targets, frame, deformation);
@@ -1097,7 +1097,7 @@ export function createPathologyRenderer(scene) {
         break;
       case 'pulp-necrosis':
         if (pulp) setTint(pulp, 'necrosis', 0.95);
-        addApicalLesion(root, surfaceFrame(base || enamel, tooth, 'apical'), state, 'apical');
+        addApicalLesion(root, surfaceFrame(base || outerSurface, tooth, 'apical'), state, 'apical');
         break;
       case 'pulp-polyp':
         if (pulp) setTint(pulp, 'polyp', 0.95);
@@ -1136,7 +1136,7 @@ export function createPathologyRenderer(scene) {
           if (visual === 'apical-abscess' || visual === 'chronic-apical-abscess') {
             spherePatch(root, apical, 'pus', 0.06 + progression * 0.03, 0.035, 0.95, 0.012);
             modifyGingivaAtTooth(context, tooth, base || enamel,
-              surfaceFrame(base || enamel, tooth, 'cervical'), {
+              surfaceFrame(base || outerSurface, tooth, 'cervical'), {
                 mode: 'raise', profile: 'lobulated', factor: 0.13 + progression * 0.06,
                 depthRatio: 0.08, tint: 'gingiva', tintStrength: 0.42
               });
@@ -1162,7 +1162,7 @@ export function createPathologyRenderer(scene) {
         }
         break;
       case 'hypercementosis': {
-        const apicalFrame = surfaceFrame(base || enamel, tooth, 'apical');
+        const apicalFrame = surfaceFrame(base || outerSurface, tooth, 'apical');
         spherePatch(root, apicalFrame, 'boneDensity', 0.11 + progression * 0.035, 0.08, 0.96, 0.008);
         deformToothSurface(parts, records, sourceId, base || enamel, apicalFrame, {
           layers: ['teeth'], mode: 'raise', profile: 'lobulated',
@@ -1374,7 +1374,7 @@ export function createPathologyRenderer(scene) {
         break;
       }
       case 'furcation': {
-        const furcationFrame = surfaceFrame(base || enamel, tooth, 'lingual');
+        const furcationFrame = surfaceFrame(base || outerSurface, tooth, 'lingual');
         modifyAlveolarBoneAtTooth(context, tooth, base || enamel, furcationFrame, {
           mode: 'loss', profile: 'wedge', factor: 0.21 + progression * 0.08,
           depthRatio: 0.15 + progression * 0.12, irregularity: 0.1,
@@ -1390,7 +1390,7 @@ export function createPathologyRenderer(scene) {
       case 'hypersensitivity':
         {
           const targetSurface = visual === 'erosion' || visual === 'attrition' ? 'occlusal' : 'cervical';
-          const wearFrame = surfaceFrame(enamel || base, tooth, targetSurface);
+          const wearFrame = surfaceFrame(outerSurface, tooth, targetSurface);
           const key = visual === 'hypersensitivity' ? 'hypersensitivity' :
             visual === 'erosion' || visual === 'attrition' ? 'dentin' : 'wear';
           spherePatch(root, wearFrame, key,
@@ -1428,7 +1428,7 @@ export function createPathologyRenderer(scene) {
       case 'root-fracture':
         {
           const fractureSurface = visual === 'root-fracture' ? 'apical' : 'occlusal';
-          const fractureFrame = surfaceFrame(enamel || base, tooth, fractureSurface);
+          const fractureFrame = surfaceFrame(outerSurface, tooth, fractureSurface);
           addCrack(root, fractureFrame, 'fracture', 0.012 + severity * 0.002);
           spherePatch(root, surfaceFrame(outerSurface, tooth, 'occlusal'), 'dentin', 0.09 + progression * 0.06, 0.025);
           deformToothSurface(parts, records, sourceId, enamel || base, fractureFrame, {
