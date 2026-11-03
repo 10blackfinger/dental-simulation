@@ -732,15 +732,17 @@ function collectOpposingOcclusalPairs(meshes) {
 
   for (const mesh of meshes) {
     const record = clinicalRecords[mesh.name];
-    if (!record?.arch || !record?.side || !Number.isFinite(Number(record.position))) continue;
+    if (!record) continue;
     const toothId = record.layer === 'teeth' ? mesh.name : record.tooth;
     if (!toothId) continue;
+    const hostTooth = record.layer === 'teeth' ? record : clinicalRecords[toothId];
+    if (!hostTooth?.arch || !hostTooth?.side || !Number.isFinite(Number(hostTooth.position))) continue;
     const key = toothId;
     const entry = {
       mesh,
-      arch: record.arch,
-      side: record.side,
-      position: Number(record.position)
+      arch: hostTooth.arch,
+      side: hostTooth.side,
+      position: Number(hostTooth.position)
     };
 
     if (record.layer === 'teeth') toothFallbacks.set(key, entry);
