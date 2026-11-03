@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { collectMandibularMeshes, isMandibularRecord } from '../src/jaw-motion.js';
+import { collectMandibularMeshes, estimateClosedJawCorrection, isMandibularRecord } from '../src/jaw-motion.js';
 
 const structures = {
   'tooth-lower': { layer: 'teeth', arch: 'mandibular' },
@@ -39,4 +39,36 @@ test('the mandibular movement set includes lower teeth and every tooth-attached 
   }
   assert.ok(!names.includes('tooth-upper'), 'upper tooth must remain stationary');
   assert.ok(!names.includes('enamel-upper'), 'upper enamel must remain stationary');
+});
+
+
+test('closed-jaw calibration removes a small scan-acquisition gap at the incisors', () => {
+  const hinge = { x: 0, y: 0, z: -1 };
+  const pairs = Array.from({ length: 6 }, (_, index) => ({
+    upper: { x: index * 0.02, y: 0, z: 0.8 + index * 0.03 },
+    lower: { x: index * 0.02, y: -0.2, z: 0.8 + index * 0.03 }
+  }));
+  const result = estimateClosedJawCorrection(pairs, hinge);
+  assert.equal(result.pairCount, 6);
+  assert.ok(result.angleRadians < 0, 'an anterior arch on +Z closes with a negative X correction');
+  assert.ok(result.residualGap <= 0.004, 'the calibrated occlusal gap should be reduced to contact clearance');
+  assert.ok(result.initialGap > result.residualGap);
+});
+
+test('closed-jaw calibration does not move a scan that is already in occlusion', () => {
+  const result = estimateClosedJawCorrection([
+    { upper: { x: 0, y: 0, z: 0.8 }, lower: { x: 0, y: -0.001, z: 0.8 } },
+    { upper: { x: 0.1, y: 0, z: 0.7 }, lower: { x: 0.1, y: -0.001, z: 0.7 } }
+  ], { x: 0, y: 0, z: -1 });
+  assert.equal(result.angleRadians, 0);
+  assert.equal(result.calibrated, true);
+});
+
+test('closed-jaw calibration finds the opposite sign when the anterior arch is on -Z', () => {
+  const result = estimateClosedJawCorrection([
+    { upper: { x: 0, y: 0, z: -0.8 }, lower: { x: 0, y: -0.2, z: -0.8 } },
+    { upper: { x: 0.1, y: 0, z: -0.7 }, lower: { x: 0.1, y: -0.2, z: -0.7 } }
+  ], { x: 0, y: 0, z: 1 });
+  assert.ok(result.angleRadians > 0, 'an anterior arch on -Z closes with a positive X correction');
+  assert.ok(result.residualGap <= 0.004);
 });
