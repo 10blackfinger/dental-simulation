@@ -36,6 +36,9 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await expect(page.locator('#jaw-angle-status')).toHaveAttribute('data-joint-ready', 'true');
   await expect(page.locator('#jaw-angle-status')).toHaveAttribute('data-lower-tooth-meshes', '14');
   await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-attached-tooth-meshes'))).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-occlusion-pairs'))).toBeGreaterThanOrEqual(12);
+  await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-occlusion-gap'))).toBeLessThanOrEqual(0.004);
+  await expect.poll(async () => Math.abs(Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle')))).toBeLessThan(0.25);
   await expect.poll(async () => Boolean(await page.locator('#jaw-angle-status').getAttribute('data-jaw-probe-position'))).toBeTruthy();
   const closedToothPosition = (await page.locator('#jaw-angle-status').getAttribute('data-jaw-probe-position')).split(',').map(Number);
 
@@ -58,7 +61,8 @@ test('the clean workspace exposes only the core oral anatomy experience', async 
   await page.locator('[data-jaw-angle="0"]').click();
   await expect(page.locator('#jaw-angle')).toHaveValue('0');
   await expect(page.locator('#jaw-angle-value')).toHaveText('0°');
-  await expect.poll(async () => Math.abs(Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle')))).toBeLessThan(1);
+  await expect.poll(async () => Math.abs(Number(await page.locator('#jaw-angle-status').getAttribute('data-current-angle')))).toBeLessThan(0.25);
+  await expect.poll(async () => Number(await page.locator('#jaw-angle-status').getAttribute('data-occlusion-gap'))).toBeLessThanOrEqual(0.004);
   const returnedToothPosition = (await page.locator('#jaw-angle-status').getAttribute('data-jaw-probe-position')).split(',').map(Number);
   expect(Math.hypot(...returnedToothPosition.map((value, index) => value - closedToothPosition[index]))).toBeLessThan(0.015);
 

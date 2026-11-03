@@ -403,7 +403,7 @@ export function createPathologyRenderer(scene) {
   }
 
   function deformToothSurface(parts, records, sourceId, anchor, frame, options = {}) {
-    const layers = options.layers || ['teeth', 'enamel'];
+    const layers = options.layers || ['teeth', 'enamel', 'prosthetic'];
     const targets = parts.filter(mesh => layers.includes(records[mesh.name]?.layer));
     const { layers: _layers, ...deformation } = options;
     return deformSurface(anchor, targets, frame, deformation);
@@ -573,9 +573,58 @@ export function createPathologyRenderer(scene) {
   function modifyAlveolarBoneAtTooth(context, tooth, anchor, frame, options = {}) {
     const bone = getJawBoneMesh(context, tooth);
     if (!bone || !anchor || !frame) return 0;
+    const source = workingPositions.get(bone) || bone.getVerticesData('position');
+    if (!source?.length) return 0;
+
+    anchor.computeWorldMatrix(true);
+    bone.computeWorldMatrix(true);
+    const anchorWorld = anchor.getWorldMatrix();
+    const boneWorld = bone.getWorldMatrix();
+    const inverseAnchorWorld = anchorWorld.clone();
+    inverseAnchorWorld.invert();
+    const toothSurfaceWorld = Vector3.TransformCoordinates(frame.point, anchorWorld);
+    const outwardWorld = Vector3.TransformNormal(frame.normal, anchorWorld).normalize();
+
+    // The cortical plate is not coincident with the tooth surface. A fixed
+    // 0.045-unit offset commonly remains inside the tooth/socket gap and edits
+    // no bone vertices at all. Find the nearest measured cortical vertex to the
+    // selected root/cervical site, then deform a small patch at that bone point.
+    let nearestDistanceSquared = Infinity;
+    let nearestBonePoint = null;
+    for (let i = 0; i < source.length; i += 3) {
+      const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+      const world = Vector3.TransformCoordinates(local, boneWorld);
+      const delta = world.subtract(toothSurfaceWorld);
+      const projection = Vector3.Dot(delta, outwardWorld);
+      // Prefer the bone on the same side of the tooth as the selected surface;
+      // a slightly wider allowance tolerates imperfectly segmented sockets.
+      if (projection < -0.08) continue;
+      const distanceSquared = Vector3.DistanceSquared(world, toothSurfaceWorld);
+      if (distanceSquared < nearestDistanceSquared) {
+        nearestDistanceSquared = distanceSquared;
+        nearestBonePoint = world;
+      }
+    }
+
+    // If the surface-normal side had no samples, fall back to the globally
+    // nearest point rather than leaving a disease with no alveolar response.
+    if (!nearestBonePoint) {
+      for (let i = 0; i < source.length; i += 3) {
+        const local = new Vector3(source[i], source[i + 1], source[i + 2]);
+        const world = Vector3.TransformCoordinates(local, boneWorld);
+        const distanceSquared = Vector3.DistanceSquared(world, toothSurfaceWorld);
+        if (distanceSquared < nearestDistanceSquared) {
+          nearestDistanceSquared = distanceSquared;
+          nearestBonePoint = world;
+        }
+      }
+    }
+    if (!nearestBonePoint) return 0;
+
     const boneFrame = {
       ...frame,
-      point: frame.point.add(frame.normal.scale(0.045)),
+      point: Vector3.TransformCoordinates(nearestBonePoint, inverseAnchorWorld),
+      normal: frame.normal.clone(),
       extent: frame.extent.clone()
     };
     if (options.tint) setTint(bone, options.tint, options.tintStrength ?? 0.28);
@@ -697,35 +746,105 @@ export function createPathologyRenderer(scene) {
     const crownSign = arch === 'maxillary' ? -1 : 1;
     const rootSign = -crownSign;
     const normal = new Vector3(0, 0, 0);
-    const point = center.clone();
 
     if (surface === 'occlusal' || surface === 'incisal') {
       normal.y = crownSign;
-      point.y = crownSign < 0 ? min.y + extent.y * 0.025 : max.y - extent.y * 0.025;
     } else if (surface === 'apical') {
       normal.y = rootSign;
-      point.y = rootSign > 0 ? max.y - extent.y * 0.02 : min.y + extent.y * 0.02;
     } else if (surface === 'lingual') {
       if (position >= 4) normal.x = side === 'right' ? 1 : -1;
       else normal.z = -1;
     } else if (surface === 'mesial' || surface === 'distal') {
       const mesialSign = side === 'right' ? 1 : -1;
       normal.x = surface === 'mesial' ? mesialSign : -mesialSign;
+    } else if (position >= 4) {
+      normal.x = side === 'right' ? -1 : 1;
     } else {
-      if (position >= 4) normal.x = side === 'right' ? -1 : 1;
-      else normal.z = 1;
+      normal.z = 1;
     }
 
-    if (surface !== 'occlusal' && surface !== 'incisal' && surface !== 'apical') {
-      const towardCrown = crownSign < 0 ? 0.34 : 0.66;
-      point.y = min.y + extent.y * towardCrown;
-      if (surface === 'cervical') point.y = min.y + extent.y * (crownSign < 0 ? 0.66 : 0.34);
-      if (normal.x !== 0) point.x += normal.x * extent.x * 0.43;
-      if (normal.z !== 0) point.z += normal.z * extent.z * 0.43;
+    const positions = workingPositions.get(mesh) || mesh.getVerticesData('position');
+    if (!positions?.length) {
+      // Defensive fallback for a mesh without readable vertex positions.
+      const point = center.clone();
+      const yRatio = surface === 'cervical'
+        ? (crownSign < 0 ? 0.66 : 0.34)
+        : (crownSign < 0 ? 0.34 : 0.66);
+      if (normal.y !== 0) {
+        point.y = normal.y === crownSign
+          ? (crownSign < 0 ? min.y : max.y)
+          : (rootSign > 0 ? max.y : min.y);
+      } else {
+        point.y = min.y + extent.y * yRatio;
+        if (normal.x !== 0) point.x += normal.x * extent.x * 0.48;
+        if (normal.z !== 0) point.z += normal.z * extent.z * 0.48;
+      }
+      const axisExtent = normal.x ? extent.x : normal.y ? extent.y : extent.z;
+      point.addInPlace(normal.scale(Math.max(axisExtent * 0.002, 0.0005)));
+      return { point, normal, extent, min, max, center };
     }
 
-    const nExtent = normal.x ? extent.x : normal.y ? extent.y : extent.z;
-    point.addInPlace(normal.scale(Math.max(nExtent * 0.018, 0.001)));
+    // Pick points from the actual surface mesh, not an arbitrary fraction of
+    // the bounding box. The old 43% offset often landed well inside the crown
+    // or outside the buccal contour, so visible lesions floated or were buried.
+    let targetY;
+    let yBand;
+    if (surface === 'occlusal' || surface === 'incisal') {
+      targetY = crownSign < 0 ? min.y : max.y;
+      yBand = Math.max(extent.y * 0.055, 0.0015);
+    } else if (surface === 'apical') {
+      targetY = rootSign > 0 ? max.y : min.y;
+      yBand = Math.max(extent.y * 0.055, 0.0015);
+    } else {
+      const ratio = surface === 'cervical'
+        ? (crownSign < 0 ? 0.66 : 0.34)
+        : (crownSign < 0 ? 0.34 : 0.66);
+      targetY = min.y + extent.y * ratio;
+      yBand = Math.max(extent.y * 0.105, 0.0025);
+    }
+
+    const candidates = [];
+    let extremeProjection = -Infinity;
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i];
+      const y = positions[i + 1];
+      const z = positions[i + 2];
+      if (Math.abs(y - targetY) > yBand) continue;
+      const projection = x * normal.x + y * normal.y + z * normal.z;
+      if (projection > extremeProjection) extremeProjection = projection;
+      candidates.push({ x, y, z, projection });
+    }
+
+    // A narrow support band around the outermost sampled contour keeps the
+    // frame on the real enamel/root surface, while averaging a few vertices
+    // gives a stable anchor for the disease patch instead of one triangle tip.
+    const projectionAxisExtent = normal.x ? extent.x : normal.y ? extent.y : extent.z;
+    const projectionTolerance = Math.max(projectionAxisExtent * 0.045, 0.0012);
+    const support = candidates.filter(item =>
+      item.projection >= extremeProjection - projectionTolerance
+    );
+    const selected = support.length ? support : candidates;
+    let point;
+    if (selected.length) {
+      point = selected.reduce((sum, item) => {
+        sum.x += item.x;
+        sum.y += item.y;
+        sum.z += item.z;
+        return sum;
+      }, { x: 0, y: 0, z: 0 });
+      point = new Vector3(
+        point.x / selected.length,
+        point.y / selected.length,
+        point.z / selected.length
+      );
+    } else {
+      point = center.clone();
+      point.y = targetY;
+      if (normal.x !== 0) point.x += normal.x * extent.x * 0.48;
+      if (normal.z !== 0) point.z += normal.z * extent.z * 0.48;
+    }
+
+    point.addInPlace(normal.scale(Math.max(projectionAxisExtent * 0.002, 0.0005)));
     return { point, normal, extent, min, max, center };
   }
 
@@ -916,7 +1035,12 @@ export function createPathologyRenderer(scene) {
     const sourceId = tooth.sourceId;
     const parts = toothParts(meshes, records, sourceId);
     const base = sourceMesh(meshes, records, sourceId, 'teeth');
-    const enamel = parts.find(mesh => records[mesh.name]?.layer === 'enamel') || base;
+    const enamel = parts.find(mesh => records[mesh.name]?.layer === 'enamel');
+    const prosthetic = parts.find(mesh => records[mesh.name]?.layer === 'prosthetic');
+    // In the scanned patient, two teeth were restored with full-contour crowns
+    // and their natural enamel is absent. The restoration is the visible outer
+    // tooth surface and therefore must receive surface lesions and highlights.
+    const outerSurface = enamel || prosthetic || base;
     const pulp = parts.find(mesh => records[mesh.name]?.layer === 'pulp');
     const gum = getGingivaMesh(context, tooth);
     const bone = getJawBoneMesh(context, tooth);
@@ -924,14 +1048,14 @@ export function createPathologyRenderer(scene) {
     const progression = state.stage.progression;
     const condition = state.condition;
     const visual = condition.visual;
-    const root = makeRoot(base || enamel, 'Pathology_' + condition.id + '_' + state.caseId, state);
+    const root = makeRoot(outerSurface, 'Pathology_' + condition.id + '_' + state.caseId, state);
     if (!root) return;
     const surface = visual.includes('root') || visual.includes('resorption') ? 'cervical' :
       visual.includes('wear') || visual.includes('attrition') ? 'occlusal' : 'buccal';
-    const frame = surfaceFrame(enamel || base, tooth, surface);
+    const frame = surfaceFrame(outerSurface, tooth, surface);
     const surfaceTargets = parts.filter(mesh => {
       const layer = records[mesh.name]?.layer;
-      return layer === 'teeth' || layer === 'enamel';
+      return layer === 'teeth' || layer === 'enamel' || layer === 'prosthetic';
     });
 
     switch (visual) {
@@ -947,20 +1071,23 @@ export function createPathologyRenderer(scene) {
       case 'arrested-caries':
         {
           const cariesFrame = visual === 'root-caries'
-            ? surfaceFrame(enamel || base, tooth, 'cervical')
+            ? surfaceFrame(base || outerSurface, tooth, 'cervical')
             : visual === 'caries' && condition.id === 'enamel-caries'
-              ? surfaceFrame(enamel || base, tooth, 'occlusal')
+              ? surfaceFrame(outerSurface, tooth, 'occlusal')
               : frame;
           const arrested = visual === 'arrested-caries';
-          const targetLayers = condition.id === 'enamel-caries' ? ['enamel'] :
-            visual === 'root-caries' ? ['teeth'] : ['teeth', 'enamel'];
+          const targetLayers = visual === 'root-caries' ? ['teeth'] :
+            ['teeth', 'enamel', 'prosthetic'];
           addCavity(root, cariesFrame, severity, progression,
             arrested ? 'rootCaries' : visual === 'root-caries' ? 'rootCaries' : 'cariesCore',
-            { dentinFloor: targetLayers.includes('teeth'), fracturedEdge: !arrested });
+            { dentinFloor: targetLayers.includes('teeth') && condition.id !== 'enamel-caries',
+              fracturedEdge: !arrested });
           deformToothSurface(parts, records, sourceId, enamel || base, cariesFrame, {
             layers: targetLayers,
-            factor: arrested ? 0.09 : 0.14 + progression * 0.12,
-            depthRatio: arrested ? 0.035 : 0.075 + progression * 0.17,
+            factor: arrested ? 0.09 : condition.id === 'enamel-caries'
+              ? 0.1 + progression * 0.045 : 0.14 + progression * 0.12,
+            depthRatio: arrested ? 0.025 : condition.id === 'enamel-caries'
+              ? 0.025 + progression * 0.045 : 0.075 + progression * 0.17,
             surfaceBandRatio: 0.34,
             profile: 'crater',
             irregularity: 0.12
@@ -976,7 +1103,7 @@ export function createPathologyRenderer(scene) {
             }
           }
           if (visual === 'rampant-caries') {
-            const secondFrame = surfaceFrame(enamel || base, tooth, 'lingual');
+            const secondFrame = surfaceFrame(outerSurface, tooth, 'lingual');
             addCavity(root, secondFrame, severity, progression, 'cariesCore');
             deformToothSurface(parts, records, sourceId, enamel || base, secondFrame, {
               factor: 0.12 + progression * 0.1,
@@ -1019,11 +1146,11 @@ export function createPathologyRenderer(scene) {
         break;
       case 'pulp-necrosis':
         if (pulp) setTint(pulp, 'necrosis', 0.95);
-        addApicalLesion(root, surfaceFrame(base || enamel, tooth, 'apical'), state, 'apical');
+        addApicalLesion(root, surfaceFrame(base || outerSurface, tooth, 'apical'), state, 'apical');
         break;
       case 'pulp-polyp':
         if (pulp) setTint(pulp, 'polyp', 0.95);
-        spherePatch(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'polyp', 0.13 + progression * 0.05, 0.045, 0.96, 0.012);
+        spherePatch(root, surfaceFrame(outerSurface, tooth, 'occlusal'), 'polyp', 0.13 + progression * 0.05, 0.045, 0.96, 0.012);
         break;
       case 'pulp-calcification':
         if (pulp) {
@@ -1039,7 +1166,7 @@ export function createPathologyRenderer(scene) {
       case 'chronic-apical-abscess':
       case 'condensing-osteitis':
         {
-          const apical = surfaceFrame(base || enamel, tooth, 'apical');
+          const apical = surfaceFrame(base || outerSurface, tooth, 'apical');
           const key = visual === 'condensing-osteitis' ? 'boneDensity' :
             visual === 'apical-abscess' || visual === 'chronic-apical-abscess' ? 'abscess' :
             visual === 'periapical-cyst' ? 'ulcer' : 'apical';
@@ -1058,7 +1185,7 @@ export function createPathologyRenderer(scene) {
           if (visual === 'apical-abscess' || visual === 'chronic-apical-abscess') {
             spherePatch(root, apical, 'pus', 0.06 + progression * 0.03, 0.035, 0.95, 0.012);
             modifyGingivaAtTooth(context, tooth, base || enamel,
-              surfaceFrame(base || enamel, tooth, 'cervical'), {
+              surfaceFrame(base || outerSurface, tooth, 'cervical'), {
                 mode: 'raise', profile: 'lobulated', factor: 0.13 + progression * 0.06,
                 depthRatio: 0.08, tint: 'gingiva', tintStrength: 0.42
               });
@@ -1084,7 +1211,7 @@ export function createPathologyRenderer(scene) {
         }
         break;
       case 'hypercementosis': {
-        const apicalFrame = surfaceFrame(base || enamel, tooth, 'apical');
+        const apicalFrame = surfaceFrame(base || outerSurface, tooth, 'apical');
         spherePatch(root, apicalFrame, 'boneDensity', 0.11 + progression * 0.035, 0.08, 0.96, 0.008);
         deformToothSurface(parts, records, sourceId, base || enamel, apicalFrame, {
           layers: ['teeth'], mode: 'raise', profile: 'lobulated',
@@ -1106,7 +1233,7 @@ export function createPathologyRenderer(scene) {
       case 'inflammatory-root-resorption':
       case 'vertical-root-fracture':
         {
-          const rootFrame = surfaceFrame(base || enamel, tooth,
+          const rootFrame = surfaceFrame(base || outerSurface, tooth,
             visual === 'external-cervical-resorption' || visual === 'cervical-resorption' ? 'cervical' : 'apical');
           if (visual === 'vertical-root-fracture') {
             addLongitudinalCrack(root, rootFrame, 'crack', 0.006 + severity * 0.001);
@@ -1136,7 +1263,7 @@ export function createPathologyRenderer(scene) {
         break;
       case 'replacement-resorption':
         {
-          const apical = surfaceFrame(base || enamel, tooth, 'apical');
+          const apical = surfaceFrame(base || outerSurface, tooth, 'apical');
           tintLayer(parts, records, sourceId, 'pdl', 'boneDensity', 0.75);
           spherePatch(root, apical, 'boneDensity', 0.16 + progression * 0.07, 0.2, 0.95, 0.006);
           clusteredDots(root, apical, 'boneDensity', 10 + severity * 3, 0.2);
@@ -1165,13 +1292,13 @@ export function createPathologyRenderer(scene) {
         if (pulp) setTint(pulp, 'dentin', 0.26);
         break;
       case 'plaque': {
-        const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+        const cervical = surfaceFrame(outerSurface, tooth, 'cervical');
         spherePatch(root, cervical, 'plaque', 0.2 + progression * 0.04, 0.012, 0.32, 0.006);
         clusteredDots(root, cervical, 'plaque', 12 + severity * 3, 0.24 + progression * 0.06);
         break;
       }
       case 'calculus': {
-        const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+        const cervical = surfaceFrame(outerSurface, tooth, 'cervical');
         clusteredDots(root, cervical, 'calculus', 8 + severity * 3, 0.22 + progression * 0.08);
         spherePatch(root, cervical, 'calculus', 0.12 + progression * 0.055, 0.075, 0.96, 0.009);
         // A hard mineralized ledge hugs the cervical/root surface instead of
@@ -1184,7 +1311,7 @@ export function createPathologyRenderer(scene) {
       }
       case 'pericoronitis':
         {
-          const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+          const cervical = surfaceFrame(outerSurface, tooth, 'cervical');
           modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
             mode: 'raise', profile: 'lobulated', factor: 0.22 + progression * 0.06,
             depthRatio: 0.13 + severity * 0.012, tint: 'gingiva', tintStrength: 0.62
@@ -1204,7 +1331,7 @@ export function createPathologyRenderer(scene) {
       case 'traumatic-occlusal-injury':
       case 'occlusal-trauma':
         {
-          const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+          const cervical = surfaceFrame(outerSurface, tooth, 'cervical');
           const rootAxis = new Vector3(0, tooth.arch === 'maxillary' ? 1 : -1, 0);
 
           if (visual === 'traumatic-occlusal-injury' || visual === 'occlusal-trauma') {
@@ -1281,7 +1408,7 @@ export function createPathologyRenderer(scene) {
         }
         break;
       case 'recession': {
-        const cervical = surfaceFrame(enamel || base, tooth, 'cervical');
+        const cervical = surfaceFrame(outerSurface, tooth, 'cervical');
         const rootAxis = new Vector3(0, tooth.arch === 'maxillary' ? 1 : -1, 0);
         modifyGingivaAtTooth(context, tooth, enamel || base, cervical, {
           mode: 'raise', profile: 'smooth', factor: 0.2,
@@ -1296,7 +1423,7 @@ export function createPathologyRenderer(scene) {
         break;
       }
       case 'furcation': {
-        const furcationFrame = surfaceFrame(base || enamel, tooth, 'lingual');
+        const furcationFrame = surfaceFrame(base || outerSurface, tooth, 'lingual');
         modifyAlveolarBoneAtTooth(context, tooth, base || enamel, furcationFrame, {
           mode: 'loss', profile: 'wedge', factor: 0.21 + progression * 0.08,
           depthRatio: 0.15 + progression * 0.12, irregularity: 0.1,
@@ -1312,7 +1439,7 @@ export function createPathologyRenderer(scene) {
       case 'hypersensitivity':
         {
           const targetSurface = visual === 'erosion' || visual === 'attrition' ? 'occlusal' : 'cervical';
-          const wearFrame = surfaceFrame(enamel || base, tooth, targetSurface);
+          const wearFrame = surfaceFrame(outerSurface, tooth, targetSurface);
           const key = visual === 'hypersensitivity' ? 'hypersensitivity' :
             visual === 'erosion' || visual === 'attrition' ? 'dentin' : 'wear';
           spherePatch(root, wearFrame, key,
@@ -1333,7 +1460,7 @@ export function createPathologyRenderer(scene) {
             addCrack(root, wearFrame, 'wear', 0.004);
           }
           if (visual === 'erosion') {
-            const lingual = surfaceFrame(enamel || base, tooth, 'lingual');
+            const lingual = surfaceFrame(outerSurface, tooth, 'lingual');
             deformToothSurface(parts, records, sourceId, enamel || base, lingual, {
               factor: 0.18, depthRatio: 0.045, profile: 'crater', irregularity: 0.035
             });
@@ -1341,7 +1468,7 @@ export function createPathologyRenderer(scene) {
         }
         break;
       case 'crack':
-        addCrack(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'crack', 0.009 + severity * 0.002);
+        addCrack(root, surfaceFrame(outerSurface, tooth, 'occlusal'), 'crack', 0.009 + severity * 0.002);
         if (progression > 0.75) spherePatch(root, frame, 'dentin', 0.055, 0.025);
         break;
       case 'crown-fracture':
@@ -1350,9 +1477,9 @@ export function createPathologyRenderer(scene) {
       case 'root-fracture':
         {
           const fractureSurface = visual === 'root-fracture' ? 'apical' : 'occlusal';
-          const fractureFrame = surfaceFrame(enamel || base, tooth, fractureSurface);
+          const fractureFrame = surfaceFrame(outerSurface, tooth, fractureSurface);
           addCrack(root, fractureFrame, 'fracture', 0.012 + severity * 0.002);
-          spherePatch(root, surfaceFrame(enamel || base, tooth, 'occlusal'), 'dentin', 0.09 + progression * 0.06, 0.025);
+          spherePatch(root, surfaceFrame(outerSurface, tooth, 'occlusal'), 'dentin', 0.09 + progression * 0.06, 0.025);
           deformToothSurface(parts, records, sourceId, enamel || base, fractureFrame, {
             factor: 0.08 + progression * 0.08,
             depthRatio: 0.06 + severity * 0.025,
@@ -1440,7 +1567,7 @@ export function createPathologyRenderer(scene) {
             clusteredDots(root, frame, key, count + severity * 2, 0.22 + progression * 0.07);
           }
           if (visual === 'dens-invaginatus') {
-            const invagination = surfaceFrame(enamel || base, tooth, 'incisal');
+            const invagination = surfaceFrame(outerSurface, tooth, 'incisal');
             deformToothSurface(parts, records, sourceId, enamel || base, invagination, {
               layers: ['enamel', 'teeth'], profile: 'crater', factor: 0.12,
               depthRatio: 0.18 + progression * 0.08, irregularity: 0.06
@@ -1448,7 +1575,7 @@ export function createPathologyRenderer(scene) {
             spherePatch(root, invagination, 'crack', 0.055, 0.026, 0.9, 0.004);
           }
           if (visual === 'dens-evaginatus') {
-            const cusp = surfaceFrame(enamel || base, tooth, 'occlusal');
+            const cusp = surfaceFrame(outerSurface, tooth, 'occlusal');
             spherePatch(root, cusp, 'enamelDefect', 0.075, 0.13, 0.96, 0.014);
             deformToothSurface(parts, records, sourceId, enamel || base, cusp, {
               layers: ['teeth', 'enamel'], mode: 'raise', profile: 'lobulated',
@@ -1466,11 +1593,11 @@ export function createPathologyRenderer(scene) {
           if (visual === 'macrodontia') changeToothScale(parts, 1.08 + progression * 0.1, base || enamel);
           if (visual === 'fusion') {
             changeToothScale(parts, 1.14 + progression * 0.05, base || enamel);
-            addCrack(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'dentin', 0.004);
+            addCrack(root, surfaceFrame(outerSurface, tooth, 'incisal'), 'dentin', 0.004);
           }
           if (visual === 'gemination') {
             changeToothScale(parts, 1.12 + progression * 0.06, base || enamel);
-            addCrack(root, surfaceFrame(enamel || base, tooth, 'incisal'), 'fracture', 0.006);
+            addCrack(root, surfaceFrame(outerSurface, tooth, 'incisal'), 'fracture', 0.006);
           }
           if (visual === 'dilaceration') bendToothRoot(parts, tooth, 0.02 + progression * 0.03);
           if (visual === 'hypodontia' || visual === 'missing-tooth') hideTooth(parts);

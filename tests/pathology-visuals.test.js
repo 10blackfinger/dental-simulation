@@ -4,11 +4,17 @@ import { NullEngine, Scene, MeshBuilder } from '@babylonjs/core';
 import { createPathologyRenderer } from '../src/pathology-visuals.js';
 import { DENTAL_PATHOLOGIES } from '../src/pathology-catalog.js';
 
-function createFixture() {
+function createFixture({ restored = false } = {}) {
   const engine = new NullEngine({ renderWidth: 320, renderHeight: 240 });
   const scene = new Scene(engine);
   const tooth = MeshBuilder.CreateSphere('FMA55681', { diameter: 1, segments: 32 }, scene);
   tooth.scaling.set(0.6, 1.9, 0.55);
+  const outerSurface = MeshBuilder.CreateSphere(
+    restored ? 'FMA55681-prosthetic' : 'FMA55681-enamel',
+    { diameter: 1, segments: 32 },
+    scene
+  );
+  outerSurface.scaling.copyFrom(tooth.scaling);
   const mandible = MeshBuilder.CreateSphere('FMA52748', {
     diameter: 2.1, segments: 32
   }, scene);
@@ -31,6 +37,13 @@ function createFixture() {
     FMA55681: {
       layer: 'teeth', arch: 'maxillary', side: 'right', position: 1, type: 'central incisor'
     },
+    [outerSurface.name]: {
+      layer: restored ? 'prosthetic' : 'enamel',
+      tooth: 'FMA55681',
+      arch: 'maxillary',
+      side: 'right',
+      position: 1
+    },
     FMA52748: { layer: 'mandible', side: 'midline' },
     FMA53649: { layer: 'maxilla', side: 'midline' },
     FMA59763: { layer: 'gingiva', side: 'midline' },
@@ -40,8 +53,8 @@ function createFixture() {
     { sourceId: 'FMA55681', arch: 'maxillary', side: 'right', position: 1, label: 'Upper right central incisor' }
   ];
   const renderer = createPathologyRenderer(scene);
-  const context = { meshes: [tooth, mandible, maxilla, upperGum, lowerGum], records, catalog };
-  return { engine, scene, renderer, context, tooth, mandible, maxilla, upperGum, lowerGum };
+  const context = { meshes: [tooth, outerSurface, mandible, maxilla, upperGum, lowerGum], records, catalog };
+  return { engine, scene, renderer, context, tooth, outerSurface, mandible, maxilla, upperGum, lowerGum };
 }
 
 const state = (caseId, id, visual, target, extra = {}) => ({
@@ -197,7 +210,59 @@ test('all 108 catalogue diagnoses execute a dedicated visual route without gener
     };
     const result = f.renderer.render([state], f.context);
     assert.deepEqual(result.unhandledVisuals, [], condition.id + ' should not use a generic fallback visual');
+    assert.ok(result.effects > 0, condition.id + ' should create a visible pathology effect');
+    if (condition.target === 'tooth') {
+      const root = f.scene.transformNodes.find(node =>
+        node.metadata?.pathologyId === condition.id
+      );
+      assert.ok(root, condition.id + ' should create a tooth pathology root');
+      assert.equal(root.parent, f.outerSurface,
+        condition.id + ' should be anchored to the selected tooth outer surface');
+    }
     f.renderer.clear();
   }
+  f.engine.dispose();
+});
+
+
+test('tooth lesions are anchored to the measured external crown surface', () => {
+  const f = createFixture();
+  const originalTooth = Float32Array.from(f.tooth.getVerticesData('position'));
+  const originalEnamel = Float32Array.from(f.outerSurface.getVerticesData('position'));
+  f.renderer.render([
+    state('9', 'deep-caries', 'deep-caries', 'tooth', { severity: 3 })
+  ], f.context);
+
+  const patch = f.scene.meshes.find(mesh => mesh.name === 'PathologyPatch');
+  assert.ok(patch, 'a caries surface marker should be generated');
+  assert.equal(patch.parent?.parent, f.outerSurface,
+    'the pathology root must be attached to the actual outer tooth surface');
+
+  patch.computeWorldMatrix(true);
+  f.outerSurface.computeWorldMatrix(true);
+  const patchCenter = patch.getAbsolutePosition();
+  const box = f.outerSurface.getBoundingInfo().boundingBox;
+  const maxSurfaceZ = box.maximumWorld.z;
+  assert.ok(
+    Math.abs(patchCenter.z - maxSurfaceZ) < 0.025,
+    'the marker must touch the true buccal contour, not float inside the bounding box'
+  );
+
+  f.renderer.clear();
+  assert.deepEqual(Array.from(f.tooth.getVerticesData('position')), Array.from(originalTooth));
+  assert.deepEqual(Array.from(f.outerSurface.getVerticesData('position')), Array.from(originalEnamel));
+  f.engine.dispose();
+});
+
+test('a restored tooth uses the prosthetic crown as its visible outer surface', () => {
+  const f = createFixture({ restored: true });
+  f.renderer.render([
+    state('10', 'deep-caries', 'deep-caries', 'tooth', { severity: 3 })
+  ], f.context);
+  const patch = f.scene.meshes.find(mesh => mesh.name === 'PathologyPatch');
+  assert.ok(patch);
+  assert.equal(patch.parent?.parent, f.outerSurface,
+    'a tooth with no native enamel layer should use its fitted crown as the outer visual anchor');
+  f.renderer.clear();
   f.engine.dispose();
 });
