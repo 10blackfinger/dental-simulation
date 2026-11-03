@@ -691,30 +691,39 @@ function getOcclusalPoint(mesh, arch) {
   if (!positions?.length) return null;
   mesh.computeWorldMatrix(true);
   const world = mesh.getWorldMatrix();
-  let extremeY = arch === 'maxillary' ? Infinity : -Infinity;
-  const worldPoints = [];
 
+  let extremeY = arch === 'maxillary' ? Infinity : -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
   for (let i = 0; i < positions.length; i += 3) {
     const point = Vector3.TransformCoordinates(
       new Vector3(positions[i], positions[i + 1], positions[i + 2]),
       world
     );
-    worldPoints.push(point);
-    if (arch === 'maxillary') extremeY = Math.min(extremeY, point.y);
-    else extremeY = Math.max(extremeY, point.y);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+    extremeY = arch === 'maxillary'
+      ? Math.min(extremeY, point.y)
+      : Math.max(extremeY, point.y);
   }
 
   if (!Number.isFinite(extremeY)) return null;
-  const yExtent = Math.max(...worldPoints.map(point => point.y)) -
-    Math.min(...worldPoints.map(point => point.y));
-  const tolerance = Math.max(yExtent * 0.025, 0.0015);
-  const samples = worldPoints.filter(point => arch === 'maxillary'
-    ? point.y <= extremeY + tolerance
-    : point.y >= extremeY - tolerance);
-  if (!samples.length) return null;
-
-  const average = samples.reduce((sum, point) => sum.addInPlace(point), Vector3.Zero());
-  return average.scaleInPlace(1 / samples.length);
+  const tolerance = Math.max((maxY - minY) * 0.025, 0.0015);
+  const sum = Vector3.Zero();
+  let count = 0;
+  for (let i = 0; i < positions.length; i += 3) {
+    const point = Vector3.TransformCoordinates(
+      new Vector3(positions[i], positions[i + 1], positions[i + 2]),
+      world
+    );
+    const nearOcclusal = arch === 'maxillary'
+      ? point.y <= extremeY + tolerance
+      : point.y >= extremeY - tolerance;
+    if (!nearOcclusal) continue;
+    sum.addInPlace(point);
+    count++;
+  }
+  return count ? sum.scaleInPlace(1 / count) : null;
 }
 
 function collectOpposingOcclusalPairs(meshes) {
